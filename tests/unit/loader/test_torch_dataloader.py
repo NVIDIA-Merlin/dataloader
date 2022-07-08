@@ -32,16 +32,17 @@ import pandas as pd
 import pytest
 
 import nvtabular as nvt
+from nvtabular import ops
 import nvtabular.tools.data_gen as datagen
 from merlin.core import dispatch
 from merlin.io import Dataset
-from nvtabular import ColumnSelector, ops
+from merlin.dag import ColumnSelector
 from tests.conftest import assert_eq, mycols_csv, mycols_pq
 
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
 torch = pytest.importorskip("torch")
-import nvtabular.loader.torch as torch_dataloader  # noqa isort:skip
+import merlin.loader.torch as torch_dataloader  # noqa isort:skip
 from nvtabular.framework_utils.torch.models import Model  # noqa isort:skip
 from nvtabular.framework_utils.torch.utils import process_epoch  # noqa isort:skip
 

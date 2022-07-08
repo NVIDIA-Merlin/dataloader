@@ -37,7 +37,7 @@ from nvtabular import ops
 tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
 # tf_dataloader import needs to happen after this line
-tf_dataloader = pytest.importorskip("nvtabular.loader.tensorflow")
+tf_dataloader = pytest.importorskip("merlin.loader.tensorflow")
 
 
 def test_nested_list():
