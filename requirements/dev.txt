@@ -36,3 +36,4 @@ s3fs>=2021.4
 aiobotocore>=1.3.3
 flask
 flask-cors
+recommonmark
