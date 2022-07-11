@@ -1,9 +1,9 @@
-# [Merlin Template](https://github.com/NVIDIA-Merlin/template)
+# [Merlin Dataloader](https://github.com/NVIDIA-Merlin/dataloader)
 
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/merlin-template)
-[![PyPI version shields.io](https://img.shields.io/pypi/v/merlin-systems.svg)](https://pypi.python.org/pypi/merlin-template/)
-![GitHub License](https://img.shields.io/github/license/NVIDIA-Merlin/template)
-[![Documentation](https://img.shields.io/badge/documentation-blue.svg)](https://nvidia-merlin.github.io/template/main/README.html)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/merlin-dataloader)
+[![PyPI version shields.io](https://img.shields.io/pypi/v/merlin-systems.svg)](https://pypi.python.org/pypi/merlin-dataloader/)
+![GitHub License](https://img.shields.io/github/license/NVIDIA-Merlin/dataloader)
+[![Documentation](https://img.shields.io/badge/documentation-blue.svg)](https://nvidia-merlin.github.io/dataloader/main/README.html)
 
 Required: Write a one to three sentence paragraph that identifies what the project does and how the project solves an academic or business problem.
 
