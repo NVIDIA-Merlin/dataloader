@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-import importlib
+import importlib.util
 import os
 import subprocess
 
@@ -26,13 +26,12 @@ try:
 except ImportError:
     cupy = None
 import numpy as np
-import pandas as pd
-import pytest
-from sklearn.metrics import roc_auc_score
-
 import nvtabular as nvt
 import nvtabular.tools.data_gen as datagen
+import pandas as pd
+import pytest
 from nvtabular import ops
+from sklearn.metrics import roc_auc_score
 
 tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
@@ -68,14 +67,16 @@ def test_nested_list():
         batch[0]["data"][0][:, 0], tf.cast(batch[0]["data"][1][:, 0], tf.int32)
     ).to_tensor()
     true_data_col = tf.reshape(
-        tf.ragged.constant(df.iloc[:batch_size, 0].tolist()).to_tensor(), [batch_size, -1]
+        tf.ragged.constant(df.iloc[:batch_size, 0].tolist()).to_tensor(),
+        [batch_size, -1],
     )
     # [1,2,3]
     multihot_data2_col = tf.RaggedTensor.from_row_lengths(
         batch[0]["data2"][0][:, 0], tf.cast(batch[0]["data2"][1][:, 0], tf.int32)
     ).to_tensor()
     true_data2_col = tf.reshape(
-        tf.ragged.constant(df.iloc[:batch_size, 1].tolist()).to_tensor(), [batch_size, -1]
+        tf.ragged.constant(df.iloc[:batch_size, 1].tolist()).to_tensor(),
+        [batch_size, -1],
     )
     assert nested_data_col.shape == true_data_col.shape
     assert np.allclose(nested_data_col.numpy(), true_data_col.numpy())
@@ -90,7 +91,11 @@ def test_shuffling():
     df = pd.DataFrame({"a": np.asarray(range(num_rows)), "b": np.asarray([0] * num_rows)})
 
     train_dataset = tf_dataloader.KerasSequenceLoader(
-        Dataset(df), cont_names=["a"], label_names=["b"], batch_size=batch_size, shuffle=True
+        Dataset(df),
+        cont_names=["a"],
+        label_names=["b"],
+        batch_size=batch_size,
+        shuffle=True,
     )
 
     batch = next(iter(train_dataset))
@@ -238,7 +243,15 @@ def test_tf_map(tmpdir):
 @pytest.mark.parametrize("cpu_true", [False, True])
 @pytest.mark.parametrize("device", ["cpu", 0])
 def test_tf_gpu_dl(
-    tmpdir, paths, use_paths, device, cpu_true, dataset, batch_size, gpu_memory_frac, engine
+    tmpdir,
+    paths,
+    use_paths,
+    device,
+    cpu_true,
+    dataset,
+    batch_size,
+    gpu_memory_frac,
+    engine,
 ):
     cont_names = ["x", "y", "id"]
     cat_names = ["name-string"]
@@ -527,7 +540,8 @@ def test_sparse_tensors(tmpdir, sparse_dense):
 
 
 @pytest.mark.skipif(
-    os.environ.get("NR_USER") is not None, reason="not working correctly in ci environment"
+    os.environ.get("NR_USER") is not None,
+    reason="not working correctly in ci environment",
 )
 @pytest.mark.skipif(importlib.util.find_spec("horovod") is None, reason="needs horovod")
 @pytest.mark.skipif(
@@ -553,7 +567,12 @@ def test_horovod_multigpu(tmpdir):
                 "min_entry_size": 1,
                 "max_entry_size": 5,
             },
-            "userId": {"dtype": None, "cardinality": 500, "min_entry_size": 1, "max_entry_size": 5},
+            "userId": {
+                "dtype": None,
+                "cardinality": 500,
+                "min_entry_size": 1,
+                "max_entry_size": 5,
+            },
         },
         "labels": {"rating": {"dtype": None, "cardinality": 2}},
     }

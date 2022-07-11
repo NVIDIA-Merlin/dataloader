@@ -38,7 +38,6 @@ def read_requirements(filename):
         return [line for line in lineiter if line and not line.startswith("#")]
 
 
-
 requirements = {
     "base": read_requirements("requirements/base.txt"),
     "tensorflow": read_requirements("requirements/tensorflow.txt"),
