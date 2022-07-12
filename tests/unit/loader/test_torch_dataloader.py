@@ -32,12 +32,12 @@ import nvtabular as nvt
 import nvtabular.tools.data_gen as datagen
 import pandas as pd
 import pytest
+from conftest import assert_eq, mycols_csv, mycols_pq
 from nvtabular import ops
 
 from merlin.core import dispatch
 from merlin.dag import ColumnSelector
 from merlin.io import Dataset
-from tests.conftest import assert_eq, mycols_csv, mycols_pq
 
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
