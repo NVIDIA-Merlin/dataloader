@@ -163,8 +163,9 @@ class TorchAsyncItr(torch.utils.data.IterableDataset, DataLoader):
         indices = torch.cat([row_ids_repeated.unsqueeze(-1), col_ids.unsqueeze(-1)], axis=1)
         return indices
 
-
-    def _build_sparse_tensor(self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense):
+    def _build_sparse_tensor(
+        self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
+    ):
         indices = self._get_indices(offsets, diff_offsets)
         sparse_tensor = torch.sparse_coo_tensor(
             indices.T, values, torch.Size([num_rows, seq_limit]), device=self.device

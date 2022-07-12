@@ -4,11 +4,10 @@ import os
 from time import time
 
 import cupy
+import nvtabular as nvt
 import torch
 import torch.distributed as dist
 import torch.nn as nn
-
-import nvtabular as nvt
 from nvtabular.framework_utils.torch.models import Model
 from nvtabular.framework_utils.torch.utils import process_epoch
 from nvtabular.loader.torch import DLDataLoader, TorchAsyncItr

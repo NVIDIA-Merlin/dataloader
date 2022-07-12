@@ -1,16 +1,19 @@
 # External dependencies
 import argparse
 import glob
+import logging
 import os
 
 import cupy
+
+from merlin.io import Dataset
 
 # we can control how much memory to give tensorflow with this environment variable
 # IMPORTANT: make sure you do this before you initialize TF's runtime, otherwise
 # TF will have claimed all free GPU memory
 os.environ["TF_MEMORY_ALLOCATION"] = "0.3"  # fraction of free memory
 
-from merlin.io import Dataset 
+
 import nvtabular as nvt  # noqa: E402 isort:skip
 from nvtabular.framework_utils.tensorflow import layers  # noqa: E402 isort:skip
 from merlin.loader.tensorflow import KerasSequenceLoader  # noqa: E402 isort:skip
@@ -18,7 +21,6 @@ from merlin.loader.tensorflow import KerasSequenceLoader  # noqa: E402 isort:ski
 import tensorflow as tf  # noqa: E402 isort:skip
 import horovod.tensorflow as hvd  # noqa: E402 isort:skip
 
-import logging 
 
 LOG = logging.getLogger("multi")
 
@@ -71,7 +73,7 @@ proc = nvt.Workflow.load(os.path.join(BASE_DIR, "workflow/"))
 EMBEDDING_TABLE_SHAPES, MH_EMBEDDING_TABLE_SHAPES = nvt.ops.get_embedding_sizes(proc)
 EMBEDDING_TABLE_SHAPES.update(MH_EMBEDDING_TABLE_SHAPES)
 
-ds = Dataset(TRAIN_PATHS, engine='parquet', part_mem_frac=0.06)
+ds = Dataset(TRAIN_PATHS, engine="parquet", part_mem_frac=0.06)
 train_dataset_tf = KerasSequenceLoader(
     ds,  # you could also use a glob pattern
     batch_size=BATCH_SIZE,

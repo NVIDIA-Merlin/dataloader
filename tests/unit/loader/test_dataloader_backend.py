@@ -19,8 +19,8 @@ from conftest import assert_eq
 
 from merlin.core.dispatch import concat, generate_local_seed, get_random_state
 from merlin.io import Dataset
-from merlin.schema import Tags
 from merlin.loader.backend import DataLoader
+from merlin.schema import Tags
 
 
 @pytest.mark.parametrize("engine", ["parquet"])
@@ -39,7 +39,7 @@ def test_dataloader_seeding(datasets, engine, batch_size):
     for col_name in label_name:
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     dataset.schema = schema
-    
+
     # Define a seed function that returns the same seed on all workers
     seed_fragments = []
 

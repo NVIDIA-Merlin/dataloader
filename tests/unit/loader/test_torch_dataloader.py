@@ -40,7 +40,6 @@ from merlin.core import dispatch
 from merlin.dag import ColumnSelector
 from merlin.io import Dataset
 
-
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
 torch = pytest.importorskip("torch")
@@ -57,15 +56,11 @@ def test_shuffling():
 
     ds = Dataset(df)
     schema = ds.schema
-    schema['a'] = schema["a"].with_tags([Tags.CONTINUOUS])
-    schema["b"] = schema["b"].with_tags([Tags.TARGET]) 
+    schema["a"] = schema["a"].with_tags([Tags.CONTINUOUS])
+    schema["b"] = schema["b"].with_tags([Tags.TARGET])
     ds.schema = schema
 
-
-
-    train_dataset = torch_dataloader.TorchAsyncItr(
-        ds, batch_size=batch_size, shuffle=True
-    )
+    train_dataset = torch_dataloader.TorchAsyncItr(ds, batch_size=batch_size, shuffle=True)
 
     batch = next(iter(train_dataset))
 
@@ -106,7 +101,6 @@ def test_torch_drp_reset(tmpdir, batch_size, drop_last, num_rows):
     for col_name in label_name:
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
-
 
     data_itr = torch_dataloader.TorchAsyncItr(
         ds,
@@ -314,8 +308,10 @@ def test_gpu_dl_break(tmpdir, df, dataset, batch_size, part_mem_fraction, engine
         os.path.join(output_train, x) for x in os.listdir(output_train) if x.endswith("parquet")
     ]
 
-    ds = nvt.Dataset(tar_paths[0], engine="parquet", part_mem_fraction=part_mem_fraction, cpu=device != 0)
-    
+    ds = nvt.Dataset(
+        tar_paths[0], engine="parquet", part_mem_fraction=part_mem_fraction, cpu=device != 0
+    )
+
     schema = ds.schema
     for col_name in cat_names:
         schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
@@ -324,8 +320,7 @@ def test_gpu_dl_break(tmpdir, df, dataset, batch_size, part_mem_fraction, engine
     for col_name in label_name:
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
-    
-    
+
     data_itr = torch_dataloader.TorchAsyncItr(
         ds,
         batch_size=batch_size,
@@ -475,10 +470,7 @@ def test_kill_dl(tmpdir, df, dataset, part_mem_fraction, engine):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-
-    data_itr = torch_dataloader.TorchAsyncItr(
-        ds
-    )
+    data_itr = torch_dataloader.TorchAsyncItr(ds)
 
     results = {}
 
@@ -558,11 +550,7 @@ def test_mh_support(tmpdir):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-
-
-    data_itr = torch_dataloader.TorchAsyncItr(
-        ds
-    )
+    data_itr = torch_dataloader.TorchAsyncItr(ds)
     idx = 0
     for batch in data_itr:
         idx = idx + 1
@@ -594,14 +582,14 @@ def test_sparse_tensors(sparse_dense):
     for col_name in spa_lst:
         schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
         if not sparse_dense:
-            schema[col_name] = schema[col_name].with_properties({"value_count": {"min": 0, "max":spa_mx[col_name]}})
+            schema[col_name] = schema[col_name].with_properties(
+                {"value_count": {"min": 0, "max": spa_mx[col_name]}}
+            )
     for col_name in []:
         schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
     for col_name in []:
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
-
-
 
     data_itr = torch_dataloader.TorchAsyncItr(
         ds,
@@ -656,7 +644,7 @@ def test_mh_model_support(tmpdir):
 
     processor = nvt.Workflow(cats + conts + label_name)
     ds = processor.fit_transform(nvt.Dataset(df))
-    
+
     schema = ds.schema
     for col_name in cat_names:
         schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
@@ -665,7 +653,7 @@ def test_mh_model_support(tmpdir):
     for col_name in label_name:
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
-    
+
     data_itr = torch_dataloader.TorchAsyncItr(
         ds,
         batch_size=2,
@@ -747,8 +735,6 @@ def test_dataloader_schema(tmpdir, df, dataset, batch_size, engine, device):
     for col_name in label_name:
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
-
-
 
     data_loader = torch_dataloader.TorchAsyncItr(
         ds,

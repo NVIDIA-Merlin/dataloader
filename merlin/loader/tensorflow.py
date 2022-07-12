@@ -21,9 +21,9 @@ import dask.dataframe as dd
 import numpy as np
 
 from merlin.core.dispatch import HAS_GPU
-from merlin.schema import Tags
 from merlin.loader.backend import DataLoader
 from merlin.loader.tf_utils import configure_tensorflow, get_dataset_schema_from_feature_columns
+from merlin.schema import Tags
 
 from_dlpack = configure_tensorflow()
 LOG = logging.getLogger("dataloader")
@@ -414,7 +414,9 @@ class KerasSequenceLoader(tf.keras.utils.Sequence, DataLoader):
         )
         return sparse_tensor
 
-    def _build_sparse_tensor(self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense):
+    def _build_sparse_tensor(
+        self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
+    ):
         ragged = tf.RaggedTensor.from_row_lengths(values=values, row_lengths=diff_offsets)
         tensor = tf.RaggedTensor.from_tensor(ragged.to_tensor(shape=[None, seq_limit])).to_sparse()
         if sparse_as_dense:
@@ -423,7 +425,7 @@ class KerasSequenceLoader(tf.keras.utils.Sequence, DataLoader):
 
     def _handle_tensors(self, cats, conts, labels):
         to_return = super()._handle_tensors(cats, conts, labels)
-        
+
         for map_fn in self._map_fns:
             to_return = map_fn(*to_return)
 

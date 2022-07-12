@@ -218,12 +218,15 @@ class DataLoader:
                     sparse_max[col_name] = value_count.max
 
                 if not col_spec.is_ragged:
-                    # TODO: set this per column, 
+                    # TODO: set this per column,
                     sparse_as_dense.add(col_name)
 
                     if not value_count:
                         # TODO: error message linking to docs
-                        raise ValueError(f"Dense column {col_name} doesn't have the max value_count defined in the schema")
+                        raise ValueError(
+                            f"Dense column {col_name} doesn't have the max value_count defined"
+                            " in the schema"
+                        )
 
         self.sparse_names = sparse_names
 
@@ -233,10 +236,16 @@ class DataLoader:
         self.global_rank = global_rank or 0
         self._epochs = 1
 
-        self.cat_names = self.schema.select_by_tag(Tags.CATEGORICAL).column_names if self.schema else []
+        self.cat_names = (
+            self.schema.select_by_tag(Tags.CATEGORICAL).column_names if self.schema else []
+        )
 
-        self.cont_names = self.schema.select_by_tag(Tags.CONTINUOUS).column_names if self.schema else []
-        self.label_names = self.schema.select_by_tag(Tags.TARGET).column_names if self.schema else []
+        self.cont_names = (
+            self.schema.select_by_tag(Tags.CONTINUOUS).column_names if self.schema else []
+        )
+        self.label_names = (
+            self.schema.select_by_tag(Tags.TARGET).column_names if self.schema else []
+        )
 
         if not self.cat_names and not self.cont_names:
             raise ValueError(
@@ -526,7 +535,9 @@ class DataLoader:
                 + f"largest sequence in this batch have {max_seq_len} length"
             )
         sparse_as_dense = column_name in self.sparse_as_dense
-        return self._build_sparse_tensor(values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense)
+        return self._build_sparse_tensor(
+            values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
+        )
 
     def _to_tensor(self, gdf, dtype=None):
         """
@@ -631,7 +642,7 @@ class DataLoader:
             X.update(lists)
 
         for column_name in X:
-            
+
             if column_name in self.sparse_names:
                 if column_name in self.sparse_max:
                     # raise ValueError(
