@@ -48,11 +48,10 @@ except ImportError:
             return np.testing.assert_allclose(a, b)
 
 
+import nvtabular
 import pytest
 from dask.distributed import Client, LocalCluster
-from numba import cuda
 
-import nvtabular
 from merlin.dag.node import iter_nodes
 
 allcols_csv = ["timestamp", "id", "label", "name-string", "x", "y", "z"]
@@ -221,9 +220,6 @@ def dataset(request, paths, engine):
     return nvtabular.Dataset(paths, part_mem_fraction=gpu_memory_frac, cpu=cpu, **kwargs)
 
 
-
-
-
 def get_cats(workflow, col, stat_name="categories", cpu=False):
     _lib = cudf if cudf and not cpu else pd
     # figure out the categorify node from the workflow graph
@@ -245,7 +241,12 @@ def get_cats(workflow, col, stat_name="categories", cpu=False):
 
 @contextlib.contextmanager
 def run_triton_server(
-    modelpath, model_name, triton_server_path, device_id="0", backend="tensorflow", ps_path=None
+    modelpath,
+    model_name,
+    triton_server_path,
+    device_id="0",
+    backend="tensorflow",
+    ps_path=None,
 ):
     import tritonclient
     import tritonclient.grpc as grpcclient
@@ -262,7 +263,7 @@ def run_triton_server(
         "--model-repository",
         modelpath,
         "--backend-config",
-        backend_config
+        backend_config,
     ]
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = device_id

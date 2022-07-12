@@ -2,7 +2,7 @@ name: docs-preview-pr
 
 on:
   workflow_run:
-    workflows: [FIXME-CPU-CI-JOB]
+    workflows: [CPU CI]
     types: [completed]
 
 env:
@@ -11,7 +11,8 @@ env:
 jobs:
   # Always determine if GitHub Pages are configured for this repo.
   get-gh-pages-url:
-    if: github.event.workflow_run.event == 'pull_request' &&
+    if:
+      github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:

@@ -19,11 +19,11 @@ import os
 
 import dask.dataframe as dd
 import numpy as np
+from nvtabular.loader.backend import DataLoader
+from nvtabular.loader.tf_utils import configure_tensorflow, get_dataset_schema_from_feature_columns
 
 from merlin.core.dispatch import HAS_GPU
 from merlin.schema import Tags
-from nvtabular.loader.backend import DataLoader
-from nvtabular.loader.tf_utils import configure_tensorflow, get_dataset_schema_from_feature_columns
 
 from_dlpack = configure_tensorflow()
 LOG = logging.getLogger("nvtabular")
@@ -429,7 +429,8 @@ class KerasSequenceLoader(tf.keras.utils.Sequence, DataLoader):
         row_offset_repeated = tf.repeat(offsets, diff_offsets)
         col_ids = tf.range(len(row_offset_repeated), dtype=tf.int64) - row_offset_repeated
         indices = tf.concat(
-            values=[tf.expand_dims(row_ids_repeated, -1), tf.expand_dims(col_ids, -1)], axis=1
+            values=[tf.expand_dims(row_ids_repeated, -1), tf.expand_dims(col_ids, -1)],
+            axis=1,
         )
         return indices
 

@@ -27,7 +27,7 @@ gitdir = os.path.join(repodir, r".git")
 # -- Project information -----------------------------------------------------
 
 project = "Merlin Template"
-copyright = "2022, NVIDIA"
+copyright = "2022, NVIDIA"  # pylint: disable=W0622
 author = "NVIDIA"
 
 
@@ -79,9 +79,7 @@ html_static_path = ["_static"]
 # repo (a Git repo) vs SMV reading conf.py from an archive of the repo
 # at a commit (not a Git repo).
 if os.path.exists(gitdir):
-    tag_refs = (
-        subprocess.check_output(["git", "tag", "-l", "v*"]).decode("utf-8").split()
-    )
+    tag_refs = subprocess.check_output(["git", "tag", "-l", "v*"]).decode("utf-8").split()
     tag_refs = natsorted(tag_refs)[-6:]
     smv_tag_whitelist = r"^(" + r"|".join(tag_refs) + r")$"
 else:
@@ -148,4 +146,3 @@ def copy_files(src: str):
 
 copy_files(r"../../README.md")
 copy_files(r"../../release_notes.md")
-copy_files(r"../../examples/")
