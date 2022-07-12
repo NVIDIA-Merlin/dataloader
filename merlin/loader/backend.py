@@ -185,8 +185,6 @@ def _get_dataset_schema(dataset):
     return dataset.schema if hasattr(dataset, "schema") else None
 
 
-# TODO: implement as metaclass and assign methods to children
-# to avoid having to do Dataset.<method> calls?
 class DataLoader:
     _use_nnz = False
 
@@ -195,41 +193,50 @@ class DataLoader:
         dataset,
         batch_size,
         shuffle,
-        cat_names=None,
-        cont_names=None,
-        label_names=None,
         seed_fn=None,
         parts_per_chunk=1,
-        device=None,
         global_size=None,
         global_rank=None,
         drop_last=False,
-        sparse_names=None,
-        sparse_max=None,
-        sparse_as_dense=False,
     ):
         self.data = dataset
         self.schema = _get_dataset_schema(dataset)
         # self.data is ddf format
         self.indices = cp.arange(self.data.npartitions)
         self.drop_last = drop_last
-        self.device = (device or 0) if HAS_GPU else "cpu"
-        self.sparse_names = sparse_names or []
+        self.device = "cpu" if not HAS_GPU or dataset.cpu else 0
+        sparse_names = []
+        sparse_max = {}
+        sparse_as_dense = set()
+
+        for col_name, col_spec in dataset.schema.column_schemas.items():
+            if col_spec.is_list:
+                sparse_names.append(col_name)
+
+                value_count = col_spec.value_count
+                if value_count:
+                    sparse_max[col_name] = value_count.max
+
+                if not col_spec.is_ragged:
+                    # TODO: set this per column, 
+                    sparse_as_dense.add(col_name)
+
+                    if not value_count:
+                        # TODO: error message linking to docs
+                        raise ValueError(f"Dense column {col_name} doesn't have the max value_count defined in the schema")
+
+        self.sparse_names = sparse_names
+
         self.sparse_max = sparse_max or {}
         self.sparse_as_dense = sparse_as_dense
         self.global_size = global_size or 1
         self.global_rank = global_rank or 0
         self._epochs = 1
 
-        self.cat_names = cat_names or (
-            self.schema.select_by_tag(Tags.CATEGORICAL).column_names if self.schema else []
-        )
-        self.cont_names = cont_names or (
-            self.schema.select_by_tag(Tags.CONTINUOUS).column_names if self.schema else []
-        )
-        self.label_names = label_names or (
-            self.schema.select_by_tag(Tags.TARGET).column_names if self.schema else []
-        )
+        self.cat_names = self.schema.select_by_tag(Tags.CATEGORICAL).column_names if self.schema else []
+
+        self.cont_names = self.schema.select_by_tag(Tags.CONTINUOUS).column_names if self.schema else []
+        self.label_names = self.schema.select_by_tag(Tags.TARGET).column_names if self.schema else []
 
         if not self.cat_names and not self.cont_names:
             raise ValueError(
@@ -514,7 +521,8 @@ class DataLoader:
                 + f"to {seq_limit} but the "
                 + f"largest sequence in this batch have {max_seq_len} length"
             )
-        return self._build_sparse_tensor(values, offsets, diff_offsets, num_rows, seq_limit)
+        sparse_as_dense = column_name in self.sparse_as_dense
+        return self._build_sparse_tensor(values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense)
 
     def _to_tensor(self, gdf, dtype=None):
         """
@@ -619,12 +627,13 @@ class DataLoader:
             X.update(lists)
 
         for column_name in X:
+            
             if column_name in self.sparse_names:
-                if column_name not in self.sparse_max:
-                    raise ValueError(
-                        f"Did not convert {column_name} to sparse due to missing sparse_max entry"
-                    )
-                X[column_name] = self._to_sparse_tensor(X[column_name], column_name)
+                if column_name in self.sparse_max:
+                    # raise ValueError(
+                    #     f"Did not convert {column_name} to sparse due to missing sparse_max entry"
+                    # )
+                    X[column_name] = self._to_sparse_tensor(X[column_name], column_name)
 
         # TODO: use dict for labels as well?
         # would require output layers to match naming

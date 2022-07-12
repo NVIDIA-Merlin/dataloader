@@ -21,6 +21,7 @@ import time
 import pyarrow as pa
 
 from merlin.core.dispatch import HAS_GPU, make_df
+from merlin.schema import Tags
 
 try:
     import cudf
@@ -37,7 +38,7 @@ import nvtabular.tools.data_gen as datagen
 from merlin.core import dispatch
 from merlin.io import Dataset
 from merlin.dag import ColumnSelector
-from tests.conftest import assert_eq, mycols_csv, mycols_pq
+from conftest import assert_eq, mycols_csv, mycols_pq
 
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
@@ -53,8 +54,16 @@ def test_shuffling():
 
     df = pd.DataFrame({"a": np.asarray(range(num_rows)), "b": np.asarray([0] * num_rows)})
 
+    ds = Dataset(df)
+    schema = ds.schema
+    schema['a'] = schema["a"].with_tags([Tags.CONTINUOUS])
+    schema["b"] = schema["b"].with_tags([Tags.TARGET]) 
+    ds.schema = schema
+
+
+
     train_dataset = torch_dataloader.TorchAsyncItr(
-        Dataset(df), conts=["a"], labels=["b"], batch_size=batch_size, shuffle=True
+        ds, batch_size=batch_size, shuffle=True
     )
 
     batch = next(iter(train_dataset))
@@ -87,14 +96,21 @@ def test_torch_drp_reset(tmpdir, batch_size, drop_last, num_rows):
     cont_names = ["cont3", "cont2", "cont1"]
     label_name = ["label"]
 
+    ds = Dataset([path], cpu=True)
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
+
     data_itr = torch_dataloader.TorchAsyncItr(
-        nvt.Dataset([path]),
-        cats=cat_names,
-        conts=cont_names,
-        labels=label_name,
+        ds,
         batch_size=batch_size,
         drop_last=drop_last,
-        device="cpu",
     )
 
     all_len = len(data_itr) if drop_last else len(data_itr) - 1
@@ -186,7 +202,15 @@ def test_empty_cols(tmpdir, engine, cat_names, mh_names, cont_names, label_name,
     output_train = os.path.join(tmpdir, "train/")
     os.mkdir(output_train)
 
-    df_out = processor.fit_transform(dataset).to_ddf().compute(scheduler="synchronous")
+    ds = processor.fit_transform(dataset)
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
 
     if processor.output_node.output_schema.apply_inverse(ColumnSelector("lab_1")):
         # if we don't have conts/cats/labels we're done
@@ -196,10 +220,7 @@ def test_empty_cols(tmpdir, engine, cat_names, mh_names, cont_names, label_name,
 
     with pytest.raises(ValueError) as exc_info:
         data_itr = torch_dataloader.TorchAsyncItr(
-            nvt.Dataset(df_out),
-            cats=cat_names + mh_names,
-            conts=cont_names,
-            labels=label_name,
+            ds,
             batch_size=2,
         )
     assert "Neither Categorical or Continuous columns were found by the dataloader. " in str(
@@ -277,14 +298,21 @@ def test_gpu_dl_break(tmpdir, df, dataset, batch_size, part_mem_fraction, engine
         os.path.join(output_train, x) for x in os.listdir(output_train) if x.endswith("parquet")
     ]
 
-    nvt_data = nvt.Dataset(tar_paths[0], engine="parquet", part_mem_fraction=part_mem_fraction)
+    ds = nvt.Dataset(tar_paths[0], engine="parquet", part_mem_fraction=part_mem_fraction, cpu=device != 0)
+    
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+    
+    
     data_itr = torch_dataloader.TorchAsyncItr(
-        nvt_data,
+        ds,
         batch_size=batch_size,
-        cats=cat_names,
-        conts=cont_names,
-        labels=["label"],
-        device=device,
     )
     len_dl = len(data_itr) - 1
 
@@ -339,16 +367,22 @@ def test_gpu_dl(tmpdir, df, dataset, batch_size, part_mem_fraction, engine, devi
     ]
 
     cpu_true = device == "cpu"
-    nvt_data = nvt.Dataset(
+    ds = nvt.Dataset(
         tar_paths[0], cpu=cpu_true, engine="parquet", part_mem_fraction=part_mem_fraction
     )
+
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
     data_itr = torch_dataloader.TorchAsyncItr(
-        nvt_data,
+        ds,
         batch_size=batch_size,
-        cats=cat_names,
-        conts=cont_names,
-        labels=["label"],
-        device=device,
     )
 
     columns = mycols_pq
@@ -414,10 +448,20 @@ def test_kill_dl(tmpdir, df, dataset, part_mem_fraction, engine):
         os.path.join(output_train, x) for x in os.listdir(output_train) if x.endswith("parquet")
     ]
 
-    nvt_data = nvt.Dataset(tar_paths[0], engine="parquet", part_mem_fraction=part_mem_fraction)
+    ds = nvt.Dataset(tar_paths[0], engine="parquet", part_mem_fraction=part_mem_fraction)
+
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
 
     data_itr = torch_dataloader.TorchAsyncItr(
-        nvt_data, cats=cat_names, conts=cont_names, labels=["label"]
+        ds
     )
 
     results = {}
@@ -468,7 +512,8 @@ def test_mh_support(tmpdir):
         cats = cat_names >> ops.Categorify()
 
     processor = nvt.Workflow(cats + label_name)
-    df_out = processor.fit_transform(nvt.Dataset(df)).to_ddf().compute(scheduler="synchronous")
+    ds = processor.fit_transform(nvt.Dataset(df))
+    df_out = ds.to_ddf().compute(scheduler="synchronous")
 
     # check to make sure that the same strings are hashed the same
     if HAS_GPU:
@@ -478,8 +523,19 @@ def test_mh_support(tmpdir):
     assert authors[0][0] == authors[1][0]  # 'User_A'
     assert authors[2][1] == authors[3][0]  # 'User_C'
 
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
+
+
     data_itr = torch_dataloader.TorchAsyncItr(
-        nvt.Dataset(df_out), cats=cat_names, conts=cont_names, labels=label_name
+        ds
     )
     idx = 0
     for batch in data_itr:
@@ -506,15 +562,24 @@ def test_sparse_tensors(sparse_dense):
     spa_lst = ["spar1", "spar2"]
     spa_mx = {"spar1": 5, "spar2": 6}
     batch_size = 2
+
+    ds = nvt.Dataset(df)
+    schema = ds.schema
+    for col_name in spa_lst:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+        if not sparse_dense:
+            schema[col_name] = schema[col_name].with_properties({"value_count": {"min": 0, "max":spa_mx[col_name]}})
+    for col_name in []:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in []:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
+
+
     data_itr = torch_dataloader.TorchAsyncItr(
-        nvt.Dataset(df),
-        cats=spa_lst,
-        conts=[],
-        labels=[],
+        ds,
         batch_size=batch_size,
-        sparse_names=spa_lst,
-        sparse_max=spa_mx,
-        sparse_as_dense=sparse_dense,
     )
     for batch in data_itr:
         feats, labs = batch
@@ -524,8 +589,7 @@ def test_sparse_tensors(sparse_dense):
                 assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
                 assert feature_tensor.is_sparse
             else:
-                assert feature_tensor.shape[1] == spa_mx[col]
-                assert not feature_tensor.is_sparse
+                assert not feature_tensor[0].is_sparse
 
     # add dict sparse_max entry for each target
     # iterate dataloader grab sparse columns
@@ -555,12 +619,19 @@ def test_mh_model_support(tmpdir):
     conts = cont_names >> ops.Normalize()
 
     processor = nvt.Workflow(cats + conts + label_name)
-    df_out = processor.fit_transform(nvt.Dataset(df)).to_ddf().compute()
+    ds = processor.fit_transform(nvt.Dataset(df))
+    
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+    
     data_itr = torch_dataloader.TorchAsyncItr(
-        nvt.Dataset(df_out),
-        cats=cat_names,
-        conts=cont_names,
-        labels=label_name,
+        ds,
         batch_size=2,
     )
     emb_sizes = nvt.ops.get_embedding_sizes(processor)
@@ -630,13 +701,23 @@ def test_dataloader_schema(tmpdir, df, dataset, batch_size, engine, device):
         os.path.join(output_train, x) for x in os.listdir(output_train) if x.endswith("parquet")
     ]
 
-    nvt_data = nvt.Dataset(tar_paths, engine="parquet")
+    ds = nvt.Dataset(tar_paths, engine="parquet")
+
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
+
 
     data_loader = torch_dataloader.TorchAsyncItr(
-        nvt_data,
+        ds,
         batch_size=batch_size,
         shuffle=False,
-        labels=label_name,
     )
 
     batch = next(iter(data_loader))

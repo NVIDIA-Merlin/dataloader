@@ -72,38 +72,24 @@ class TorchAsyncItr(torch.utils.data.IterableDataset, DataLoader):
     def __init__(
         self,
         dataset,
-        cats=None,
-        conts=None,
-        labels=None,
         batch_size=1,
         shuffle=False,
         seed_fn=None,
         parts_per_chunk=1,
-        device=None,
         global_size=None,
         global_rank=None,
         drop_last=False,
-        sparse_names=None,
-        sparse_max=None,
-        sparse_as_dense=False,
     ):
         DataLoader.__init__(
             self,
             dataset,
             batch_size,
             shuffle,
-            cat_names=cats,
-            cont_names=conts,
-            label_names=labels,
             seed_fn=seed_fn,
             parts_per_chunk=parts_per_chunk,
-            device=device,
             global_size=global_size,
             global_rank=global_rank,
             drop_last=drop_last,
-            sparse_names=sparse_names,
-            sparse_max=sparse_max,
-            sparse_as_dense=sparse_as_dense,
         )
 
     def __iter__(self):
@@ -178,17 +164,15 @@ class TorchAsyncItr(torch.utils.data.IterableDataset, DataLoader):
         indices = torch.cat([row_ids_repeated.unsqueeze(-1), col_ids.unsqueeze(-1)], axis=1)
         return indices
 
-    def _get_sparse_tensor(self, values, indices, num_rows, seq_limit):
+
+    def _build_sparse_tensor(self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense):
+        indices = self._get_indices(offsets, diff_offsets)
         sparse_tensor = torch.sparse_coo_tensor(
             indices.T, values, torch.Size([num_rows, seq_limit]), device=self.device
         )
-        if self.sparse_as_dense:
+        if sparse_as_dense:
             sparse_tensor = sparse_tensor.to_dense()
         return sparse_tensor
-
-    def _build_sparse_tensor(self, values, offsets, diff_offsets, num_rows, seq_limit):
-        indices = self._get_indices(offsets, diff_offsets)
-        return self._get_sparse_tensor(values, indices, num_rows, seq_limit)
 
 
 class DLDataLoader(torch.utils.data.DataLoader):
