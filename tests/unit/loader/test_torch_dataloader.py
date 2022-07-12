@@ -29,16 +29,17 @@ except ImportError:
     cudf = None
 
 import numpy as np
+import nvtabular as nvt
+import nvtabular.tools.data_gen as datagen
 import pandas as pd
 import pytest
-
-import nvtabular as nvt
-from nvtabular import ops
-import nvtabular.tools.data_gen as datagen
-from merlin.core import dispatch
-from merlin.io import Dataset
-from merlin.dag import ColumnSelector
 from conftest import assert_eq, mycols_csv, mycols_pq
+from nvtabular import ops
+
+from merlin.core import dispatch
+from merlin.dag import ColumnSelector
+from merlin.io import Dataset
+
 
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
@@ -167,9 +168,24 @@ json_sample = {
             "multi_max": 5,
             "multi_avg": 3,
         },
-        "cat_2": {"dtype": None, "cardinality": 50, "min_entry_size": 1, "max_entry_size": 5},
-        "cat_3": {"dtype": None, "cardinality": 50, "min_entry_size": 1, "max_entry_size": 5},
-        "cat_4": {"dtype": None, "cardinality": 50, "min_entry_size": 1, "max_entry_size": 5},
+        "cat_2": {
+            "dtype": None,
+            "cardinality": 50,
+            "min_entry_size": 1,
+            "max_entry_size": 5,
+        },
+        "cat_3": {
+            "dtype": None,
+            "cardinality": 50,
+            "min_entry_size": 1,
+            "max_entry_size": 5,
+        },
+        "cat_4": {
+            "dtype": None,
+            "cardinality": 50,
+            "min_entry_size": 1,
+            "max_entry_size": 5,
+        },
     },
     "labels": {"lab_1": {"dtype": None, "cardinality": 2}},
 }
@@ -255,7 +271,7 @@ def test_empty_cols(tmpdir, engine, cat_names, mh_names, cont_names, label_name,
                 "Return y_pred and y to non-log space and compute RMSPE"
                 y_pred, y = torch.exp(y_pred) - 1, torch.exp(y) - 1
                 pct_var = (y_pred - y) / y
-                return (pct_var ** 2).mean().pow(0.5)
+                return (pct_var**2).mean().pow(0.5)
 
             train_loss, y_pred, y = process_epoch(
                 data_itr,
@@ -466,7 +482,7 @@ def test_kill_dl(tmpdir, df, dataset, part_mem_fraction, engine):
 
     results = {}
 
-    for batch_size in [2 ** i for i in range(9, 25, 1)]:
+    for batch_size in [2**i for i in range(9, 25, 1)]:
         print("Checking batch size: ", batch_size)
         num_iter = max(10 * 1000 * 1000 // batch_size, 100)  # load 10e7 samples
 
@@ -497,8 +513,18 @@ def test_kill_dl(tmpdir, df, dataset, part_mem_fraction, engine):
 def test_mh_support(tmpdir):
     df = make_df(
         {
-            "Authors": [["User_A"], ["User_A", "User_E"], ["User_B", "User_C"], ["User_C"]],
-            "Reviewers": [["User_A"], ["User_A", "User_E"], ["User_B", "User_C"], ["User_C"]],
+            "Authors": [
+                ["User_A"],
+                ["User_A", "User_E"],
+                ["User_B", "User_C"],
+                ["User_C"],
+            ],
+            "Reviewers": [
+                ["User_A"],
+                ["User_A", "User_E"],
+                ["User_B", "User_C"],
+                ["User_C"],
+            ],
             "Engaging User": ["User_B", "User_B", "User_A", "User_D"],
             "Post": [1, 2, 3, 4],
         }
@@ -599,8 +625,18 @@ def test_sparse_tensors(sparse_dense):
 def test_mh_model_support(tmpdir):
     df = make_df(
         {
-            "Authors": [["User_A"], ["User_A", "User_E"], ["User_B", "User_C"], ["User_C"]],
-            "Reviewers": [["User_A"], ["User_A", "User_E"], ["User_B", "User_C"], ["User_C"]],
+            "Authors": [
+                ["User_A"],
+                ["User_A", "User_E"],
+                ["User_B", "User_C"],
+                ["User_C"],
+            ],
+            "Reviewers": [
+                ["User_A"],
+                ["User_A", "User_E"],
+                ["User_B", "User_C"],
+                ["User_C"],
+            ],
             "Engaging User": ["User_B", "User_B", "User_A", "User_D"],
             "Null_User": ["User_B", "User_B", "User_A", "User_D"],
             "Post": [1, 2, 3, 4],
@@ -658,7 +694,7 @@ def test_mh_model_support(tmpdir):
         "Return y_pred and y to non-log space and compute RMSPE"
         y_pred, y = torch.exp(y_pred) - 1, torch.exp(y) - 1
         pct_var = (y_pred - y) / y
-        return (pct_var ** 2).mean().pow(0.5)
+        return (pct_var**2).mean().pow(0.5)
 
     train_loss, y_pred, y = process_epoch(
         data_itr,

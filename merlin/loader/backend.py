@@ -263,7 +263,11 @@ class DataLoader:
         if self.__buff is None:
             # we set size of chunk queue to 1 we only want one chunk in queue at a time.
             self.__buff = ChunkQueue(
-                self, 1, num_parts=self.parts_per_chunk, shuffle=self.shuffle, epochs=self._epochs
+                self,
+                1,
+                num_parts=self.parts_per_chunk,
+                shuffle=self.shuffle,
+                epochs=self._epochs,
             )
         return self.__buff
 

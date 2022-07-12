@@ -403,7 +403,8 @@ class KerasSequenceLoader(tf.keras.utils.Sequence, DataLoader):
         row_offset_repeated = tf.repeat(offsets, diff_offsets)
         col_ids = tf.range(len(row_offset_repeated), dtype=tf.int64) - row_offset_repeated
         indices = tf.concat(
-            values=[tf.expand_dims(row_ids_repeated, -1), tf.expand_dims(col_ids, -1)], axis=1
+            values=[tf.expand_dims(row_ids_repeated, -1), tf.expand_dims(col_ids, -1)],
+            axis=1,
         )
         return indices
 

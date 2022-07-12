@@ -1,6 +1,8 @@
 nvtabular
+scipy
+scikit-learn>=0.20
 
-black==21.7b0
+black==22.3.0
 click<8.1.0
 flake8==3.9.2
 ipython_genutils

@@ -15,12 +15,12 @@
 #
 import numpy as np
 import pytest
+from conftest import assert_eq
 
 from merlin.core.dispatch import concat, generate_local_seed, get_random_state
 from merlin.io import Dataset
 from merlin.schema import Tags
 from merlin.loader.backend import DataLoader
-from conftest import assert_eq
 
 
 @pytest.mark.parametrize("engine", ["parquet"])
