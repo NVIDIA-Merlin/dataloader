@@ -564,11 +564,12 @@ def test_sparse_tensors(tmpdir, sparse_dense):
     ds = Dataset(df_files)
     schema = ds.schema
     for col_name in spa_lst:
-        schema[col_name] = (
-            schema[col_name]
-            .with_tags(Tags.CATEGORICAL)
-            .with_properties({"value_count": {"min": 0, "max": spa_mx[col_name]}})
-        )
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+        if not sparse_dense:
+            schema[col_name] = schema[col_name].with_properties(
+                {"value_count": {"min": spa_mx[col_name], "max": spa_mx[col_name]}}
+            )
+
     for col_name in []:
         schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
     for col_name in ["rating"]:
@@ -584,13 +585,12 @@ def test_sparse_tensors(tmpdir, sparse_dense):
         for col in spa_lst:
             # grab nnzs
             feature_tensor = feats[f"{col}"]
-
-            # if not sparse_dense:
-            assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
-            assert isinstance(feature_tensor, tf.sparse.SparseTensor)
-            # else:
-            #     assert feature_tensor.shape[1] == spa_mx[col]
-            #     assert not isinstance(feature_tensor, tf.sparse.SparseTensor)
+            if not sparse_dense:
+                assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
+                assert isinstance(feature_tensor, tf.sparse.SparseTensor)
+            else:
+                assert feature_tensor[1].shape[0] == batch_size
+                assert not isinstance(feature_tensor, tf.sparse.SparseTensor)
 
 
 @pytest.mark.skipif(

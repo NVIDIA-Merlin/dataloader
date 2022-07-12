@@ -441,6 +441,20 @@ class KerasSequenceValidater(tf.keras.callbacks.Callback):
         self.dataloader = dataloader
 
     def on_epoch_end(self, epoch, logs=None):
+        """Callback that runs at the end of an epoch.
+
+        Parameters
+        ----------
+        epoch : int
+            Integer representing the current epoch.
+        logs : Dict, optional
+            dictionary of logs collected, to be added to, by default None
+
+        Returns
+        -------
+        logs
+            Dictionary with results from callback.
+        """
         logs = logs if logs is not None else {}
         for X, y_true in self.dataloader:
             y_pred = self.model(X)
