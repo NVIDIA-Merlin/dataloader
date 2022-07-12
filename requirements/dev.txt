@@ -1,5 +1,6 @@
 nvtabular
 scipy
+scikit-learn>=0.20
 
 black==22.3.0
 click<8.1.0
