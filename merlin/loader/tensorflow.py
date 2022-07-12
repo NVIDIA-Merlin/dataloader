@@ -19,14 +19,14 @@ import os
 
 import dask.dataframe as dd
 import numpy as np
-from nvtabular.loader.backend import DataLoader
-from nvtabular.loader.tf_utils import configure_tensorflow, get_dataset_schema_from_feature_columns
 
 from merlin.core.dispatch import HAS_GPU
+from merlin.loader.backend import DataLoader
+from merlin.loader.tf_utils import configure_tensorflow, get_dataset_schema_from_feature_columns
 from merlin.schema import Tags
 
 from_dlpack = configure_tensorflow()
-LOG = logging.getLogger("nvtabular")
+LOG = logging.getLogger("dataloader")
 # tf import must happen after config to restrict memory use
 import tensorflow as tf  # noqa
 
@@ -226,7 +226,7 @@ class KerasSequenceLoader(tf.keras.utils.Sequence, DataLoader):
         list with column names of columns that should be represented as sparse tensors
     sparse_max : dict
         dictionary of key: column_name + value: integer representing max sequence length for column
-    sparse_as_dense : bool
+    sparse_as_dense : dict
         bool value to activate transforming sparse tensors to dense
     """
 
@@ -234,54 +234,28 @@ class KerasSequenceLoader(tf.keras.utils.Sequence, DataLoader):
 
     def __init__(
         self,
-        paths_or_dataset,
+        dataset,
         batch_size,
-        label_names=None,
-        feature_columns=None,
-        cat_names=None,
-        cont_names=None,
-        engine=None,
+        parts_per_chunk=1,
         shuffle=True,
         seed_fn=None,
-        buffer_size=0.1,
-        device=None,
-        parts_per_chunk=1,
-        reader_kwargs=None,
         global_size=None,
         global_rank=None,
         drop_last=False,
-        sparse_names=None,
-        sparse_max=None,
-        sparse_as_dense=False,
-        schema=None,
     ):
-        device = device or 0
+        device = 0
         device = "cpu" if not HAS_GPU else device
-        dataset = _validate_dataset(
-            paths_or_dataset, batch_size, buffer_size, engine, device, reader_kwargs
-        )
-        schema = _get_schema(dataset) if not schema else schema
-        cat_names, cont_names = _validate_schema(
-            feature_columns, cat_names, cont_names, schema=schema
-        )
 
         DataLoader.__init__(
             self,
             dataset,
             batch_size,
             shuffle,
-            cat_names=cat_names,
-            cont_names=cont_names,
-            label_names=label_names,
             seed_fn=seed_fn,
             parts_per_chunk=parts_per_chunk,
-            device=device,
             global_size=global_size,
             global_rank=global_rank,
             drop_last=drop_last,
-            sparse_names=sparse_names,
-            sparse_max=sparse_max,
-            sparse_as_dense=sparse_as_dense,
         )
         self._map_fns = []
 
@@ -440,10 +414,12 @@ class KerasSequenceLoader(tf.keras.utils.Sequence, DataLoader):
         )
         return sparse_tensor
 
-    def _build_sparse_tensor(self, values, offsets, diff_offsets, num_rows, seq_limit):
+    def _build_sparse_tensor(
+        self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
+    ):
         ragged = tf.RaggedTensor.from_row_lengths(values=values, row_lengths=diff_offsets)
         tensor = tf.RaggedTensor.from_tensor(ragged.to_tensor(shape=[None, seq_limit])).to_sparse()
-        if self.sparse_as_dense:
+        if sparse_as_dense:
             tensor = tf.sparse.to_dense(tensor)
         return tensor
 

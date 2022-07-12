@@ -20,6 +20,7 @@ from conftest import assert_eq
 from merlin.core.dispatch import concat, generate_local_seed, get_random_state
 from merlin.io import Dataset
 from merlin.loader.backend import DataLoader
+from merlin.schema import Tags
 
 
 @pytest.mark.parametrize("engine", ["parquet"])
@@ -30,6 +31,14 @@ def test_dataloader_seeding(datasets, engine, batch_size):
     label_name = ["label"]
 
     dataset = Dataset(str(datasets["parquet"]), engine=engine)
+    schema = dataset.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    dataset.schema = schema
 
     # Define a seed function that returns the same seed on all workers
     seed_fragments = []
@@ -49,10 +58,7 @@ def test_dataloader_seeding(datasets, engine, batch_size):
     # Set up two dataloaders with different global ranks
     data_loader_0 = DataLoader(
         dataset,
-        cat_names=cat_names,
-        cont_names=cont_names,
         batch_size=batch_size,
-        label_names=label_name,
         shuffle=False,
         global_size=2,
         global_rank=0,
@@ -61,10 +67,7 @@ def test_dataloader_seeding(datasets, engine, batch_size):
 
     data_loader_1 = DataLoader(
         dataset,
-        cat_names=cat_names,
-        cont_names=cont_names,
         batch_size=batch_size,
-        label_names=label_name,
         shuffle=False,
         global_size=2,
         global_rank=1,
@@ -114,7 +117,6 @@ def test_dataloader_empty_error(datasets, engine, batch_size):
         DataLoader(
             dataset,
             batch_size=batch_size,
-            label_names=["label"],
             shuffle=False,
         )
     assert "Neither Categorical or Continuous columns were found by the dataloader. " in str(
@@ -125,23 +127,24 @@ def test_dataloader_empty_error(datasets, engine, batch_size):
 @pytest.mark.parametrize("engine", ["parquet"])
 @pytest.mark.parametrize("batch_size", [128])
 @pytest.mark.parametrize("epochs", [1, 5])
-@pytest.mark.parametrize("on_ddf", [False, True])
-def test_dataloader_epochs(datasets, engine, batch_size, epochs, on_ddf):
-    dataset = Dataset(str(datasets["parquet"]), engine=engine)
-
-    if on_ddf:
-        dataset = dataset.to_ddf()
-
+def test_dataloader_epochs(datasets, engine, batch_size, epochs):
     cont_names = ["x", "y", "id"]
     cat_names = ["name-string", "name-cat"]
     label_name = ["label"]
 
+    dataset = Dataset(str(datasets["parquet"]), engine=engine)
+    schema = dataset.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    dataset.schema = schema
+
     data_loader = DataLoader(
         dataset,
-        cat_names=cat_names,
-        cont_names=cont_names,
         batch_size=batch_size,
-        label_names=label_name,
         shuffle=False,
     )
 

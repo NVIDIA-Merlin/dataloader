@@ -20,6 +20,7 @@ import subprocess
 
 from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
+from merlin.schema import Tags
 
 try:
     import cupy
@@ -52,11 +53,14 @@ def test_nested_list():
             "label": [np.random.rand() for i in range(num_rows)],
         }
     )
-
+    ds = Dataset(df)
+    schema = ds.schema
+    schema["data"] = schema["data"].with_tags([Tags.CONTINUOUS])
+    schema["data2"] = schema["data2"].with_tags([Tags.CONTINUOUS])
+    schema["label"] = schema["label"].with_tags([Tags.TARGET])
+    ds.schema = schema
     train_dataset = tf_dataloader.KerasSequenceLoader(
-        Dataset(df),
-        cont_names=["data", "data2"],
-        label_names=["label"],
+        ds,
         batch_size=batch_size,
         shuffle=False,
     )
@@ -90,13 +94,13 @@ def test_shuffling():
 
     df = pd.DataFrame({"a": np.asarray(range(num_rows)), "b": np.asarray([0] * num_rows)})
 
-    train_dataset = tf_dataloader.KerasSequenceLoader(
-        Dataset(df),
-        cont_names=["a"],
-        label_names=["b"],
-        batch_size=batch_size,
-        shuffle=True,
-    )
+    ds = Dataset(df)
+    schema = ds.schema
+    schema["a"] = schema["a"].with_tags([Tags.CONTINUOUS])
+    schema["b"] = schema["b"].with_tags([Tags.TARGET])
+    ds.schema = schema
+
+    train_dataset = tf_dataloader.KerasSequenceLoader(ds, batch_size=batch_size, shuffle=True)
 
     batch = next(iter(train_dataset))
 
@@ -128,12 +132,19 @@ def test_tf_drp_reset(tmpdir, batch_size, drop_last, num_rows):
     cont_names = ["cont3", "cont2", "cont1"]
     label_name = ["label"]
 
+    ds = Dataset(df)
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
     data_itr = tf_dataloader.KerasSequenceLoader(
-        [path],
-        cat_names=cat_names,
-        cont_names=cont_names,
+        ds,
         batch_size=batch_size,
-        label_names=label_name,
         shuffle=False,
         drop_last=drop_last,
     )
@@ -174,12 +185,19 @@ def test_tf_catname_ordering(tmpdir):
     cont_names = ["cont3", "cont2", "cont1"]
     label_name = ["label"]
 
+    ds = Dataset(df)
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
     data_itr = tf_dataloader.KerasSequenceLoader(
-        [path],
-        cat_names=cat_names,
-        cont_names=cont_names,
+        ds,
         batch_size=10,
-        label_names=label_name,
         shuffle=False,
     )
 
@@ -210,17 +228,24 @@ def test_tf_map(tmpdir):
     cont_names = ["sample_weight", "cont2", "cont1"]
     label_name = ["label"]
 
+    ds = Dataset(df)
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
     def add_sample_weight(features, labels, sample_weight_col_name="sample_weight"):
         sample_weight = tf.cast(features.pop(sample_weight_col_name) > 0, tf.float32)
 
         return features, labels, sample_weight
 
     data_itr = tf_dataloader.KerasSequenceLoader(
-        [path],
-        cat_names=cat_names,
-        cont_names=cont_names,
+        ds,
         batch_size=10,
-        label_names=label_name,
         shuffle=False,
     ).map(add_sample_weight)
 
@@ -268,17 +293,16 @@ def test_tf_gpu_dl(
     workflow.fit(dataset)
     workflow.transform(dataset).to_parquet(tmpdir + "/processed")
 
+    ds = Dataset(str(tmpdir + "/processed"), cpu=device == "cpu", engine=engine)
+    schema = ds.schema
+
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
     data_itr = tf_dataloader.KerasSequenceLoader(
-        str(tmpdir + "/processed"),  # workflow.transform(dataset),
-        cat_names=cat_names,
-        cont_names=cont_names,
+        ds,
         batch_size=batch_size,
-        buffer_size=gpu_memory_frac,
-        label_names=label_name,
-        engine=engine,
         shuffle=False,
-        device=device,
-        reader_kwargs={"cpu": cpu_true},
     )
     _ = tf.random.uniform((1,))
 
@@ -374,11 +398,18 @@ def test_mh_support(tmpdir, batch_size):
         cats = cat_names >> ops.Categorify()
     workflow = nvt.Workflow(cats + cont_names + label_name)
 
+    ds = workflow.fit_transform(nvt.Dataset(df))
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
     data_itr = tf_dataloader.KerasSequenceLoader(
-        workflow.fit_transform(nvt.Dataset(df)),
-        cat_names=cat_names,
-        cont_names=cont_names,
-        label_names=label_name,
+        ds,
         batch_size=batch_size,
         shuffle=False,
     )
@@ -417,12 +448,19 @@ def test_validater(tmpdir, batch_size):
 
     gdf = make_df({"a": rand.randn(n_samples), "label": rand.randint(2, size=n_samples)})
 
+    ds = nvt.Dataset(gdf)
+    schema = ds.schema
+    for col_name in []:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in ["a"]:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in ["label"]:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
     dataloader = tf_dataloader.KerasSequenceLoader(
-        nvt.Dataset(gdf),
+        ds,
         batch_size=batch_size,
-        cat_names=[],
-        cont_names=["a"],
-        label_names=["label"],
         shuffle=False,
     )
 
@@ -464,14 +502,20 @@ def test_multigpu_partitioning(datasets, engine, batch_size, global_rank):
     cont_names = ["x", "y", "id"]
     cat_names = ["name-string", "name-cat"]
     label_name = ["label"]
+
+    ds = nvt.Dataset(str(datasets["parquet"]), engine=engine)
+    schema = ds.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
     data_loader = tf_dataloader.KerasSequenceLoader(
-        str(datasets["parquet"]),
-        cat_names=cat_names,
-        cont_names=cont_names,
+        ds,
         batch_size=batch_size,
-        buffer_size=0.1,
-        label_names=label_name,
-        engine=engine,
         shuffle=False,
         global_size=2,
         global_rank=global_rank,
@@ -516,27 +560,37 @@ def test_sparse_tensors(tmpdir, sparse_dense):
     spa_lst = ["spar1", "spar2"]
     spa_mx = {"spar1": 5, "spar2": 6}
     batch_size = 10
+
+    ds = Dataset(df_files)
+    schema = ds.schema
+    for col_name in spa_lst:
+        schema[col_name] = (
+            schema[col_name]
+            .with_tags(Tags.CATEGORICAL)
+            .with_properties({"value_count": {"min": 0, "max": spa_mx[col_name]}})
+        )
+    for col_name in []:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in ["rating"]:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    ds.schema = schema
+
     data_itr = tf_dataloader.KerasSequenceLoader(
-        df_files,
-        cat_names=spa_lst,
-        cont_names=[],
-        label_names=["rating"],
+        ds,
         batch_size=batch_size,
-        buffer_size=0.1,
-        sparse_names=spa_lst,
-        sparse_max=spa_mx,
-        sparse_as_dense=sparse_dense,
     )
     for batch in data_itr:
         feats, labs = batch
         for col in spa_lst:
+            # grab nnzs
             feature_tensor = feats[f"{col}"]
-            if not sparse_dense:
-                assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
-                assert isinstance(feature_tensor, tf.sparse.SparseTensor)
-            else:
-                assert feature_tensor.shape[1] == spa_mx[col]
-                assert not isinstance(feature_tensor, tf.sparse.SparseTensor)
+
+            # if not sparse_dense:
+            assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
+            assert isinstance(feature_tensor, tf.sparse.SparseTensor)
+            # else:
+            #     assert feature_tensor.shape[1] == spa_mx[col]
+            #     assert not isinstance(feature_tensor, tf.sparse.SparseTensor)
 
 
 @pytest.mark.skipif(
@@ -590,17 +644,20 @@ def test_horovod_multigpu(tmpdir):
     proc = nvt.Workflow(output)
     target_path_train = os.path.join(tmpdir, "train/")
     os.mkdir(target_path_train)
-    proc.fit_transform(nvt.Dataset(df_files)).to_parquet(
-        output_path=target_path_train, out_files_per_proc=5
-    )
+    result_ds = proc.fit_transform(nvt.Dataset(df_files))
+    schema = result_ds.schema
+    schema["genres"] = schema["genres"]
+    schema["rating"] = schema["rating"].with_tags(Tags.TARGET)
+    result_ds.schema = schema
+    result_ds.to_parquet(output_path=target_path_train, out_files_per_proc=5)
     # add new location
     target_path = os.path.join(tmpdir, "workflow/")
     os.mkdir(target_path)
     proc.save(target_path)
     curr_path = os.path.abspath(__file__)
     repo_root = os.path.relpath(os.path.normpath(os.path.join(curr_path, "../../../..")))
-    hvd_wrap_path = os.path.join(repo_root, "examples/multi-gpu-movielens/hvd_wrapper.sh")
-    hvd_exam_path = os.path.join(repo_root, "examples/multi-gpu-movielens/tf_trainer.py")
+    hvd_wrap_path = os.path.join(repo_root, "merlin/loader/utils/tf/hvd_wrapper.sh")
+    hvd_exam_path = os.path.join(repo_root, "merlin/loader/utils/tf/tf_trainer.py")
     with subprocess.Popen(
         [
             "horovodrun",
@@ -653,12 +710,19 @@ def test_dataloader_schema(tmpdir, df, dataset, batch_size, engine, device):
     ]
 
     nvt_data = nvt.Dataset(tar_paths, engine="parquet")
+    schema = nvt_data.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    for col_name in cont_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
+    for col_name in label_name:
+        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
+    nvt_data.schema = schema
 
     data_loader = tf_dataloader.KerasSequenceLoader(
         nvt_data,
         batch_size=batch_size,
         shuffle=False,
-        label_names=label_name,
     )
 
     batch = next(iter(data_loader))
