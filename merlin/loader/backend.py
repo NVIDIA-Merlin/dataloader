@@ -186,6 +186,14 @@ def _get_dataset_schema(dataset):
 
 
 class DataLoader:
+    """_summary_
+
+    Returns
+    -------
+    DataLoader
+        The base dataloader class that handles loading and formatting data.
+    """
+
     _use_nnz = False
 
     def __init__(
@@ -214,7 +222,7 @@ class DataLoader:
                 sparse_names.append(col_name)
 
                 value_count = col_spec.value_count
-                if value_count:
+                if value_count and value_count.min == value_count.max:
                     sparse_max[col_name] = value_count.max
 
                 if not col_spec.is_ragged:
@@ -288,6 +296,18 @@ class DataLoader:
         return self.__buff_len
 
     def epochs(self, epochs=1):
+        """Create a dataloader that will efficienty run for more than one epoch.
+
+        Parameters
+        ----------
+        epochs : int, optional
+            Number of epochs the dataloader should process data, by default 1
+
+        Returns
+        -------
+        DataLoader
+            return a dataloader that will run for user defined epochs.
+        """
         if epochs == self._epochs:
             return self
         new_dataloader = copy.copy(self)
@@ -313,6 +333,7 @@ class DataLoader:
         return False
 
     def stop(self):
+        """Halts and resets the initialization parameters of the dataloader."""
         # TODO: raise warning or even error if condition
         # isn't met?
         if self._workers is not None:
@@ -427,6 +448,21 @@ class DataLoader:
 
     @annotate("make_tensors", color="darkgreen", domain="nvt_python")
     def make_tensors(self, gdf, use_nnz=False):
+        """Turns a gdf into tensor representation by column
+
+        Parameters
+        ----------
+        gdf : DataFrame
+            A dataframe type object.
+        use_nnz : bool, optional
+            toggle nnzs or use offsets for list columns, by default False
+
+        Returns
+        -------
+        Dict[Tensors]
+            A dictionary of the column tensor representations.
+
+        """
         split_idx = self._get_segment_lengths(len(gdf))
 
         # map from big chunk to framework-specific tensors

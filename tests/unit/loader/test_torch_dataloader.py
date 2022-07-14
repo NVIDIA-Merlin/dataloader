@@ -583,7 +583,7 @@ def test_sparse_tensors(sparse_dense):
         schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
         if not sparse_dense:
             schema[col_name] = schema[col_name].with_properties(
-                {"value_count": {"min": 0, "max": spa_mx[col_name]}}
+                {"value_count": {"min": spa_mx[col_name], "max": spa_mx[col_name]}}
             )
     for col_name in []:
         schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
