@@ -6,7 +6,6 @@ Merlin Template
    :caption: Contents
 
    Introduction <README>
-   Release Notes <release_notes>
 
 
 Indices and tables
