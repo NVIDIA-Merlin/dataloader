@@ -18,7 +18,7 @@ import logging
 
 import numpy as np
 
-from merlin.loader.backend import DataLoader
+from merlin.loader.loader_base import LoaderBase
 from merlin.loader.tf_utils import configure_tensorflow
 
 from_dlpack = configure_tensorflow()
@@ -32,7 +32,7 @@ import tensorflow as tf  # noqa
 # pylint: disable=no-value-for-parameter,unexpected-keyword-arg,redundant-keyword-arg
 
 
-class KerasSequenceLoader(tf.keras.utils.Sequence, DataLoader):
+class Loader(tf.keras.utils.Sequence, LoaderBase):
     """
     Infinite generator used to asynchronously iterate through CSV or Parquet
     dataframes on GPU by leveraging an `merlin.io.Dataset`.
@@ -113,7 +113,7 @@ class KerasSequenceLoader(tf.keras.utils.Sequence, DataLoader):
         global_rank=None,
         drop_last=False,
     ):
-        DataLoader.__init__(
+        LoaderBase.__init__(
             self,
             dataset,
             batch_size,
@@ -132,8 +132,8 @@ class KerasSequenceLoader(tf.keras.utils.Sequence, DataLoader):
 
         This is required for Keras compatibility
         """
-        DataLoader.stop(self)
-        return DataLoader.__len__(self)
+        LoaderBase.stop(self)
+        return LoaderBase.__len__(self)
 
     def __getitem__(self, idx):
         """
@@ -141,7 +141,7 @@ class KerasSequenceLoader(tf.keras.utils.Sequence, DataLoader):
         with Keras model.fit. Does not leverage
         passed idx in any way
         """
-        return DataLoader.__next__(self)
+        return LoaderBase.__next__(self)
 
     def map(self, fn):
         """
