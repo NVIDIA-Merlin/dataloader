@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 import numpy as np
-import pandas as pd
 import torch
 from torch.utils.dlpack import from_dlpack
 
@@ -22,50 +21,34 @@ from merlin.core.dispatch import HAS_GPU
 from merlin.loader.backend import DataLoader
 
 
-class IterDL(torch.utils.data.IterableDataset):
-    def __init__(self, file_paths, batch_size=1, shuffle=False):
-        self.file_paths = file_paths
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-
-    def __iter__(self):
-        for file_path in self.file_paths:
-            pdf = pd.read_parquet(file_path)
-            for start in range(0, pdf.shape[0], self.batch_size):
-                df = pdf[start : start + self.batch_size]
-                if self.shuffle:
-                    df = df.sample(frac=1).reset_index(drop=True)
-                yield df
-
-
 class TorchAsyncItr(torch.utils.data.IterableDataset, DataLoader):
     """This class creates batches of tensor. Each batch size is specified by the user.
-    The data input requires an NVTabular dataset. Handles spillover to ensure all
+    The data input requires a merlin.io.Dataset. Handles spillover to ensure all
     batches are the specified size until the final batch.
 
     Parameters
-    -----------
-    dataset : NVTabular dataset
-    cats : [str]
-        the list of categorical columns in the dataset
-    conts : [str]
-        the list of continuous columns in the dataset
-    labels : [str]
-        the list of label columns in the dataset
-    batch_size : int
-        the size of each batch to supply to the model
-    shuffle : bool
-        enable/disable shuffling of dataset
-    parts_per_chunk : int
-        number of partitions from the iterator, an NVTabular Dataset, to concatenate into a "chunk"
-    device : int
-        device id of selected GPU
-    sparse_list : [str]
-        list with column names of columns that should be represented as sparse tensors
-    sparse_max : {str: int}
-        dictionary of key: column_name + value: integer representing max sequence length for column
-    sparse_as_dense : bool
-        bool value to activate transforming sparse tensors to dense
+    ----------
+    dataset: merlin.io.Dataset
+        The dataset to load
+    batch_size: int
+        Number of rows to yield at each iteration
+    shuffle: bool, default True
+        Whether to shuffle chunks of batches before iterating through them.
+    seed_fn: callable
+        Function used to initialize random state
+    parts_per_chunk: int
+        Number of dataset partitions with size dictated by `buffer_size`
+        to load and concatenate asynchronously. More partitions leads to
+        better epoch-level randomness but can negatively impact throughput
+    global_size: int, optional
+        When doing distributed training, this indicates the number of total processes that are
+        training the model.
+    global_rank:
+        When doing distributed training, this indicates the local rank for the current process.
+    drop_last: bool, default False
+        Whether or not to drop the last batch in an epoch. This is useful when you need to
+        guarantee that each batch contains exactly `batch_size` rows - since the last batch
+        will usually contain fewer rows.
     """
 
     def __init__(
