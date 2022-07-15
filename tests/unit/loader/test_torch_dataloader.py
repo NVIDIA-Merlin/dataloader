@@ -60,7 +60,7 @@ def test_shuffling():
     schema["b"] = schema["b"].with_tags([Tags.TARGET])
     ds.schema = schema
 
-    train_dataset = torch_dataloader.TorchAsyncItr(ds, batch_size=batch_size, shuffle=True)
+    train_dataset = torch_dataloader.Loader(ds, batch_size=batch_size, shuffle=True)
 
     batch = next(iter(train_dataset))
 
@@ -102,7 +102,7 @@ def test_torch_drp_reset(tmpdir, batch_size, drop_last, num_rows):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_itr = torch_dataloader.TorchAsyncItr(
+    data_itr = torch_dataloader.Loader(
         ds,
         batch_size=batch_size,
         drop_last=drop_last,
@@ -229,7 +229,7 @@ def test_empty_cols(tmpdir, engine, cat_names, mh_names, cont_names, label_name,
     data_itr = None
 
     with pytest.raises(ValueError) as exc_info:
-        data_itr = torch_dataloader.TorchAsyncItr(
+        data_itr = torch_dataloader.Loader(
             ds,
             batch_size=2,
         )
@@ -321,7 +321,7 @@ def test_gpu_dl_break(tmpdir, df, dataset, batch_size, part_mem_fraction, engine
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_itr = torch_dataloader.TorchAsyncItr(
+    data_itr = torch_dataloader.Loader(
         ds,
         batch_size=batch_size,
     )
@@ -391,7 +391,7 @@ def test_gpu_dl(tmpdir, df, dataset, batch_size, part_mem_fraction, engine, devi
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_itr = torch_dataloader.TorchAsyncItr(
+    data_itr = torch_dataloader.Loader(
         ds,
         batch_size=batch_size,
     )
@@ -470,7 +470,7 @@ def test_kill_dl(tmpdir, df, dataset, part_mem_fraction, engine):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_itr = torch_dataloader.TorchAsyncItr(ds)
+    data_itr = torch_dataloader.Loader(ds)
 
     results = {}
 
@@ -550,7 +550,7 @@ def test_mh_support(tmpdir):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_itr = torch_dataloader.TorchAsyncItr(ds)
+    data_itr = torch_dataloader.Loader(ds)
     idx = 0
     for batch in data_itr:
         idx = idx + 1
@@ -591,7 +591,7 @@ def test_sparse_tensors(sparse_dense):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_itr = torch_dataloader.TorchAsyncItr(
+    data_itr = torch_dataloader.Loader(
         ds,
         batch_size=batch_size,
     )
@@ -654,7 +654,7 @@ def test_mh_model_support(tmpdir):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_itr = torch_dataloader.TorchAsyncItr(
+    data_itr = torch_dataloader.Loader(
         ds,
         batch_size=2,
     )
@@ -736,7 +736,7 @@ def test_dataloader_schema(tmpdir, df, dataset, batch_size, engine, device):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_loader = torch_dataloader.TorchAsyncItr(
+    data_loader = torch_dataloader.Loader(
         ds,
         batch_size=batch_size,
         shuffle=False,

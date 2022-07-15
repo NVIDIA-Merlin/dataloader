@@ -18,10 +18,10 @@ import torch
 from torch.utils.dlpack import from_dlpack
 
 from merlin.core.dispatch import HAS_GPU
-from merlin.loader.backend import DataLoader
+from merlin.loader.loader_base import LoaderBase
 
 
-class TorchAsyncItr(torch.utils.data.IterableDataset, DataLoader):
+class Loader(torch.utils.data.IterableDataset, LoaderBase):
     """This class creates batches of tensor. Each batch size is specified by the user.
     The data input requires a merlin.io.Dataset. Handles spillover to ensure all
     batches are the specified size until the final batch.
@@ -62,7 +62,7 @@ class TorchAsyncItr(torch.utils.data.IterableDataset, DataLoader):
         global_rank=None,
         drop_last=False,
     ):
-        DataLoader.__init__(
+        LoaderBase.__init__(
             self,
             dataset,
             batch_size,
@@ -75,7 +75,7 @@ class TorchAsyncItr(torch.utils.data.IterableDataset, DataLoader):
         )
 
     def __iter__(self):
-        return DataLoader.__iter__(self)
+        return LoaderBase.__iter__(self)
 
     def _get_device_ctx(self, dev):
         if dev == "cpu":

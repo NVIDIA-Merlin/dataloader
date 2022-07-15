@@ -19,7 +19,7 @@ from conftest import assert_eq
 
 from merlin.core.dispatch import concat, generate_local_seed, get_random_state
 from merlin.io import Dataset
-from merlin.loader.backend import DataLoader
+from merlin.loader.loader_base import LoaderBase
 from merlin.schema import Tags
 
 
@@ -56,7 +56,7 @@ def test_dataloader_seeding(datasets, engine, batch_size):
         return 5678
 
     # Set up two dataloaders with different global ranks
-    data_loader_0 = DataLoader(
+    data_loader_0 = LoaderBase(
         dataset,
         batch_size=batch_size,
         shuffle=False,
@@ -65,7 +65,7 @@ def test_dataloader_seeding(datasets, engine, batch_size):
         seed_fn=seed_fn,
     )
 
-    data_loader_1 = DataLoader(
+    data_loader_1 = LoaderBase(
         dataset,
         batch_size=batch_size,
         shuffle=False,
@@ -114,7 +114,7 @@ def test_dataloader_empty_error(datasets, engine, batch_size):
     dataset = Dataset(str(datasets["parquet"]), engine=engine)
 
     with pytest.raises(ValueError) as exc_info:
-        DataLoader(
+        LoaderBase(
             dataset,
             batch_size=batch_size,
             shuffle=False,
@@ -142,7 +142,7 @@ def test_dataloader_epochs(datasets, engine, batch_size, epochs):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     dataset.schema = schema
 
-    data_loader = DataLoader(
+    data_loader = LoaderBase(
         dataset,
         batch_size=batch_size,
         shuffle=False,
