@@ -1,0 +1,29 @@
+name: GPU CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    tags:
+      - v*
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: self-hosted
+    container: 
+      image: nvcr.io/nvstaging/merlin/merlin_ci_runner:latest
+      volumes:
+        - $GITHUB_WORKSPACE:/dataloader
+    steps:
+    - uses: actions/checkout@v2
+      with:
+       fetch-depth: 0
+    - name: Install 
+      run: |
+        cd /dataloader; pip install . --no-deps
+    - name: Test 
+      run: |
+        cd /dataloader; pytest tests/unit
+
