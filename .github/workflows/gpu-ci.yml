@@ -15,7 +15,7 @@ jobs:
     container: 
       image: nvcr.io/nvstaging/merlin/merlin_ci_runner:latest
       volumes:
-        - $GITHUB_WORKSPACE:/dataloader
+        - $ {{ github.workspace }}:/dataloader
     steps:
     - uses: actions/checkout@v2
       with:
