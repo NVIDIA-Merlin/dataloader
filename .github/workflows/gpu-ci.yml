@@ -10,6 +10,14 @@ on:
     branches: [ main ]
 
 jobs:
+
+  pull:
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v2
+      with:
+       fetch-depth: 0
+
   build:
     runs-on: self-hosted
     container: 
@@ -18,9 +26,6 @@ jobs:
         - ${{ github.workspace }}:/dataloader
       options: --gpus all --ipc=host --privileged
     steps:
-    - uses: actions/checkout@v2
-      with:
-       fetch-depth: 0
     - name: Install 
       run: |
         cd /dataloader; pip install . --no-deps
