@@ -520,7 +520,7 @@ def test_multigpu_partitioning(datasets, engine, batch_size, global_rank):
         global_size=2,
         global_rank=global_rank,
     )
-    indices = data_loader._indices_for_process(None)
+    indices = data_loader._indices_for_process()
     assert indices == [global_rank]
 
 
