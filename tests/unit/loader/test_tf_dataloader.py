@@ -59,7 +59,7 @@ def test_nested_list():
     schema["data2"] = schema["data2"].with_tags([Tags.CONTINUOUS])
     schema["label"] = schema["label"].with_tags([Tags.TARGET])
     ds.schema = schema
-    train_dataset = tf_dataloader.KerasSequenceLoader(
+    train_dataset = tf_dataloader.Loader(
         ds,
         batch_size=batch_size,
         shuffle=False,
@@ -100,7 +100,7 @@ def test_shuffling():
     schema["b"] = schema["b"].with_tags([Tags.TARGET])
     ds.schema = schema
 
-    train_dataset = tf_dataloader.KerasSequenceLoader(ds, batch_size=batch_size, shuffle=True)
+    train_dataset = tf_dataloader.Loader(ds, batch_size=batch_size, shuffle=True)
 
     batch = next(iter(train_dataset))
 
@@ -142,7 +142,7 @@ def test_tf_drp_reset(tmpdir, batch_size, drop_last, num_rows):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_itr = tf_dataloader.KerasSequenceLoader(
+    data_itr = tf_dataloader.Loader(
         ds,
         batch_size=batch_size,
         shuffle=False,
@@ -195,7 +195,7 @@ def test_tf_catname_ordering(tmpdir):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_itr = tf_dataloader.KerasSequenceLoader(
+    data_itr = tf_dataloader.Loader(
         ds,
         batch_size=10,
         shuffle=False,
@@ -243,7 +243,7 @@ def test_tf_map(tmpdir):
 
         return features, labels, sample_weight
 
-    data_itr = tf_dataloader.KerasSequenceLoader(
+    data_itr = tf_dataloader.Loader(
         ds,
         batch_size=10,
         shuffle=False,
@@ -299,7 +299,7 @@ def test_tf_gpu_dl(
     for col_name in label_name:
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
-    data_itr = tf_dataloader.KerasSequenceLoader(
+    data_itr = tf_dataloader.Loader(
         ds,
         batch_size=batch_size,
         shuffle=False,
@@ -408,7 +408,7 @@ def test_mh_support(tmpdir, batch_size):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_itr = tf_dataloader.KerasSequenceLoader(
+    data_itr = tf_dataloader.Loader(
         ds,
         batch_size=batch_size,
         shuffle=False,
@@ -458,7 +458,7 @@ def test_validater(tmpdir, batch_size):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    dataloader = tf_dataloader.KerasSequenceLoader(
+    dataloader = tf_dataloader.Loader(
         ds,
         batch_size=batch_size,
         shuffle=False,
@@ -513,7 +513,7 @@ def test_multigpu_partitioning(datasets, engine, batch_size, global_rank):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_loader = tf_dataloader.KerasSequenceLoader(
+    data_loader = tf_dataloader.Loader(
         ds,
         batch_size=batch_size,
         shuffle=False,
@@ -564,18 +564,19 @@ def test_sparse_tensors(tmpdir, sparse_dense):
     ds = Dataset(df_files)
     schema = ds.schema
     for col_name in spa_lst:
-        schema[col_name] = (
-            schema[col_name]
-            .with_tags(Tags.CATEGORICAL)
-            .with_properties({"value_count": {"min": 0, "max": spa_mx[col_name]}})
-        )
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+        if not sparse_dense:
+            schema[col_name] = schema[col_name].with_properties(
+                {"value_count": {"min": spa_mx[col_name], "max": spa_mx[col_name]}}
+            )
+
     for col_name in []:
         schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
     for col_name in ["rating"]:
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
-    data_itr = tf_dataloader.KerasSequenceLoader(
+    data_itr = tf_dataloader.Loader(
         ds,
         batch_size=batch_size,
     )
@@ -584,13 +585,12 @@ def test_sparse_tensors(tmpdir, sparse_dense):
         for col in spa_lst:
             # grab nnzs
             feature_tensor = feats[f"{col}"]
-
-            # if not sparse_dense:
-            assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
-            assert isinstance(feature_tensor, tf.sparse.SparseTensor)
-            # else:
-            #     assert feature_tensor.shape[1] == spa_mx[col]
-            #     assert not isinstance(feature_tensor, tf.sparse.SparseTensor)
+            if not sparse_dense:
+                assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
+                assert isinstance(feature_tensor, tf.sparse.SparseTensor)
+            else:
+                assert feature_tensor[1].shape[0] == batch_size
+                assert not isinstance(feature_tensor, tf.sparse.SparseTensor)
 
 
 @pytest.mark.skipif(
@@ -719,7 +719,7 @@ def test_dataloader_schema(tmpdir, df, dataset, batch_size, engine, device):
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     nvt_data.schema = schema
 
-    data_loader = tf_dataloader.KerasSequenceLoader(
+    data_loader = tf_dataloader.Loader(
         nvt_data,
         batch_size=batch_size,
         shuffle=False,

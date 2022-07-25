@@ -145,4 +145,3 @@ def copy_files(src: str):
 
 
 copy_files(r"../../README.md")
-copy_files(r"../../release_notes.md")
