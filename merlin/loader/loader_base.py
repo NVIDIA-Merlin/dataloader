@@ -489,8 +489,6 @@ class LoaderBase:
         categorical, continuous, and label tensors.
         Can be overrideen
         """
-        # workflow_nodes = (self.cat_names, self.cont_names, self.label_names)
-        # dtypes = (self._LONG_DTYPE, self._FLOAT32_DTYPE, self._FLOAT32_DTYPE)
         tensors = []
         offsets = make_df(device=self.device)
         for dtype, column_names in self.dtype_reverse_map.items():

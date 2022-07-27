@@ -34,19 +34,7 @@ numpy_to_torch_dtype_dict = {
     np.complex128: torch.complex128,
 }
 
-torch_to_numpy_dtype_dict = {
-    torch.bool: np.bool,
-    torch.uint8: np.uint8,
-    torch.int8: np.int8,
-    torch.int16: np.int16,
-    torch.int32: np.int32,
-    torch.int64: np.int64,
-    torch.float16: np.float16,
-    torch.float32: np.float32,
-    torch.float64: np.float64,
-    torch.complex64: np.complex64,
-    torch.complex128: np.complex128,
-}
+torch_to_numpy_dtype_dict = {v: k for k, v in numpy_to_torch_dtype_dict.items()}
 
 
 class Loader(torch.utils.data.IterableDataset, LoaderBase):
