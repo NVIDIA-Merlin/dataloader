@@ -1,0 +1,37 @@
+# Copyright (c) 2022, NVIDIA CORPORATION.
+
+# Usage:
+#   conda build . -c defaults -c conda-forge -c numba -c rapidsai -c nvidia
+
+
+{% set version = environ.get('GIT_DESCRIBE_TAG', '0.1').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
+{% set git_revision_count=environ.get('GIT_DESCRIBE_NUMBER', 0) %}
+{% set setup_py_data = load_setup_py_data() %}
+
+
+package:
+  name: merlin-dataloader
+  version: {{ version }}
+
+source:
+  path: ../../
+
+build:
+  number: {{ git_revision_count }}
+  noarch: python
+  script: python -m pip install . -vvv
+
+requirements:
+  build:
+    - python
+    - setuptools
+  run:
+    - python
+    {% for req in setup_py_data.get('install_requires', []) %}
+    - {{ req }}
+    {% endfor %}
+
+about:
+  home: https://github.com/NVIDIA-Merlin/dataloader
+  license_file: LICENSE
+  summary: Accelerated training of tabular deep learning models in TensorFlow and PyTorch
