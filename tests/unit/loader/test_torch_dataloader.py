@@ -542,6 +542,7 @@ def test_mh_support(tmpdir):
     ds.schema = schema
 
     data_itr = torch_dataloader.Loader(ds)
+
     idx = 0
     for batch in data_itr:
         idx = idx + 1
@@ -627,20 +628,18 @@ def test_mh_model_support(tmpdir):
     cat_names = ["Cat1", "Null_User", "Authors", "Reviewers"]  # , "Engaging User"]
     cont_names = ["Cont1", "Cont2"]
     label_name = ["Post"]
+    df["Post"] = df["Post"].astype("float32")
+
     out_path = os.path.join(tmpdir, "train/")
     os.mkdir(out_path)
 
     cats = cat_names >> ops.Categorify()
-    conts = cont_names >> ops.Normalize()
+    conts = cont_names >> ops.Normalize(out_dtype="float32")
 
     processor = nvt.Workflow(cats + conts + label_name)
     ds = processor.fit_transform(nvt.Dataset(df))
 
     schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
     for col_name in label_name:
         schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
@@ -649,6 +648,7 @@ def test_mh_model_support(tmpdir):
         ds,
         batch_size=2,
     )
+
     emb_sizes = nvt.ops.get_embedding_sizes(processor)
     # check  for correct  embedding representation
     assert len(emb_sizes[1].keys()) == 2  # Authors, Reviewers
