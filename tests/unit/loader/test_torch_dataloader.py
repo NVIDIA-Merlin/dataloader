@@ -68,7 +68,7 @@ def test_shuffling():
     in_order = torch.arange(0, batch_size)
 
     assert (first_batch != in_order).any()
-    assert (torch.sort(first_batch).values == in_order).all()
+    assert (torch.sort(first_batch.squeeze()).values == in_order).all()
 
 
 @pytest.mark.parametrize("batch_size", [10, 9, 8])
@@ -227,15 +227,6 @@ def test_empty_cols(tmpdir, engine, cat_names, mh_names, cont_names, label_name,
         return
 
     data_itr = None
-
-    with pytest.raises(ValueError) as exc_info:
-        data_itr = torch_dataloader.Loader(
-            ds,
-            batch_size=2,
-        )
-    assert "Neither Categorical or Continuous columns were found by the dataloader. " in str(
-        exc_info.value
-    )
 
     if data_itr:
         for nvt_batch in data_itr:

@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 from conftest import assert_eq
 
-from merlin.core.dispatch import concat, generate_local_seed, get_random_state
+from merlin.core.dispatch import concat, generate_local_seed, get_random_state, make_df
 from merlin.io import Dataset
 from merlin.loader.loader_base import LoaderBase
 from merlin.schema import Tags
@@ -111,7 +111,7 @@ def test_dataloader_seeding(datasets, engine, batch_size):
 @pytest.mark.parametrize("engine", ["parquet"])
 @pytest.mark.parametrize("batch_size", [128])
 def test_dataloader_empty_error(datasets, engine, batch_size):
-    dataset = Dataset(str(datasets["parquet"]), engine=engine)
+    dataset = Dataset(make_df({}))
 
     with pytest.raises(ValueError) as exc_info:
         LoaderBase(
