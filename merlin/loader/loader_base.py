@@ -69,8 +69,13 @@ class LoaderBase:
         sparse_names = []
         sparse_max = {}
         sparse_as_dense = set()
+        self.dtype_reverse_map = {}
 
         for col_name, col_spec in dataset.schema.column_schemas.items():
+            if col_spec.dtype not in self.dtype_reverse_map:
+                self.dtype_reverse_map[col_spec.dtype] = [col_name]
+            else:
+                self.dtype_reverse_map[col_spec.dtype].append(col_name)
             if col_spec.is_list:
                 sparse_names.append(col_name)
 
@@ -107,8 +112,7 @@ class LoaderBase:
         self.label_names = (
             self.schema.select_by_tag(Tags.TARGET).column_names if self.schema else []
         )
-
-        if not self.cat_names and not self.cont_names:
+        if len(list(self.dtype_reverse_map.keys())) == 0:
             raise ValueError(
                 "Neither Categorical or Continuous columns were found by the dataloader. "
                 "You must either specify the cat_names, cont_names and "
@@ -317,12 +321,19 @@ class LoaderBase:
 
         """
         split_idx = self._get_segment_lengths(len(gdf))
-
         # map from big chunk to framework-specific tensors
         chunks = self._create_tensors(gdf)
 
         # if we have any offsets, calculate nnzs up front
-        if len(chunks) == 4:
+        # will need to get offsets if list columns detected in schema
+
+        # if len(chunks) == 4:
+        lists_list = [
+            col_name
+            for col_name, col_schema in self.data.schema.column_schemas.items()
+            if col_schema.is_list
+        ]
+        if len(lists_list) > 0:
             offsets = chunks[-1]
             if use_nnz:
                 nnzs = offsets[1:] - offsets[:-1]
@@ -396,7 +407,7 @@ class LoaderBase:
                     c = (c, batch_lists)
 
                 batches[n].append(c)
-        return [self._handle_tensors(*batch) for batch in batches]
+        return [self._handle_tensors(batch) for batch in batches]
 
     def _get_segment_lengths(self, num_samples):
         """
@@ -445,6 +456,12 @@ class LoaderBase:
         """
         raise NotImplementedError
 
+    def _cast_to_numpy_dtype(self, dtype):
+        """
+        Get the numpy dtype from the framework dtype.
+        """
+        raise NotImplementedError
+
     def _split_fn(self, tensor, idx, axis=0):
         raise NotImplementedError
 
@@ -472,11 +489,12 @@ class LoaderBase:
         categorical, continuous, and label tensors.
         Can be overrideen
         """
-        workflow_nodes = (self.cat_names, self.cont_names, self.label_names)
-        dtypes = (self._LONG_DTYPE, self._FLOAT32_DTYPE, self._FLOAT32_DTYPE)
         tensors = []
         offsets = make_df(device=self.device)
-        for column_names, dtype in zip(workflow_nodes, dtypes):
+        for dtype, column_names in self.dtype_reverse_map.items():
+            # for column names using schema find scalars and lists columns
+
+            #
             if len(column_names) == 0:
                 tensors.append(None)
                 continue
@@ -488,9 +506,11 @@ class LoaderBase:
 
             x = None
             if scalars:
+                # split out cols and change all scalars
                 # should always return dict column_name: values, offsets (optional)
                 x = self._to_tensor(gdf_i[scalars], dtype)
             if lists:
+                # split out lists
                 list_tensors = OrderedDict()
                 for column_name in lists:
                     column = gdf_i.pop(column_name)
@@ -515,17 +535,22 @@ class LoaderBase:
         return tensors
 
     @annotate("_handle_tensors", color="darkgreen", domain="merlin_loader")
-    def _handle_tensors(self, cats, conts, labels):
+    def _handle_tensors(self, tensors):
+        # tensors =  dictionary of all tensors
         X = {}
-        for tensor, names in zip([cats, conts], [self.cat_names, self.cont_names]):
+        for idx, tensor in enumerate(tensors):
             lists = {}
             if isinstance(tensor, tuple):
                 tensor, lists = tensor
+            dtype = self._cast_to_numpy_dtype(tensor.dtype) if tensor is not None else None
+            names = self.dtype_reverse_map[np.dtype(dtype)] if dtype is not None else []
+
             names = [i for i in names if i not in lists]
 
             # now add in any scalar tensors
             if len(names) > 1:
                 tensors = self._tensor_split(tensor, len(names), axis=1)
+                # pull out label tensor from here
                 lists.update(zip(names, tensors))
             elif len(names) == 1:
                 lists[names[0]] = tensor
@@ -542,8 +567,10 @@ class LoaderBase:
 
         # TODO: use dict for labels as well?
         # would require output layers to match naming
-        if len(self.label_names) > 1:
-            labels = self._tensor_split(labels, len(self.label_names), axis=1)
+        # labels should not exist separately they should be a regular column
+        labels = None
+        if len(self.label_names) > 0:
+            labels = X.pop(self.label_names[0])
         return X, labels
 
 
