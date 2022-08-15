@@ -105,34 +105,26 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
 
     def _unpack(self, dlpack):
         if self.device == "cpu":
+            values = dlpack.values
+            dtype = values.dtype
+            dtype = numpy_to_torch_dtype_dict[dtype.type] if hasattr(dtype, "type") else dtype
             if (
                 len(dlpack.values.shape) == 2
                 and dlpack.values.shape[1] == 1
                 and isinstance(dlpack.values[0], np.ndarray)
             ):
-                return torch.squeeze(torch.Tensor(dlpack.values))
-            return torch.Tensor(dlpack.values)
+                return torch.squeeze(torch.Tensor(values)).type(dtype)
+            return torch.Tensor(values).type(dtype)
         return from_dlpack(dlpack)
 
-    def _to_tensor(self, gdf, dtype=None):
-        dl_pack = self._pack(gdf)
-        tensor = self._unpack(dl_pack)
-        dtype = numpy_to_torch_dtype_dict[dtype.type] if hasattr(dtype, "type") else dtype
-        return tensor.type(dtype)
+    def _to_tensor(self, df):
+        return self._unpack(self._pack(df))
 
     def _split_fn(self, tensor, idx, axis=0):
         return torch.split(tensor, idx, dim=axis)
 
     def _tensor_split(self, tensor, idx, axis=0):
         return torch.tensor_split(tensor, idx, axis=axis)
-
-    @property
-    def _LONG_DTYPE(self):
-        return torch.long
-
-    @property
-    def _FLOAT32_DTYPE(self):
-        return torch.float32
 
     def _pull_values_offsets(self, values_offset):
         # pull_values_offsets, return values offsets diff_offsets

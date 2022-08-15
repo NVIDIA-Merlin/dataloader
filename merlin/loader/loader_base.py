@@ -439,7 +439,7 @@ class LoaderBase:
             values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
         )
 
-    def _to_tensor(self, gdf, dtype=None):
+    def _to_tensor(self, df):
         """
         One of the mandatory functions a child class needs
         to implement. Maps from a cudf DataFrame to a
@@ -465,14 +465,6 @@ class LoaderBase:
     def _split_fn(self, tensor, idx, axis=0):
         raise NotImplementedError
 
-    @property
-    def _LONG_DTYPE(self):
-        raise NotImplementedError
-
-    @property
-    def _FLOAT32_DTYPE(self):
-        raise NotImplementedError
-
     def _separate_list_columns(self, gdf):
         lists, scalars = [], []
         for col in gdf.columns:
@@ -491,10 +483,8 @@ class LoaderBase:
         """
         tensors = []
         offsets = make_df(device=self.device)
-        for dtype, column_names in self.dtype_reverse_map.items():
+        for column_names in self.dtype_reverse_map.values():
             # for column names using schema find scalars and lists columns
-
-            #
             if len(column_names) == 0:
                 tensors.append(None)
                 continue
@@ -508,7 +498,7 @@ class LoaderBase:
             if scalars:
                 # split out cols and change all scalars
                 # should always return dict column_name: values, offsets (optional)
-                x = self._to_tensor(gdf_i[scalars], dtype)
+                x = self._to_tensor(gdf_i[scalars])
             if lists:
                 # split out lists
                 list_tensors = OrderedDict()
@@ -521,12 +511,12 @@ class LoaderBase:
                         col_offsets = nest_offsets.iloc[col_offsets[:]]
 
                     offsets[column_name] = col_offsets.reset_index(drop=True)
-                    list_tensors[column_name] = self._to_tensor(leaves, dtype)
+                    list_tensors[column_name] = self._to_tensor(leaves)
                 x = x, list_tensors
             tensors.append(x)
 
         if not offsets.empty:
-            offsets_tensor = self._to_tensor(offsets, self._LONG_DTYPE)
+            offsets_tensor = self._to_tensor(offsets)
             if len(offsets_tensor.shape) == 1:
                 offsets_tensor = offsets_tensor[:, None]
             tensors.append(offsets_tensor)

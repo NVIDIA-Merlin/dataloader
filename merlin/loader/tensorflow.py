@@ -179,14 +179,6 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         """
         return tf.split(tensor, idx, axis=axis)
 
-    @property
-    def _LONG_DTYPE(self):
-        return tf.int64
-
-    @property
-    def _FLOAT32_DTYPE(self):
-        return tf.float32
-
     def _pack(self, gdf):
         if isinstance(gdf, np.ndarray):
             return gdf
@@ -204,7 +196,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             return tf.convert_to_tensor(gdf)
         return from_dlpack(gdf)
 
-    def _to_tensor(self, gdf, dtype=None):
+    def _to_tensor(self, gdf):
         if gdf.empty:
             return
 
