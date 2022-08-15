@@ -73,9 +73,11 @@ class LoaderBase:
         self.device = "cpu" if not HAS_GPU or dataset.cpu else 0
 
         if not dataset.schema:
-            # this shouldn't happen, since the Dataset will call 'infer_schema' if a schema isn't
-            # provided. but just to be safe, lets error out now
-            raise ValueError("no Schema associated with the input dataset")
+            warnings.warn(
+                "no schema associated with the input dataset. "
+                "Calling dataset.infer_schema to automatically generate"
+            )
+            dataset.schema = dataset.infer_schema()
 
         self.sparse_names = []
         self.sparse_max = {}
@@ -320,7 +322,7 @@ class LoaderBase:
         # if len(chunks) == 4:
         lists_list = [
             col_name
-            for col_name, col_schema in self.data.schema.column_schemas.items()
+            for col_name, col_schema in self.dataset.schema.column_schemas.items()
             if col_schema.is_list
         ]
         if len(lists_list) > 0:
