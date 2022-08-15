@@ -290,13 +290,19 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             tensor = tf.sparse.to_dense(tensor)
         return tensor
 
-    def _handle_tensors(self, cats, conts, labels):
-        to_return = super()._handle_tensors(cats, conts, labels)
+    def _handle_tensors(self, tensors):
+        to_return = super()._handle_tensors(tensors)
 
         for map_fn in self._map_fns:
             to_return = map_fn(*to_return)
 
         return to_return
+
+    def _cast_to_numpy_dtype(self, dtype):
+        """
+        Get the numpy dtype from the framework dtype.
+        """
+        return dtype.as_numpy_dtype()
 
 
 class KerasSequenceValidater(tf.keras.callbacks.Callback):

@@ -20,6 +20,22 @@ from torch.utils.dlpack import from_dlpack
 from merlin.core.dispatch import HAS_GPU
 from merlin.loader.loader_base import LoaderBase
 
+numpy_to_torch_dtype_dict = {
+    np.bool: torch.bool,
+    np.uint8: torch.uint8,
+    np.int8: torch.int8,
+    np.int16: torch.int16,
+    np.int32: torch.int32,
+    np.int64: torch.int64,
+    np.float16: torch.float16,
+    np.float32: torch.float32,
+    np.float64: torch.float64,
+    np.complex64: torch.complex64,
+    np.complex128: torch.complex128,
+}
+
+torch_to_numpy_dtype_dict = {v: k for k, v in numpy_to_torch_dtype_dict.items()}
+
 
 class Loader(torch.utils.data.IterableDataset, LoaderBase):
     """This class creates batches of tensor. Each batch size is specified by the user.
@@ -101,6 +117,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
     def _to_tensor(self, gdf, dtype=None):
         dl_pack = self._pack(gdf)
         tensor = self._unpack(dl_pack)
+        dtype = numpy_to_torch_dtype_dict[dtype.type] if hasattr(dtype, "type") else dtype
         return tensor.type(dtype)
 
     def _split_fn(self, tensor, idx, axis=0):
@@ -156,6 +173,12 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         if sparse_as_dense:
             sparse_tensor = sparse_tensor.to_dense()
         return sparse_tensor
+
+    def _cast_to_numpy_dtype(self, dtype):
+        """
+        Get the numpy dtype from the framework dtype.
+        """
+        return torch_to_numpy_dtype_dict[dtype]
 
 
 class DLDataLoader(torch.utils.data.DataLoader):
