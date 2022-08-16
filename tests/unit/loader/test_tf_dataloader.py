@@ -55,8 +55,6 @@ def test_nested_list():
     )
     ds = Dataset(df)
     schema = ds.schema
-    schema["data"] = schema["data"].with_tags([Tags.CONTINUOUS])
-    schema["data2"] = schema["data2"].with_tags([Tags.CONTINUOUS])
     schema["label"] = schema["label"].with_tags([Tags.TARGET])
     ds.schema = schema
     train_dataset = tf_dataloader.Loader(
@@ -95,10 +93,7 @@ def test_shuffling():
     df = pd.DataFrame({"a": np.asarray(range(num_rows)), "b": np.asarray([0] * num_rows)})
 
     ds = Dataset(df)
-    schema = ds.schema
-    schema["a"] = schema["a"].with_tags([Tags.CONTINUOUS])
-    schema["b"] = schema["b"].with_tags([Tags.TARGET])
-    ds.schema = schema
+    ds.schema["b"] = ds.schema["b"].with_tags([Tags.TARGET])
 
     train_dataset = tf_dataloader.Loader(ds, batch_size=batch_size, shuffle=True)
 
@@ -128,19 +123,9 @@ def test_tf_drp_reset(tmpdir, batch_size, drop_last, num_rows):
     )
     path = os.path.join(tmpdir, "dataset.parquet")
     df.to_parquet(path)
-    cat_names = ["cat3", "cat2", "cat1"]
-    cont_names = ["cont3", "cont2", "cont1"]
-    label_name = ["label"]
 
     ds = Dataset(df)
-    schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
     data_itr = tf_dataloader.Loader(
         ds,
@@ -181,19 +166,9 @@ def test_tf_catname_ordering(tmpdir):
     )
     path = os.path.join(tmpdir, "dataset.parquet")
     df.to_parquet(path)
-    cat_names = ["cat3", "cat2", "cat1"]
-    cont_names = ["cont3", "cont2", "cont1"]
-    label_name = ["label"]
 
     ds = Dataset(df)
-    schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
     data_itr = tf_dataloader.Loader(
         ds,
@@ -224,19 +199,8 @@ def test_tf_map(tmpdir):
     )
     path = os.path.join(tmpdir, "dataset.parquet")
     df.to_parquet(path)
-    cat_names = ["cat3", "cat2", "cat1"]
-    cont_names = ["sample_weight", "cont2", "cont1"]
-    label_name = ["label"]
-
     ds = Dataset(df)
-    schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
     def add_sample_weight(features, labels, sample_weight_col_name="sample_weight"):
         sample_weight = tf.cast(features.pop(sample_weight_col_name) > 0, tf.float32)
@@ -391,7 +355,7 @@ def test_mh_support(tmpdir, batch_size):
     df = make_df(data)
     cat_names = ["Authors", "Reviewers", "Engaging User"]
     cont_names = ["Embedding"]
-    label_name = ["Post"]
+    label_name = "Post"
     if HAS_GPU:
         cats = cat_names >> ops.HashBucket(num_buckets=10)
     else:
@@ -399,14 +363,7 @@ def test_mh_support(tmpdir, batch_size):
     workflow = nvt.Workflow(cats + cont_names + label_name)
 
     ds = workflow.fit_transform(nvt.Dataset(df))
-    schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+    ds.schema[label_name] = ds.schema[label_name].with_tags(Tags.TARGET)
 
     data_itr = tf_dataloader.Loader(
         ds,
@@ -449,14 +406,7 @@ def test_validater(tmpdir, batch_size):
     gdf = make_df({"a": rand.randn(n_samples), "label": rand.randint(2, size=n_samples)})
 
     ds = nvt.Dataset(gdf)
-    schema = ds.schema
-    for col_name in []:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in ["a"]:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in ["label"]:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
     dataloader = tf_dataloader.Loader(
         ds,
@@ -499,19 +449,8 @@ def test_validater(tmpdir, batch_size):
 @pytest.mark.parametrize("batch_size", [1, 10, 100])
 @pytest.mark.parametrize("global_rank", [0, 1])
 def test_multigpu_partitioning(datasets, engine, batch_size, global_rank):
-    cont_names = ["x", "y", "id"]
-    cat_names = ["name-string", "name-cat"]
-    label_name = ["label"]
-
     ds = nvt.Dataset(str(datasets["parquet"]), engine=engine)
-    schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
     data_loader = tf_dataloader.Loader(
         ds,
@@ -710,14 +649,7 @@ def test_dataloader_schema(tmpdir, df, dataset, batch_size, engine, device):
     ]
 
     nvt_data = nvt.Dataset(tar_paths, engine="parquet")
-    schema = nvt_data.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    nvt_data.schema = schema
+    nvt_data.schema["label"] = nvt_data.schema["label"].with_tags(Tags.TARGET)
 
     data_loader = tf_dataloader.Loader(
         nvt_data,
