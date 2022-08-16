@@ -36,7 +36,7 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
-from merlin.io import DataFrameIter, shuffle_df
+from merlin.io import shuffle_df
 from merlin.schema import Tags
 
 
@@ -60,15 +60,28 @@ class LoaderBase:
         global_rank=None,
         drop_last=False,
     ):
-        self.data = dataset
-        self.schema = _get_dataset_schema(dataset)
-        # self.data is ddf format
-        self.indices = cp.arange(self.data.npartitions)
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.seed_fn = seed_fn
+        self.parts_per_chunk = parts_per_chunk
+        self.global_size = global_size or 1
+        self.global_rank = global_rank or 0
         self.drop_last = drop_last
+
+        self.indices = cp.arange(self.dataset.npartitions)
         self.device = "cpu" if not HAS_GPU or dataset.cpu else 0
-        sparse_names = []
-        sparse_max = {}
-        sparse_as_dense = set()
+
+        if not dataset.schema:
+            warnings.warn(
+                "no schema associated with the input dataset. "
+                "Calling dataset.infer_schema to automatically generate"
+            )
+            dataset.schema = dataset.infer_schema()
+
+        self.sparse_names = []
+        self.sparse_max = {}
+        self.sparse_as_dense = set()
         self.dtype_reverse_map = {}
 
         for col_name, col_spec in dataset.schema.column_schemas.items():
@@ -77,15 +90,14 @@ class LoaderBase:
             else:
                 self.dtype_reverse_map[col_spec.dtype].append(col_name)
             if col_spec.is_list:
-                sparse_names.append(col_name)
+                self.sparse_names.append(col_name)
 
                 value_count = col_spec.value_count
                 if value_count and value_count.min == value_count.max:
-                    sparse_max[col_name] = value_count.max
+                    self.sparse_max[col_name] = value_count.max
 
                 if not col_spec.is_ragged:
-                    # TODO: set this per column,
-                    sparse_as_dense.add(col_name)
+                    self.sparse_as_dense.add(col_name)
 
                     if not value_count:
                         # TODO: error message linking to docs
@@ -94,24 +106,12 @@ class LoaderBase:
                             " in the schema"
                         )
 
-        self.sparse_names = sparse_names
-
-        self.sparse_max = sparse_max or {}
-        self.sparse_as_dense = sparse_as_dense
-        self.global_size = global_size or 1
-        self.global_rank = global_rank or 0
         self._epochs = 1
 
-        self.cat_names = (
-            self.schema.select_by_tag(Tags.CATEGORICAL).column_names if self.schema else []
-        )
+        self.cat_names = dataset.schema.select_by_tag(Tags.CATEGORICAL).column_names
+        self.cont_names = dataset.schema.select_by_tag(Tags.CONTINUOUS).column_names
+        self.label_names = dataset.schema.select_by_tag(Tags.TARGET).column_names
 
-        self.cont_names = (
-            self.schema.select_by_tag(Tags.CONTINUOUS).column_names if self.schema else []
-        )
-        self.label_names = (
-            self.schema.select_by_tag(Tags.TARGET).column_names if self.schema else []
-        )
         if len(list(self.dtype_reverse_map.keys())) == 0:
             raise ValueError(
                 "Neither Categorical or Continuous columns were found by the dataloader. "
@@ -119,14 +119,8 @@ class LoaderBase:
                 "label_names properties or supply a schema.pbtxt file in dataset directory."
             )
 
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.seed_fn = seed_fn
-
         self.num_rows_processed = 0
 
-        self.parts_per_chunk = parts_per_chunk
-        self.shuffle = shuffle
         self.__buff = None
         self.__buff_len = None
         self._batch_itr = None
@@ -203,7 +197,7 @@ class LoaderBase:
             self._buff.q_out.queue.clear()
         self._batch_itr = None
 
-    def _gather_indices_for_dev(self, dev):
+    def _indices_for_process(self):
         # this should be self.indices divided by total processes, global set
         if len(self.indices) < self.global_size:
             warnings.warn(
@@ -249,10 +243,8 @@ class LoaderBase:
         return self._get_next_batch()
 
     def _data_iter(self, epochs):
-        indices = self._gather_indices_for_dev(0)
-        if hasattr(self.data, "to_iter"):
-            return self.data.to_iter(indices=indices, epochs=epochs)
-        return DataFrameIter(self.data, epochs=epochs)
+        indices = self._indices_for_process()
+        return self.dataset.to_iter(indices=indices, epochs=epochs)
 
     def _fetch_chunk(self):
         chunks = self._buff.get()
@@ -330,7 +322,7 @@ class LoaderBase:
         # if len(chunks) == 4:
         lists_list = [
             col_name
-            for col_name, col_schema in self.data.schema.column_schemas.items()
+            for col_name, col_schema in self.dataset.schema.column_schemas.items()
             if col_schema.is_list
         ]
         if len(lists_list) > 0:
@@ -709,7 +701,3 @@ class ChunkQueue:
         if not spill.empty:
             spill.reset_index(drop=True, inplace=True)
         return chunks, spill
-
-
-def _get_dataset_schema(dataset):
-    return dataset.schema if hasattr(dataset, "schema") else None
