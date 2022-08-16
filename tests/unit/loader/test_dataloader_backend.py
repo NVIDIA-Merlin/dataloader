@@ -26,19 +26,8 @@ from merlin.schema import Tags
 @pytest.mark.parametrize("engine", ["parquet"])
 @pytest.mark.parametrize("batch_size", [128])
 def test_dataloader_seeding(datasets, engine, batch_size):
-    cont_names = ["x", "y", "id"]
-    cat_names = ["name-string", "name-cat"]
-    label_name = ["label"]
-
     dataset = Dataset(str(datasets["parquet"]), engine=engine)
-    schema = dataset.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    dataset.schema = schema
+    dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
 
     # Define a seed function that returns the same seed on all workers
     seed_fragments = []
@@ -128,19 +117,8 @@ def test_dataloader_empty_error(datasets, engine, batch_size):
 @pytest.mark.parametrize("batch_size", [128])
 @pytest.mark.parametrize("epochs", [1, 5])
 def test_dataloader_epochs(datasets, engine, batch_size, epochs):
-    cont_names = ["x", "y", "id"]
-    cat_names = ["name-string", "name-cat"]
-    label_name = ["label"]
-
     dataset = Dataset(str(datasets["parquet"]), engine=engine)
-    schema = dataset.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    dataset.schema = schema
+    dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
 
     data_loader = LoaderBase(
         dataset,
