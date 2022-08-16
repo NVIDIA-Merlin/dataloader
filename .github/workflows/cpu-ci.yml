@@ -33,7 +33,7 @@ jobs:
         conda update conda
         conda install -c conda-forge mamba
         echo "which mamba"
-        which mamba
+        which conda
         conda install conda-build boa
         conda mambabuild . -c defaults -c conda-forge -c numba -c rapidsai -c nvidia --output-folder ./conda_packages
         export CONDA_PACKAGE=$(conda mambabuild . -c defaults -c conda-forge -c numba -c rapidsai --output-folder ./conda_packages --output)
