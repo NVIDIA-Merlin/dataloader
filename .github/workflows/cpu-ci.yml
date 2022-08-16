@@ -28,13 +28,13 @@ jobs:
     - name: Generate package for conda
       id: conda_build
       run: |
+        export CONDA_PKGS_DIRS=$HOME/.conda/pkgs
+        echo "conda pkgs dir $CONDA_PKGS_DIRS"
         conda update conda
         conda install -c conda-forge mamba
         echo "which mamba"
         which mamba
-        mamba install conda-build boa
-        export CONDA_PKGS_DIRS=$HOME/.conda/pkgs
-        echo "conda pkgs dir $CONDA_PKGS_DIRS"
+        conda install conda-build boa
         conda mambabuild . -c defaults -c conda-forge -c numba -c rapidsai -c nvidia --output-folder ./conda_packages
         export CONDA_PACKAGE=$(conda mambabuild . -c defaults -c conda-forge -c numba -c rapidsai --output-folder ./conda_packages --output)
         echo "conda_package : $CONDA_PACKAGE"
