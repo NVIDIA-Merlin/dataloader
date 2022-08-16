@@ -29,7 +29,7 @@ jobs:
       id: conda_build
       run: |
         conda update conda
-        conda install-c conda-forge mamba
+        conda install -c conda-forge mamba
         echo "which mamba"
         which mamba
         mamba install conda-build boa
