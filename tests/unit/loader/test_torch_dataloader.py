@@ -55,10 +55,7 @@ def test_shuffling():
     df = pd.DataFrame({"a": np.asarray(range(num_rows)), "b": np.asarray([0] * num_rows)})
 
     ds = Dataset(df)
-    schema = ds.schema
-    schema["a"] = schema["a"].with_tags([Tags.CONTINUOUS])
-    schema["b"] = schema["b"].with_tags([Tags.TARGET])
-    ds.schema = schema
+    ds.schema["b"] = ds.schema["b"].with_tags([Tags.TARGET])
 
     train_dataset = torch_dataloader.Loader(ds, batch_size=batch_size, shuffle=True)
 
@@ -88,19 +85,9 @@ def test_torch_drp_reset(tmpdir, batch_size, drop_last, num_rows):
     )
     path = os.path.join(tmpdir, "dataset.parquet")
     df.to_parquet(path)
-    cat_names = ["cat3", "cat2", "cat1"]
-    cont_names = ["cont3", "cont2", "cont1"]
-    label_name = ["label"]
 
     ds = Dataset([path], cpu=True)
-    schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
     data_itr = torch_dataloader.Loader(
         ds,
@@ -213,14 +200,8 @@ def test_empty_cols(tmpdir, engine, cat_names, mh_names, cont_names, label_name,
     os.mkdir(output_train)
 
     ds = processor.fit_transform(dataset)
-    schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
     for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+        ds.schema[col_name] = ds.schema[col_name].with_tags(Tags.TARGET)
 
     if processor.output_node.output_schema.apply_inverse(ColumnSelector("lab_1")):
         # if we don't have conts/cats/labels we're done
@@ -253,7 +234,7 @@ def test_empty_cols(tmpdir, engine, cat_names, mh_names, cont_names, label_name,
             optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
             def rmspe_func(y_pred, y):
-                "Return y_pred and y to non-log space and compute RMSPE"
+                # Return y_pred and y to non-log space and compute RMSPE
                 y_pred, y = torch.exp(y_pred) - 1, torch.exp(y) - 1
                 pct_var = (y_pred - y) / y
                 return (pct_var**2).mean().pow(0.5)
@@ -302,15 +283,7 @@ def test_gpu_dl_break(tmpdir, df, dataset, batch_size, part_mem_fraction, engine
     ds = nvt.Dataset(
         tar_paths[0], engine="parquet", part_mem_fraction=part_mem_fraction, cpu=device != 0
     )
-
-    schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
     data_itr = torch_dataloader.Loader(
         ds,
@@ -372,15 +345,7 @@ def test_gpu_dl(tmpdir, df, dataset, batch_size, part_mem_fraction, engine, devi
     ds = nvt.Dataset(
         tar_paths[0], cpu=cpu_true, engine="parquet", part_mem_fraction=part_mem_fraction
     )
-
-    schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
     data_itr = torch_dataloader.Loader(
         ds,
@@ -451,15 +416,7 @@ def test_kill_dl(tmpdir, df, dataset, part_mem_fraction, engine):
     ]
 
     ds = nvt.Dataset(tar_paths[0], engine="parquet", part_mem_fraction=part_mem_fraction)
-
-    schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
     data_itr = torch_dataloader.Loader(ds)
 
@@ -512,9 +469,8 @@ def test_mh_support(tmpdir):
             "Post": [1, 2, 3, 4],
         }
     )
-    cat_names = ["Authors", "Reviewers"]  # , "Engaging User"]
-    cont_names = []
-    label_name = ["Post"]
+    cat_names = ["Authors", "Reviewers"]
+    label_name = "Post"
     if HAS_GPU:
         cats = cat_names >> ops.HashBucket(num_buckets=10)
     else:
@@ -522,6 +478,8 @@ def test_mh_support(tmpdir):
 
     processor = nvt.Workflow(cats + label_name)
     ds = processor.fit_transform(nvt.Dataset(df))
+    ds.schema[label_name] = ds.schema[label_name].with_tags(Tags.TARGET)
+
     df_out = ds.to_ddf().compute(scheduler="synchronous")
 
     # check to make sure that the same strings are hashed the same
@@ -531,15 +489,6 @@ def test_mh_support(tmpdir):
         authors = df_out["Authors"]
     assert authors[0][0] == authors[1][0]  # 'User_A'
     assert authors[2][1] == authors[3][0]  # 'User_C'
-
-    schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
 
     data_itr = torch_dataloader.Loader(ds)
 
@@ -572,15 +521,10 @@ def test_sparse_tensors(sparse_dense):
     ds = nvt.Dataset(df)
     schema = ds.schema
     for col_name in spa_lst:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
         if not sparse_dense:
             schema[col_name] = schema[col_name].with_properties(
                 {"value_count": {"min": spa_mx[col_name], "max": spa_mx[col_name]}}
             )
-    for col_name in []:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in []:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
     ds.schema = schema
 
     data_itr = torch_dataloader.Loader(
@@ -627,7 +571,7 @@ def test_mh_model_support(tmpdir):
     )
     cat_names = ["Cat1", "Null_User", "Authors", "Reviewers"]  # , "Engaging User"]
     cont_names = ["Cont1", "Cont2"]
-    label_name = ["Post"]
+    label_name = "Post"
     df["Post"] = df["Post"].astype("float32")
 
     out_path = os.path.join(tmpdir, "train/")
@@ -638,11 +582,7 @@ def test_mh_model_support(tmpdir):
 
     processor = nvt.Workflow(cats + conts + label_name)
     ds = processor.fit_transform(nvt.Dataset(df))
-
-    schema = ds.schema
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+    ds.schema[label_name] = ds.schema[label_name].with_tags(Tags.TARGET)
 
     data_itr = torch_dataloader.Loader(
         ds,
@@ -670,7 +610,7 @@ def test_mh_model_support(tmpdir):
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     def rmspe_func(y_pred, y):
-        "Return y_pred and y to non-log space and compute RMSPE"
+        # Return y_pred and y to non-log space and compute RMSPE
         y_pred, y = torch.exp(y_pred) - 1, torch.exp(y) - 1
         pct_var = (y_pred - y) / y
         return (pct_var**2).mean().pow(0.5)
@@ -717,15 +657,7 @@ def test_dataloader_schema(tmpdir, df, dataset, batch_size, engine, device):
     ]
 
     ds = nvt.Dataset(tar_paths, engine="parquet")
-
-    schema = ds.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    ds.schema = schema
+    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
     data_loader = torch_dataloader.Loader(
         ds,
