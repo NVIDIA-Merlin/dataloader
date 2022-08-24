@@ -7,10 +7,10 @@ import cupy
 import nvtabular as nvt
 import torch
 import torch.distributed as dist
-import torch.nn as nn
 from nvtabular.framework_utils.torch.models import Model
 from nvtabular.framework_utils.torch.utils import process_epoch
 from nvtabular.loader.torch import DLDataLoader, TorchAsyncItr
+from torch import nn
 
 parser = argparse.ArgumentParser(description="Train a multi-gpu model with Torch")
 parser.add_argument("--dir_in", default=None, help="Input directory")

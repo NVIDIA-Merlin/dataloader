@@ -90,7 +90,7 @@ def test_dataloader_seeding(datasets, engine, batch_size):
     # Test that the shuffle has the same result on both workers
     # (i.e. the random seeds are the same when the shuffle happens)
     for idx, element in enumerate(dl0_indices):
-        assert dl0_indices[idx] == dl1_indices[idx]
+        assert element == dl1_indices[idx]
 
     # Test that after the shuffle each worker generates different random numbers
     # (i.e. the random seeds are different on each worker after the shuffle)
