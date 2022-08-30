@@ -2,7 +2,7 @@
 # Copyright (c) 2021, NVIDIA CORPORATION.
 #
 
-# Licensed under the Apache License, Version 2.0 (the "License");
+# Licensed under the Aeache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -15,37 +15,22 @@
 # limitations under the License.
 #
 import os
-import shutil
 import time
 
-import pyarrow as pa
-
-from merlin.core.dispatch import HAS_GPU, make_df
-from merlin.schema import Tags
-
-try:
-    import cudf
-except ImportError:
-    cudf = None
-
 import numpy as np
-import nvtabular as nvt
-import nvtabular.tools.data_gen as datagen
 import pandas as pd
 import pytest
-from conftest import assert_eq, mycols_csv, mycols_pq
-from nvtabular import ops
+from conftest import assert_eq
 
 from merlin.core import dispatch
-from merlin.dag import ColumnSelector
+from merlin.core.dispatch import make_df
 from merlin.io import Dataset
+from merlin.schema import Tags
 
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
 torch = pytest.importorskip("torch")
 import merlin.loader.torch as torch_dataloader  # noqa isort:skip
-from nvtabular.framework_utils.torch.models import Model  # noqa isort:skip
-from nvtabular.framework_utils.torch.utils import process_epoch  # noqa isort:skip
 
 
 def test_shuffling():
@@ -89,16 +74,16 @@ def test_torch_drp_reset(tmpdir, batch_size, drop_last, num_rows):
     ds = Dataset([path], cpu=True)
     ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
-    data_itr = torch_dataloader.Loader(
+    dataloader = torch_dataloader.Loader(
         ds,
         batch_size=batch_size,
         drop_last=drop_last,
     )
 
-    all_len = len(data_itr) if drop_last else len(data_itr) - 1
+    all_len = len(dataloader) if drop_last else len(dataloader) - 1
     all_rows = 0
     df_cols = df.columns.to_list()
-    for idx, chunk in enumerate(data_itr):
+    for idx, chunk in enumerate(dataloader):
         all_rows += len(chunk[0]["cat1"])
         if idx < all_len:
             for col in df_cols:
@@ -115,10 +100,9 @@ def test_torch_drp_reset(tmpdir, batch_size, drop_last, num_rows):
 
 
 @pytest.mark.parametrize("batch", [0, 100, 1000])
-@pytest.mark.parametrize("engine", ["csv", "csv-no-header"])
-def test_gpu_file_iterator_ds(df, dataset, batch, engine):
+def test_gpu_file_iterator_ds(df, dataset, batch):
     df_itr = make_df({})
-    for data_gd in dataset.to_iter(columns=mycols_csv):
+    for data_gd in dataset.to_iter(columns=list(dataset.schema.column_names)):
         df_itr = dispatch.concat([df_itr, data_gd], axis=0) if df_itr is not None else data_gd
 
     assert_eq(df_itr.reset_index(drop=True), df.reset_index(drop=True))
@@ -172,132 +156,21 @@ json_sample = {
 }
 
 
-@pytest.mark.parametrize("engine", ["parquet"])
-@pytest.mark.parametrize("cat_names", [["cat_2", "cat_3", "cat_4"], ["cat_2"], []])
-@pytest.mark.parametrize("cont_names", [["cont_1", "cont_2", "cont_3"], ["cont_1"], []])
-@pytest.mark.parametrize("mh_names", [["cat_5", "cat_1"], ["cat_1"], []])
-@pytest.mark.parametrize("label_name", [["lab_1"]])
-@pytest.mark.parametrize("num_rows", [1000, 100])
-def test_empty_cols(tmpdir, engine, cat_names, mh_names, cont_names, label_name, num_rows):
-    json_sample["num_rows"] = num_rows
-
-    cols = datagen._get_cols_from_schema(json_sample)
-
-    df_gen = datagen.DatasetGen(datagen.PowerLawDistro(0.1))
-    dataset = df_gen.create_df(num_rows, cols)
-    dataset = nvt.Dataset(dataset)
-    features = []
-    if cont_names:
-        features.append(cont_names >> ops.FillMedian() >> ops.Normalize())
-    if cat_names or mh_names:
-        features.append(cat_names + mh_names >> ops.Categorify())
-    # test out https://github.com/NVIDIA/NVTabular/issues/149 making sure we can iterate over
-    # empty cats/conts
-    graph = sum(features, nvt.WorkflowNode(label_name))
-    processor = nvt.Workflow(graph)
-
-    output_train = os.path.join(tmpdir, "train/")
-    os.mkdir(output_train)
-
-    ds = processor.fit_transform(dataset)
-    for col_name in label_name:
-        ds.schema[col_name] = ds.schema[col_name].with_tags(Tags.TARGET)
-
-    if processor.output_node.output_schema.apply_inverse(ColumnSelector("lab_1")):
-        # if we don't have conts/cats/labels we're done
-        return
-
-    data_itr = None
-
-    if data_itr:
-        for nvt_batch in data_itr:
-            cats_conts, labels = nvt_batch
-            if cat_names:
-                assert set(cat_names).issubset(set(list(cats_conts.keys())))
-            if cont_names:
-                assert set(cont_names).issubset(set(list(cats_conts.keys())))
-
-        if cat_names or cont_names or mh_names:
-            emb_sizes = nvt.ops.get_embedding_sizes(processor)
-
-            EMBEDDING_DROPOUT_RATE = 0.04
-            DROPOUT_RATES = [0.001, 0.01]
-            HIDDEN_DIMS = [1000, 500]
-            LEARNING_RATE = 0.001
-            model = Model(
-                embedding_table_shapes=emb_sizes,
-                num_continuous=len(cont_names),
-                emb_dropout=EMBEDDING_DROPOUT_RATE,
-                layer_hidden_dims=HIDDEN_DIMS,
-                layer_dropout_rates=DROPOUT_RATES,
-            ).cuda()
-            optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-
-            def rmspe_func(y_pred, y):
-                # Return y_pred and y to non-log space and compute RMSPE
-                y_pred, y = torch.exp(y_pred) - 1, torch.exp(y) - 1
-                pct_var = (y_pred - y) / y
-                return (pct_var**2).mean().pow(0.5)
-
-            train_loss, y_pred, y = process_epoch(
-                data_itr,
-                model,
-                train=True,
-                optimizer=optimizer,
-                amp=False,
-            )
-            train_rmspe = None
-            train_rmspe = rmspe_func(y_pred, y)
-            assert train_rmspe is not None
-            assert len(y_pred) > 0
-            assert len(y) > 0
-
-
 @pytest.mark.parametrize("part_mem_fraction", [0.001, 0.06])
 @pytest.mark.parametrize("batch_size", [1000])
-@pytest.mark.parametrize("engine", ["parquet"])
-@pytest.mark.parametrize("device", [None, 0])
-def test_gpu_dl_break(tmpdir, df, dataset, batch_size, part_mem_fraction, engine, device):
-    cat_names = ["name-cat", "name-string"]
-    cont_names = ["x", "y", "id"]
-    label_name = ["label"]
-
-    conts = cont_names >> ops.FillMedian() >> ops.Normalize()
-    cats = cat_names >> ops.Categorify()
-
-    processor = nvt.Workflow(conts + cats + label_name)
-
-    output_train = os.path.join(tmpdir, "train/")
-    os.mkdir(output_train)
-
-    processor.fit_transform(dataset).to_parquet(
-        shuffle=nvt.io.Shuffle.PER_PARTITION,
-        output_path=output_train,
-        out_files_per_proc=2,
-    )
-
-    tar_paths = [
-        os.path.join(output_train, x) for x in os.listdir(output_train) if x.endswith("parquet")
-    ]
-
-    ds = nvt.Dataset(
-        tar_paths[0], engine="parquet", part_mem_fraction=part_mem_fraction, cpu=device != 0
-    )
-    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
-
-    data_itr = torch_dataloader.Loader(
-        ds,
+@pytest.mark.parametrize("cpu", [True, False])
+def test_dataloader_break(dataset, batch_size, part_mem_fraction, cpu):
+    dataloader = torch_dataloader.Loader(
+        dataset,
         batch_size=batch_size,
     )
-    len_dl = len(data_itr) - 1
+    len_dl = len(dataloader) - 1
 
     first_chunk = 0
     idx = 0
-    for idx, chunk in enumerate(data_itr):
+    for idx, chunk in enumerate(dataloader):
         if idx == 0:
             first_chunk = len(chunk[0])
-        last_chk = len(chunk[0])
-        print(last_chk)
         if idx == 1:
             break
         del chunk
@@ -305,7 +178,7 @@ def test_gpu_dl_break(tmpdir, df, dataset, batch_size, part_mem_fraction, engine
     assert idx < len_dl
 
     first_chunk_2 = 0
-    for idx, chunk in enumerate(data_itr):
+    for idx, chunk in enumerate(dataloader):
         if idx == 0:
             first_chunk_2 = len(chunk[0])
         del chunk
@@ -316,57 +189,20 @@ def test_gpu_dl_break(tmpdir, df, dataset, batch_size, part_mem_fraction, engine
 
 @pytest.mark.parametrize("part_mem_fraction", [0.001, 0.06])
 @pytest.mark.parametrize("batch_size", [1000])
-@pytest.mark.parametrize("engine", ["parquet"])
-@pytest.mark.parametrize("device", [None, "cpu"])
-def test_gpu_dl(tmpdir, df, dataset, batch_size, part_mem_fraction, engine, device):
-    cat_names = ["name-cat", "name-string"]
-    cont_names = ["x", "y", "id"]
-    label_name = ["label"]
-
-    conts = cont_names >> ops.FillMedian() >> ops.Normalize()
-    cats = cat_names >> ops.Categorify()
-
-    processor = nvt.Workflow(conts + cats + label_name)
-
-    output_train = os.path.join(tmpdir, "train/")
-    os.mkdir(output_train)
-
-    processor.fit_transform(dataset).to_parquet(
-        shuffle=nvt.io.Shuffle.PER_PARTITION,
-        output_path=output_train,
-        out_files_per_proc=2,
-    )
-
-    tar_paths = [
-        os.path.join(output_train, x) for x in os.listdir(output_train) if x.endswith("parquet")
-    ]
-
-    cpu_true = device == "cpu"
-    ds = nvt.Dataset(
-        tar_paths[0], cpu=cpu_true, engine="parquet", part_mem_fraction=part_mem_fraction
-    )
-    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
-
-    data_itr = torch_dataloader.Loader(
-        ds,
+@pytest.mark.parametrize("cpu", [True, False])
+def test_dataloader(df, dataset, batch_size, part_mem_fraction, cpu):
+    dataloader = torch_dataloader.Loader(
+        dataset,
         batch_size=batch_size,
     )
 
-    columns = mycols_pq
-    df_test = nvt.Dataset(tar_paths[0]).to_ddf().compute()[columns]
-    df_test.columns = list(range(0, len(columns)))
-    if cudf:
-        num_rows, num_row_groups, col_names = cudf.io.read_parquet_metadata(tar_paths[0])
-    else:
-        meta = pa.parquet.read_metadata(tar_paths[0])
-        num_rows = meta.num_rows
+    num_rows = df.shape[0]
     rows = 0
+
     # works with iterator alone, needs to test inside torch dataloader
-    for idx, chunk in enumerate(data_itr):
-        if device is None:
-            assert float(df_test.iloc[rows][0]) == float(chunk[0]["name-cat"][0])
+    for idx, chunk in enumerate(dataloader):
+        assert df["name-cat"].iloc[rows] == chunk[0]["name-cat"][0]
         rows += len(chunk[0]["x"])
-        del chunk
 
     # accounts for incomplete batches at the end of chunks
     # that dont necesssarily have the full batch_size
@@ -377,48 +213,17 @@ def test_gpu_dl(tmpdir, df, dataset, batch_size, part_mem_fraction, engine, devi
         return (batch[0]), batch[1]
 
     t_dl = torch_dataloader.DLDataLoader(
-        data_itr, collate_fn=gen_col, pin_memory=False, num_workers=0
+        dataloader, collate_fn=gen_col, pin_memory=False, num_workers=0
     )
     rows = 0
     for idx, chunk in enumerate(t_dl):
-        if device is None:
-            assert float(df_test.iloc[rows][0]) == float(chunk[0]["name-cat"][0])
-
+        assert df["name-cat"].iloc[rows] == chunk[0]["name-cat"][0]
         rows += len(chunk[0]["x"])
-
-    if os.path.exists(output_train):
-        shutil.rmtree(output_train)
 
 
 @pytest.mark.parametrize("part_mem_fraction", [0.001, 0.1])
-@pytest.mark.parametrize("engine", ["parquet"])
-def test_kill_dl(tmpdir, df, dataset, part_mem_fraction, engine):
-    cat_names = ["name-cat", "name-string"]
-    cont_names = ["x", "y", "id"]
-    label_name = ["label"]
-
-    conts = cont_names >> ops.FillMedian() >> ops.Normalize()
-    cats = cat_names >> ops.Categorify()
-
-    processor = nvt.Workflow(conts + cats + label_name)
-
-    output_train = os.path.join(tmpdir, "train/")
-    os.mkdir(output_train)
-
-    processor.fit_transform(dataset).to_parquet(
-        shuffle=nvt.io.Shuffle.PER_PARTITION,
-        output_path=output_train,
-        out_files_per_proc=2,
-    )
-
-    tar_paths = [
-        os.path.join(output_train, x) for x in os.listdir(output_train) if x.endswith("parquet")
-    ]
-
-    ds = nvt.Dataset(tar_paths[0], engine="parquet", part_mem_fraction=part_mem_fraction)
-    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
-
-    data_itr = torch_dataloader.Loader(ds)
+def test_kill_dl(dataset, part_mem_fraction):
+    dataloader = torch_dataloader.Loader(dataset)
 
     results = {}
 
@@ -426,10 +231,10 @@ def test_kill_dl(tmpdir, df, dataset, part_mem_fraction, engine):
         print("Checking batch size: ", batch_size)
         num_iter = max(10 * 1000 * 1000 // batch_size, 100)  # load 10e7 samples
 
-        data_itr.batch_size = batch_size
+        dataloader.batch_size = batch_size
         start = time.time()
         i = 0
-        for i, data in enumerate(data_itr):
+        for i, data in enumerate(dataloader):
             if i >= num_iter:
                 break
             del data
@@ -450,50 +255,9 @@ def test_kill_dl(tmpdir, df, dataset, part_mem_fraction, engine):
         )
 
 
-def test_mh_support(tmpdir):
-    df = make_df(
-        {
-            "Authors": [
-                ["User_A"],
-                ["User_A", "User_E"],
-                ["User_B", "User_C"],
-                ["User_C"],
-            ],
-            "Reviewers": [
-                ["User_A"],
-                ["User_A", "User_E"],
-                ["User_B", "User_C"],
-                ["User_C"],
-            ],
-            "Engaging User": ["User_B", "User_B", "User_A", "User_D"],
-            "Post": [1, 2, 3, 4],
-        }
-    )
-    cat_names = ["Authors", "Reviewers"]
-    label_name = "Post"
-    if HAS_GPU:
-        cats = cat_names >> ops.HashBucket(num_buckets=10)
-    else:
-        cats = cat_names >> ops.Categorify()
-
-    processor = nvt.Workflow(cats + label_name)
-    ds = processor.fit_transform(nvt.Dataset(df))
-    ds.schema[label_name] = ds.schema[label_name].with_tags(Tags.TARGET)
-
-    df_out = ds.to_ddf().compute(scheduler="synchronous")
-
-    # check to make sure that the same strings are hashed the same
-    if HAS_GPU:
-        authors = df_out["Authors"].to_arrow().to_pylist()
-    else:
-        authors = df_out["Authors"]
-    assert authors[0][0] == authors[1][0]  # 'User_A'
-    assert authors[2][1] == authors[3][0]  # 'User_C'
-
-    data_itr = torch_dataloader.Loader(ds)
-
+def test_mh_support(multihot_dataset):
     idx = 0
-    for batch in data_itr:
+    for batch in torch_dataloader.Loader(multihot_dataset):
         idx = idx + 1
         cats_conts, labels = batch
         assert "Reviewers" in cats_conts
@@ -518,7 +282,7 @@ def test_sparse_tensors(sparse_dense):
     spa_mx = {"spar1": 5, "spar2": 6}
     batch_size = 2
 
-    ds = nvt.Dataset(df)
+    ds = Dataset(df)
     schema = ds.schema
     for col_name in spa_lst:
         if not sparse_dense:
@@ -527,11 +291,11 @@ def test_sparse_tensors(sparse_dense):
             )
     ds.schema = schema
 
-    data_itr = torch_dataloader.Loader(
+    dataloader = torch_dataloader.Loader(
         ds,
         batch_size=batch_size,
     )
-    for batch in data_itr:
+    for batch in dataloader:
         feats, labs = batch
         for col in spa_lst:
             feature_tensor = feats[col]
@@ -546,128 +310,18 @@ def test_sparse_tensors(sparse_dense):
     # ensure they are correct structurally
 
 
-def test_mh_model_support(tmpdir):
-    df = make_df(
-        {
-            "Authors": [
-                ["User_A"],
-                ["User_A", "User_E"],
-                ["User_B", "User_C"],
-                ["User_C"],
-            ],
-            "Reviewers": [
-                ["User_A"],
-                ["User_A", "User_E"],
-                ["User_B", "User_C"],
-                ["User_C"],
-            ],
-            "Engaging User": ["User_B", "User_B", "User_A", "User_D"],
-            "Null_User": ["User_B", "User_B", "User_A", "User_D"],
-            "Post": [1, 2, 3, 4],
-            "Cont1": [0.3, 0.4, 0.5, 0.6],
-            "Cont2": [0.3, 0.4, 0.5, 0.6],
-            "Cat1": ["A", "B", "A", "C"],
-        }
-    )
-    cat_names = ["Cat1", "Null_User", "Authors", "Reviewers"]  # , "Engaging User"]
-    cont_names = ["Cont1", "Cont2"]
-    label_name = "Post"
-    df["Post"] = df["Post"].astype("float32")
-
-    out_path = os.path.join(tmpdir, "train/")
-    os.mkdir(out_path)
-
-    cats = cat_names >> ops.Categorify()
-    conts = cont_names >> ops.Normalize(out_dtype="float32")
-
-    processor = nvt.Workflow(cats + conts + label_name)
-    ds = processor.fit_transform(nvt.Dataset(df))
-    ds.schema[label_name] = ds.schema[label_name].with_tags(Tags.TARGET)
-
-    data_itr = torch_dataloader.Loader(
-        ds,
-        batch_size=2,
-    )
-
-    emb_sizes = nvt.ops.get_embedding_sizes(processor)
-    # check  for correct  embedding representation
-    assert len(emb_sizes[1].keys()) == 2  # Authors, Reviewers
-    assert len(emb_sizes[0].keys()) == 2  # Null User, Cat1
-
-    EMBEDDING_DROPOUT_RATE = 0.04
-    DROPOUT_RATES = [0.001, 0.01]
-    HIDDEN_DIMS = [1000, 500]
-    LEARNING_RATE = 0.001
-    model = Model(
-        embedding_table_shapes=emb_sizes,
-        num_continuous=len(cont_names),
-        emb_dropout=EMBEDDING_DROPOUT_RATE,
-        layer_hidden_dims=HIDDEN_DIMS,
-        layer_dropout_rates=DROPOUT_RATES,
-    )
-    if HAS_GPU:
-        model = model.cuda()
-    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-
-    def rmspe_func(y_pred, y):
-        # Return y_pred and y to non-log space and compute RMSPE
-        y_pred, y = torch.exp(y_pred) - 1, torch.exp(y) - 1
-        pct_var = (y_pred - y) / y
-        return (pct_var**2).mean().pow(0.5)
-
-    train_loss, y_pred, y = process_epoch(
-        data_itr,
-        model,
-        train=True,
-        optimizer=optimizer,
-        # transform=DictTransform(data_itr).transform,
-        amp=False,
-    )
-    train_rmspe = None
-    train_rmspe = rmspe_func(y_pred, y)
-    assert train_rmspe is not None
-    assert len(y_pred) > 0
-    assert len(y) > 0
-
-
 @pytest.mark.parametrize("batch_size", [1000])
-@pytest.mark.parametrize("engine", ["parquet"])
-@pytest.mark.parametrize("device", [None, 0])
-def test_dataloader_schema(tmpdir, df, dataset, batch_size, engine, device):
-    cat_names = ["name-cat", "name-string"]
-    cont_names = ["x", "y", "id"]
-    label_name = ["label"]
-
-    conts = cont_names >> ops.FillMedian() >> ops.Normalize()
-    cats = cat_names >> ops.Categorify()
-
-    processor = nvt.Workflow(conts + cats + label_name)
-
-    output_train = os.path.join(tmpdir, "train/")
-    os.mkdir(output_train)
-
-    processor.fit_transform(dataset).to_parquet(
-        shuffle=nvt.io.Shuffle.PER_PARTITION,
-        output_path=output_train,
-        out_files_per_proc=2,
-    )
-
-    tar_paths = [
-        os.path.join(output_train, x) for x in os.listdir(output_train) if x.endswith("parquet")
-    ]
-
-    ds = nvt.Dataset(tar_paths, engine="parquet")
-    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
-
+@pytest.mark.parametrize("cpu", [True, False])
+def test_dataloader_schema(df, dataset, batch_size, cpu):
     data_loader = torch_dataloader.Loader(
-        ds,
+        dataset,
         batch_size=batch_size,
         shuffle=False,
     )
 
-    batch = next(iter(data_loader))
-    assert all(name in batch[0] for name in cat_names)
-    assert all(name in batch[0] for name in cont_names)
+    X, y = next(iter(data_loader))
+    columns = set(dataset.schema.column_names) - {"label"}
+    assert columns == set(X.keys())
 
-    num_label_cols = batch[1].shape[1] if len(batch[1].shape) > 1 else 1
-    assert num_label_cols == len(label_name)
+    num_label_cols = y.shape[1] if len(y.shape) > 1 else 1
+    assert num_label_cols == 1

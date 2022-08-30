@@ -20,15 +20,10 @@ from conftest import assert_eq
 from merlin.core.dispatch import concat, generate_local_seed, get_random_state, make_df
 from merlin.io import Dataset
 from merlin.loader.loader_base import LoaderBase
-from merlin.schema import Tags
 
 
-@pytest.mark.parametrize("engine", ["parquet"])
 @pytest.mark.parametrize("batch_size", [128])
-def test_dataloader_seeding(datasets, engine, batch_size):
-    dataset = Dataset(str(datasets["parquet"]), engine=engine)
-    dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
-
+def test_dataloader_seeding(dataset, batch_size):
     # Define a seed function that returns the same seed on all workers
     seed_fragments = []
 
@@ -97,9 +92,8 @@ def test_dataloader_seeding(datasets, engine, batch_size):
     assert dl0_next_rand != dl1_next_rand
 
 
-@pytest.mark.parametrize("engine", ["parquet"])
 @pytest.mark.parametrize("batch_size", [128])
-def test_dataloader_empty_error(datasets, engine, batch_size):
+def test_dataloader_empty_error(batch_size):
     dataset = Dataset(make_df({}))
 
     with pytest.raises(ValueError) as exc_info:
@@ -113,13 +107,9 @@ def test_dataloader_empty_error(datasets, engine, batch_size):
     )
 
 
-@pytest.mark.parametrize("engine", ["parquet"])
 @pytest.mark.parametrize("batch_size", [128])
 @pytest.mark.parametrize("epochs", [1, 5])
-def test_dataloader_epochs(datasets, engine, batch_size, epochs):
-    dataset = Dataset(str(datasets["parquet"]), engine=engine)
-    dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
-
+def test_dataloader_epochs(dataset, batch_size, epochs):
     data_loader = LoaderBase(
         dataset,
         batch_size=batch_size,
