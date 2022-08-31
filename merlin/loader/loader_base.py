@@ -399,7 +399,7 @@ class LoaderBase:
                     c = (c, batch_lists)
 
                 batches[n].append(c)
-        return [self._handle_tensors(batch) for batch in batches]
+        return (self._handle_tensors(batch) for batch in batches)
 
     def _get_segment_lengths(self, num_samples):
         """
