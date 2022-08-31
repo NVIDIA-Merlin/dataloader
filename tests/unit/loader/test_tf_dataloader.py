@@ -17,6 +17,8 @@
 import importlib.util
 import os
 import subprocess
+import time
+import timeit
 
 from merlin.core.dispatch import make_df
 from merlin.io import Dataset
@@ -581,3 +583,33 @@ def test_dataloader_schema(tmpdir, dataset, batch_size, cpu):
 
     num_label_cols = batch[1].shape[1] if len(batch[1].shape) > 1 else 1
     assert num_label_cols == 1
+
+
+def test_lazy_dataset_map():
+    dataset_size = 100
+    data_df = pd.DataFrame({"feature": np.random.randint(100, size=dataset_size)})
+    dataset = Dataset(data_df)
+    dataloader = tf_dataloader.Loader(dataset, batch_size=10)
+
+    # since this is timing dependent, the first time a Dataloader works a bunch
+    # of things are initialized - which takes 1.5s on my system
+    # force a batch through so that the rest of the test can work even if this test
+    # is called by itself
+    next(dataloader)
+    dataloader.stop()
+
+    sleep_time_seconds = 0.5
+    map_function_called = False
+
+    def identity(x, y):
+        nonlocal map_function_called
+        time.sleep(sleep_time_seconds)
+        map_function_called = True
+        return (x, y)
+
+    dataloader = dataloader.map(identity)
+
+    elapsed_time_seconds = timeit.timeit(lambda: next(dataloader), number=1)
+
+    assert map_function_called
+    assert elapsed_time_seconds < 1
