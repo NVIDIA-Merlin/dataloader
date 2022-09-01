@@ -20,7 +20,7 @@ import subprocess
 import time
 import timeit
 
-from merlin.core.dispatch import make_df, HAS_GPU
+from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 

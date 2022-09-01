@@ -23,7 +23,7 @@ import pytest
 from conftest import assert_eq
 
 from merlin.core import dispatch
-from merlin.core.dispatch import make_df, HAS_GPU
+from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
