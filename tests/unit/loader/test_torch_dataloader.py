@@ -23,7 +23,7 @@ import pytest
 from conftest import assert_eq
 
 from merlin.core import dispatch
-from merlin.core.dispatch import make_df
+from merlin.core.dispatch import make_df, HAS_GPU
 from merlin.io import Dataset
 from merlin.schema import Tags
 
@@ -158,7 +158,7 @@ json_sample = {
 
 @pytest.mark.parametrize("part_mem_fraction", [0.001, 0.06])
 @pytest.mark.parametrize("batch_size", [1000])
-@pytest.mark.parametrize("cpu", [True, False])
+@pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_break(dataset, batch_size, part_mem_fraction, cpu):
     dataloader = torch_dataloader.Loader(
         dataset,
@@ -189,7 +189,7 @@ def test_dataloader_break(dataset, batch_size, part_mem_fraction, cpu):
 
 @pytest.mark.parametrize("part_mem_fraction", [0.001, 0.06])
 @pytest.mark.parametrize("batch_size", [1000])
-@pytest.mark.parametrize("cpu", [True, False])
+@pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader(df, dataset, batch_size, part_mem_fraction, cpu):
     dataloader = torch_dataloader.Loader(
         dataset,
@@ -311,7 +311,7 @@ def test_sparse_tensors(sparse_dense):
 
 
 @pytest.mark.parametrize("batch_size", [1000])
-@pytest.mark.parametrize("cpu", [True, False])
+@pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_schema(df, dataset, batch_size, cpu):
     data_loader = torch_dataloader.Loader(
         dataset,
