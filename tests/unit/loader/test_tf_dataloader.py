@@ -20,7 +20,7 @@ import subprocess
 import time
 import timeit
 
-from merlin.core.dispatch import make_df
+from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
@@ -226,7 +226,7 @@ def test_tf_map(tmpdir):
 # TODO: include parts_per_chunk test
 @pytest.mark.parametrize("gpu_memory_frac", [0.01, 0.06])
 @pytest.mark.parametrize("batch_size", [1, 10, 100])
-@pytest.mark.parametrize("cpu", [False, True])
+@pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_tensorflow_dataloader(
     tmpdir,
     cpu,
@@ -568,7 +568,7 @@ def test_horovod_multigpu(tmpdir):
 
 
 @pytest.mark.parametrize("batch_size", [1000])
-@pytest.mark.parametrize("cpu", [True, False])
+@pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_schema(tmpdir, dataset, batch_size, cpu):
     data_loader = tf_dataloader.Loader(
         dataset,
