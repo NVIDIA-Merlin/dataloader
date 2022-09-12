@@ -30,7 +30,6 @@ sphinx_rtd_theme
 natsort<8.2
 myst-nb<0.14
 linkify-it-py<1.1
-recommonmark
 
 # needed to avoid bug in sphinx-markdown-tables
 # https://github.com/ryanfox/sphinx-markdown-tables/issues/36
