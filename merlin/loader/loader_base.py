@@ -556,21 +556,22 @@ class LoaderBase:
 
 class ChunkQueue:
     """This class takes partitions (parts) from an merlin.io.Dataset
-     and concatenates them into a cudf dataframe "chunk". This chunk
+    and concatenates them into a cudf dataframe "chunk." This chunk
     is subsequently transformed into its tensor representation using
     the iterator's transform.
 
     Parameters
-    -----------
+    ----------
     qsize: int
-        Max number of elements to hold in the buffer at once
+        Maximum number of elements to hold in the buffer at one time.
     num_parts : int
-        number of partitions from the iterator, a merlin.io.Dataset to concatenate into a "chunk"
+        Number of partitions from the iterator, a merlin.io.Dataset to
+        concatenate into a "chunk."
     shuffle : bool
-        enable/disable chunk-level shuffling
+        Enable or disable chunk-level shuffling.
     put_wait: float
-        amount of timeout to wait for a full queue to open up
-        before checking for errors and trying again
+        Specifies the timeout to wait for a full queue to open up before checking
+        for errors and trying again.
     """
 
     def __init__(self, dataloader, qsize, num_parts=1, shuffle=False, put_wait=1e-6, epochs=1):
@@ -609,8 +610,7 @@ class ChunkQueue:
 
     @annotate("batch", color="darkgreen", domain="merlin_loader")
     def batch(self, itr):
-        """
-        iterates through gpu_mem_frac size chunks of dataset
+        """Iterates through gpu_mem_frac size chunks of dataset
         and concatenates every `num_parts` of them.
         """
         current = []

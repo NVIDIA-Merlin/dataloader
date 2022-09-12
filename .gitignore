@@ -1,1 +1,4 @@
 docs/build
+docs/source/generated
+docs/source/README.md
+docs/source/examples
