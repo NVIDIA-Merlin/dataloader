@@ -45,6 +45,8 @@ requirements = {
     "dev": read_requirements("requirements/dev.txt"),
 }
 
+with open("README.md", encoding="utf8") as readme:
+    long_description = readme.read()
 
 setup(
     name="merlin-dataloader",
@@ -54,7 +56,7 @@ setup(
     url="https://github.com/NVIDIA-Merlin/dataloader",
     author="NVIDIA Corporation",
     license="Apache 2.0",
-    long_description=open("README.md", encoding="utf8").read(),
+    long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=requirements["base"],
     test_suite="tests",

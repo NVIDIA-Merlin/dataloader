@@ -36,7 +36,7 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
-from merlin.io import DataFrameIter, shuffle_df
+from merlin.io import shuffle_df
 from merlin.schema import Tags
 
 
@@ -60,27 +60,44 @@ class LoaderBase:
         global_rank=None,
         drop_last=False,
     ):
-        self.data = dataset
-        self.schema = _get_dataset_schema(dataset)
-        # self.data is ddf format
-        self.indices = cp.arange(self.data.npartitions)
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.seed_fn = seed_fn
+        self.parts_per_chunk = parts_per_chunk
+        self.global_size = global_size or 1
+        self.global_rank = global_rank or 0
         self.drop_last = drop_last
+
+        self.indices = cp.arange(self.dataset.npartitions)
         self.device = "cpu" if not HAS_GPU or dataset.cpu else 0
-        sparse_names = []
-        sparse_max = {}
-        sparse_as_dense = set()
+
+        if not dataset.schema:
+            warnings.warn(
+                "no schema associated with the input dataset. "
+                "Calling dataset.infer_schema to automatically generate"
+            )
+            dataset.schema = dataset.infer_schema()
+
+        self.sparse_names = []
+        self.sparse_max = {}
+        self.sparse_as_dense = set()
+        self.dtype_reverse_map = {}
 
         for col_name, col_spec in dataset.schema.column_schemas.items():
+            if col_spec.dtype not in self.dtype_reverse_map:
+                self.dtype_reverse_map[col_spec.dtype] = [col_name]
+            else:
+                self.dtype_reverse_map[col_spec.dtype].append(col_name)
             if col_spec.is_list:
-                sparse_names.append(col_name)
+                self.sparse_names.append(col_name)
 
                 value_count = col_spec.value_count
                 if value_count and value_count.min == value_count.max:
-                    sparse_max[col_name] = value_count.max
+                    self.sparse_max[col_name] = value_count.max
 
                 if not col_spec.is_ragged:
-                    # TODO: set this per column,
-                    sparse_as_dense.add(col_name)
+                    self.sparse_as_dense.add(col_name)
 
                     if not value_count:
                         # TODO: error message linking to docs
@@ -89,40 +106,21 @@ class LoaderBase:
                             " in the schema"
                         )
 
-        self.sparse_names = sparse_names
-
-        self.sparse_max = sparse_max or {}
-        self.sparse_as_dense = sparse_as_dense
-        self.global_size = global_size or 1
-        self.global_rank = global_rank or 0
         self._epochs = 1
 
-        self.cat_names = (
-            self.schema.select_by_tag(Tags.CATEGORICAL).column_names if self.schema else []
-        )
+        self.cat_names = dataset.schema.select_by_tag(Tags.CATEGORICAL).column_names
+        self.cont_names = dataset.schema.select_by_tag(Tags.CONTINUOUS).column_names
+        self.label_names = dataset.schema.select_by_tag(Tags.TARGET).column_names
 
-        self.cont_names = (
-            self.schema.select_by_tag(Tags.CONTINUOUS).column_names if self.schema else []
-        )
-        self.label_names = (
-            self.schema.select_by_tag(Tags.TARGET).column_names if self.schema else []
-        )
-
-        if not self.cat_names and not self.cont_names:
+        if len(list(self.dtype_reverse_map.keys())) == 0:
             raise ValueError(
                 "Neither Categorical or Continuous columns were found by the dataloader. "
                 "You must either specify the cat_names, cont_names and "
                 "label_names properties or supply a schema.pbtxt file in dataset directory."
             )
 
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.seed_fn = seed_fn
-
         self.num_rows_processed = 0
 
-        self.parts_per_chunk = parts_per_chunk
-        self.shuffle = shuffle
         self.__buff = None
         self.__buff_len = None
         self._batch_itr = None
@@ -199,7 +197,7 @@ class LoaderBase:
             self._buff.q_out.queue.clear()
         self._batch_itr = None
 
-    def _gather_indices_for_dev(self, dev):
+    def _indices_for_process(self):
         # this should be self.indices divided by total processes, global set
         if len(self.indices) < self.global_size:
             warnings.warn(
@@ -245,10 +243,8 @@ class LoaderBase:
         return self._get_next_batch()
 
     def _data_iter(self, epochs):
-        indices = self._gather_indices_for_dev(0)
-        if hasattr(self.data, "to_iter"):
-            return self.data.to_iter(indices=indices, epochs=epochs)
-        return DataFrameIter(self.data, epochs=epochs)
+        indices = self._indices_for_process()
+        return self.dataset.to_iter(indices=indices, epochs=epochs)
 
     def _fetch_chunk(self):
         chunks = self._buff.get()
@@ -317,12 +313,19 @@ class LoaderBase:
 
         """
         split_idx = self._get_segment_lengths(len(gdf))
-
         # map from big chunk to framework-specific tensors
         chunks = self._create_tensors(gdf)
 
         # if we have any offsets, calculate nnzs up front
-        if len(chunks) == 4:
+        # will need to get offsets if list columns detected in schema
+
+        # if len(chunks) == 4:
+        lists_list = [
+            col_name
+            for col_name, col_schema in self.dataset.schema.column_schemas.items()
+            if col_schema.is_list
+        ]
+        if len(lists_list) > 0:
             offsets = chunks[-1]
             if use_nnz:
                 nnzs = offsets[1:] - offsets[:-1]
@@ -396,7 +399,7 @@ class LoaderBase:
                     c = (c, batch_lists)
 
                 batches[n].append(c)
-        return [self._handle_tensors(*batch) for batch in batches]
+        return (self._handle_tensors(batch) for batch in batches)
 
     def _get_segment_lengths(self, num_samples):
         """
@@ -428,7 +431,7 @@ class LoaderBase:
             values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
         )
 
-    def _to_tensor(self, gdf, dtype=None):
+    def _to_tensor(self, df):
         """
         One of the mandatory functions a child class needs
         to implement. Maps from a cudf DataFrame to a
@@ -445,15 +448,13 @@ class LoaderBase:
         """
         raise NotImplementedError
 
+    def _cast_to_numpy_dtype(self, dtype):
+        """
+        Get the numpy dtype from the framework dtype.
+        """
+        raise NotImplementedError
+
     def _split_fn(self, tensor, idx, axis=0):
-        raise NotImplementedError
-
-    @property
-    def _LONG_DTYPE(self):
-        raise NotImplementedError
-
-    @property
-    def _FLOAT32_DTYPE(self):
         raise NotImplementedError
 
     def _separate_list_columns(self, gdf):
@@ -472,11 +473,10 @@ class LoaderBase:
         categorical, continuous, and label tensors.
         Can be overrideen
         """
-        workflow_nodes = (self.cat_names, self.cont_names, self.label_names)
-        dtypes = (self._LONG_DTYPE, self._FLOAT32_DTYPE, self._FLOAT32_DTYPE)
         tensors = []
         offsets = make_df(device=self.device)
-        for column_names, dtype in zip(workflow_nodes, dtypes):
+        for column_names in self.dtype_reverse_map.values():
+            # for column names using schema find scalars and lists columns
             if len(column_names) == 0:
                 tensors.append(None)
                 continue
@@ -488,9 +488,11 @@ class LoaderBase:
 
             x = None
             if scalars:
+                # split out cols and change all scalars
                 # should always return dict column_name: values, offsets (optional)
-                x = self._to_tensor(gdf_i[scalars], dtype)
+                x = self._to_tensor(gdf_i[scalars])
             if lists:
+                # split out lists
                 list_tensors = OrderedDict()
                 for column_name in lists:
                     column = gdf_i.pop(column_name)
@@ -501,12 +503,12 @@ class LoaderBase:
                         col_offsets = nest_offsets.iloc[col_offsets[:]]
 
                     offsets[column_name] = col_offsets.reset_index(drop=True)
-                    list_tensors[column_name] = self._to_tensor(leaves, dtype)
+                    list_tensors[column_name] = self._to_tensor(leaves)
                 x = x, list_tensors
             tensors.append(x)
 
         if not offsets.empty:
-            offsets_tensor = self._to_tensor(offsets, self._LONG_DTYPE)
+            offsets_tensor = self._to_tensor(offsets)
             if len(offsets_tensor.shape) == 1:
                 offsets_tensor = offsets_tensor[:, None]
             tensors.append(offsets_tensor)
@@ -515,55 +517,61 @@ class LoaderBase:
         return tensors
 
     @annotate("_handle_tensors", color="darkgreen", domain="merlin_loader")
-    def _handle_tensors(self, cats, conts, labels):
+    def _handle_tensors(self, tensors):
+        # tensors =  dictionary of all tensors
         X = {}
-        for tensor, names in zip([cats, conts], [self.cat_names, self.cont_names]):
+        for idx, tensor in enumerate(tensors):
             lists = {}
             if isinstance(tensor, tuple):
                 tensor, lists = tensor
+            dtype = self._cast_to_numpy_dtype(tensor.dtype) if tensor is not None else None
+            names = self.dtype_reverse_map[np.dtype(dtype)] if dtype is not None else []
+
             names = [i for i in names if i not in lists]
 
             # now add in any scalar tensors
             if len(names) > 1:
                 tensors = self._tensor_split(tensor, len(names), axis=1)
+                # pull out label tensor from here
                 lists.update(zip(names, tensors))
             elif len(names) == 1:
                 lists[names[0]] = tensor
             X.update(lists)
 
-        for column_name in X:
-
-            if column_name in self.sparse_names:
-                if column_name in self.sparse_max:
-                    # raise ValueError(
-                    #     f"Did not convert {column_name} to sparse due to missing sparse_max entry"
-                    # )
-                    X[column_name] = self._to_sparse_tensor(X[column_name], column_name)
+        for column_name in self.sparse_names:
+            if column_name in self.sparse_max:
+                # raise ValueError(
+                #     f"Did not convert {column_name} to sparse due to missing sparse_max entry"
+                # )
+                X[column_name] = self._to_sparse_tensor(X[column_name], column_name)
 
         # TODO: use dict for labels as well?
         # would require output layers to match naming
-        if len(self.label_names) > 1:
-            labels = self._tensor_split(labels, len(self.label_names), axis=1)
+        # labels should not exist separately they should be a regular column
+        labels = None
+        if len(self.label_names) > 0:
+            labels = X.pop(self.label_names[0])
         return X, labels
 
 
 class ChunkQueue:
     """This class takes partitions (parts) from an merlin.io.Dataset
-     and concatenates them into a cudf dataframe "chunk". This chunk
+    and concatenates them into a cudf dataframe "chunk." This chunk
     is subsequently transformed into its tensor representation using
     the iterator's transform.
 
     Parameters
-    -----------
+    ----------
     qsize: int
-        Max number of elements to hold in the buffer at once
+        Maximum number of elements to hold in the buffer at one time.
     num_parts : int
-        number of partitions from the iterator, a merlin.io.Dataset to concatenate into a "chunk"
+        Number of partitions from the iterator, a merlin.io.Dataset to
+        concatenate into a "chunk."
     shuffle : bool
-        enable/disable chunk-level shuffling
+        Enable or disable chunk-level shuffling.
     put_wait: float
-        amount of timeout to wait for a full queue to open up
-        before checking for errors and trying again
+        Specifies the timeout to wait for a full queue to open up before checking
+        for errors and trying again.
     """
 
     def __init__(self, dataloader, qsize, num_parts=1, shuffle=False, put_wait=1e-6, epochs=1):
@@ -602,8 +610,7 @@ class ChunkQueue:
 
     @annotate("batch", color="darkgreen", domain="merlin_loader")
     def batch(self, itr):
-        """
-        iterates through gpu_mem_frac size chunks of dataset
+        """Iterates through gpu_mem_frac size chunks of dataset
         and concatenates every `num_parts` of them.
         """
         current = []
@@ -682,7 +689,3 @@ class ChunkQueue:
         if not spill.empty:
             spill.reset_index(drop=True, inplace=True)
         return chunks, spill
-
-
-def _get_dataset_schema(dataset):
-    return dataset.schema if hasattr(dataset, "schema") else None

@@ -17,29 +17,13 @@ import numpy as np
 import pytest
 from conftest import assert_eq
 
-from merlin.core.dispatch import concat, generate_local_seed, get_random_state
+from merlin.core.dispatch import concat, generate_local_seed, get_random_state, make_df
 from merlin.io import Dataset
 from merlin.loader.loader_base import LoaderBase
-from merlin.schema import Tags
 
 
-@pytest.mark.parametrize("engine", ["parquet"])
 @pytest.mark.parametrize("batch_size", [128])
-def test_dataloader_seeding(datasets, engine, batch_size):
-    cont_names = ["x", "y", "id"]
-    cat_names = ["name-string", "name-cat"]
-    label_name = ["label"]
-
-    dataset = Dataset(str(datasets["parquet"]), engine=engine)
-    schema = dataset.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    dataset.schema = schema
-
+def test_dataloader_seeding(dataset, batch_size):
     # Define a seed function that returns the same seed on all workers
     seed_fragments = []
 
@@ -101,17 +85,16 @@ def test_dataloader_seeding(datasets, engine, batch_size):
     # Test that the shuffle has the same result on both workers
     # (i.e. the random seeds are the same when the shuffle happens)
     for idx, element in enumerate(dl0_indices):
-        assert dl0_indices[idx] == dl1_indices[idx]
+        assert element == dl1_indices[idx]
 
     # Test that after the shuffle each worker generates different random numbers
     # (i.e. the random seeds are different on each worker after the shuffle)
     assert dl0_next_rand != dl1_next_rand
 
 
-@pytest.mark.parametrize("engine", ["parquet"])
 @pytest.mark.parametrize("batch_size", [128])
-def test_dataloader_empty_error(datasets, engine, batch_size):
-    dataset = Dataset(str(datasets["parquet"]), engine=engine)
+def test_dataloader_empty_error(batch_size):
+    dataset = Dataset(make_df({}))
 
     with pytest.raises(ValueError) as exc_info:
         LoaderBase(
@@ -124,24 +107,9 @@ def test_dataloader_empty_error(datasets, engine, batch_size):
     )
 
 
-@pytest.mark.parametrize("engine", ["parquet"])
 @pytest.mark.parametrize("batch_size", [128])
 @pytest.mark.parametrize("epochs", [1, 5])
-def test_dataloader_epochs(datasets, engine, batch_size, epochs):
-    cont_names = ["x", "y", "id"]
-    cat_names = ["name-string", "name-cat"]
-    label_name = ["label"]
-
-    dataset = Dataset(str(datasets["parquet"]), engine=engine)
-    schema = dataset.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
-    for col_name in cont_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CONTINUOUS)
-    for col_name in label_name:
-        schema[col_name] = schema[col_name].with_tags(Tags.TARGET)
-    dataset.schema = schema
-
+def test_dataloader_epochs(dataset, batch_size, epochs):
     data_loader = LoaderBase(
         dataset,
         batch_size=batch_size,

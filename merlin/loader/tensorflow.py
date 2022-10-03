@@ -179,14 +179,6 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         """
         return tf.split(tensor, idx, axis=axis)
 
-    @property
-    def _LONG_DTYPE(self):
-        return tf.int64
-
-    @property
-    def _FLOAT32_DTYPE(self):
-        return tf.float32
-
     def _pack(self, gdf):
         if isinstance(gdf, np.ndarray):
             return gdf
@@ -204,7 +196,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             return tf.convert_to_tensor(gdf)
         return from_dlpack(gdf)
 
-    def _to_tensor(self, gdf, dtype=None):
+    def _to_tensor(self, gdf):
         if gdf.empty:
             return
 
@@ -290,13 +282,19 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             tensor = tf.sparse.to_dense(tensor)
         return tensor
 
-    def _handle_tensors(self, cats, conts, labels):
-        to_return = super()._handle_tensors(cats, conts, labels)
+    def _handle_tensors(self, tensors):
+        to_return = super()._handle_tensors(tensors)
 
         for map_fn in self._map_fns:
             to_return = map_fn(*to_return)
 
         return to_return
+
+    def _cast_to_numpy_dtype(self, dtype):
+        """
+        Get the numpy dtype from the framework dtype.
+        """
+        return dtype.as_numpy_dtype()
 
 
 class KerasSequenceValidater(tf.keras.callbacks.Callback):

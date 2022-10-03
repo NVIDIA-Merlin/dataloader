@@ -20,6 +20,22 @@ from torch.utils.dlpack import from_dlpack
 from merlin.core.dispatch import HAS_GPU
 from merlin.loader.loader_base import LoaderBase
 
+numpy_to_torch_dtype_dict = {
+    np.bool: torch.bool,
+    np.uint8: torch.uint8,
+    np.int8: torch.int8,
+    np.int16: torch.int16,
+    np.int32: torch.int32,
+    np.int64: torch.int64,
+    np.float16: torch.float16,
+    np.float32: torch.float32,
+    np.float64: torch.float64,
+    np.complex64: torch.complex64,
+    np.complex128: torch.complex128,
+}
+
+torch_to_numpy_dtype_dict = {v: k for k, v in numpy_to_torch_dtype_dict.items()}
+
 
 class Loader(torch.utils.data.IterableDataset, LoaderBase):
     """This class creates batches of tensor. Each batch size is specified by the user.
@@ -89,33 +105,26 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
 
     def _unpack(self, dlpack):
         if self.device == "cpu":
+            values = dlpack.values
+            dtype = values.dtype
+            dtype = numpy_to_torch_dtype_dict[dtype.type] if hasattr(dtype, "type") else dtype
             if (
                 len(dlpack.values.shape) == 2
                 and dlpack.values.shape[1] == 1
                 and isinstance(dlpack.values[0], np.ndarray)
             ):
-                return torch.squeeze(torch.Tensor(dlpack.values))
-            return torch.Tensor(dlpack.values)
+                return torch.squeeze(torch.Tensor(values)).type(dtype)
+            return torch.Tensor(values).type(dtype)
         return from_dlpack(dlpack)
 
-    def _to_tensor(self, gdf, dtype=None):
-        dl_pack = self._pack(gdf)
-        tensor = self._unpack(dl_pack)
-        return tensor.type(dtype)
+    def _to_tensor(self, df):
+        return self._unpack(self._pack(df))
 
     def _split_fn(self, tensor, idx, axis=0):
         return torch.split(tensor, idx, dim=axis)
 
     def _tensor_split(self, tensor, idx, axis=0):
         return torch.tensor_split(tensor, idx, axis=axis)
-
-    @property
-    def _LONG_DTYPE(self):
-        return torch.long
-
-    @property
-    def _FLOAT32_DTYPE(self):
-        return torch.float32
 
     def _pull_values_offsets(self, values_offset):
         # pull_values_offsets, return values offsets diff_offsets
@@ -156,6 +165,12 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         if sparse_as_dense:
             sparse_tensor = sparse_tensor.to_dense()
         return sparse_tensor
+
+    def _cast_to_numpy_dtype(self, dtype):
+        """
+        Get the numpy dtype from the framework dtype.
+        """
+        return torch_to_numpy_dtype_dict[dtype]
 
 
 class DLDataLoader(torch.utils.data.DataLoader):
