@@ -19,8 +19,10 @@ import queue
 import threading
 import warnings
 from collections import OrderedDict
+from typing import List
 
 import numpy as np
+from core.merlin.dag.ops.selector import ColumnSelector
 
 try:
     import cupy as cp
@@ -36,6 +38,8 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
+from merlin.dag import BaseOperator, Node
+from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
 from merlin.schema import Tags
 
@@ -59,6 +63,7 @@ class LoaderBase:
         global_size=None,
         global_rank=None,
         drop_last=False,
+        transforms=None,
     ):
         self.dataset = dataset
         self.batch_size = batch_size
@@ -125,6 +130,25 @@ class LoaderBase:
         self.__buff_len = None
         self._batch_itr = None
         self._workers = None
+
+        if transforms is not None:
+            if type(transforms, List):
+                carry_node = Node(ColumnSelector("*"))
+                for transform in transforms:
+                    # check that each transform is an operator:
+                    if not type(transform, BaseOperator):
+                        raise TypeError(f"Detected invalid transform, {type(transform)}")
+                    carry_node = carry_node >> transform
+            self.transforms = carry_node
+            # should we make one main local executor and hold that on dataloader?
+            # Or build dynamically per batch?
+            # is there a reason we might expose this to the user?
+            # change to something other than local?
+            self.executor = LocalExecutor()
+        else:
+            # Like this to be more explicit about what occurs.
+            self.transforms = None
+            self.executor = None
 
     @property
     def _buff(self):
@@ -438,7 +462,7 @@ class LoaderBase:
         tensor in the appropriate library, with an optional
         dtype kwarg to do explicit casting if need be
         """
-        raise NotImplementedError
+        return df.to_cupy()
 
     def _get_device_ctx(self, dev):
         """
@@ -446,13 +470,13 @@ class LoaderBase:
         to implement. Maps from a GPU index to a framework
         context object for placing tensors on specific GPUs
         """
-        raise NotImplementedError
+        return cp.cuda.Device(dev)
 
     def _cast_to_numpy_dtype(self, dtype):
         """
         Get the numpy dtype from the framework dtype.
         """
-        raise NotImplementedError
+        return dtype
 
     def _split_fn(self, tensor, idx, axis=0):
         raise NotImplementedError
@@ -551,7 +575,34 @@ class LoaderBase:
         labels = None
         if len(self.label_names) > 0:
             labels = X.pop(self.label_names[0])
+
+        # with tensors all in one dictionary
+        # apply transforms graph here against the tensors
+        #
+        # tensors = local_executor.transform_data(tensors)
+
+        # bad thing here is that we dont have the labels, what is required, for some
+        #   reason by op transform logic?
+        # bad thing here is that some of this entries are lists, which are tuples?
+        #           are all operators going to need to know about lists as tuples?
+        #           seems like we could benefit from an object here that encapsulates
+        #               both lists and scalar tensor types?
+        if self.transforms:
+            self.executor.transform(X, self.transforms)
+
         return X, labels
+
+    def _pack(self, gdf):
+        if isinstance(gdf, np.ndarray):
+            return gdf
+        elif hasattr(gdf, "to_dlpack") and callable(getattr(gdf, "to_dlpack")):
+            return gdf.to_dlpack()
+        elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
+            gdf = gdf.to_numpy()
+            if isinstance(gdf[0], list):
+                gdf = np.stack(gdf)
+            return gdf
+        return gdf.toDlpack()
 
 
 class ChunkQueue:
