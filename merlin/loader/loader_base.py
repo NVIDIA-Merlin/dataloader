@@ -22,7 +22,6 @@ from collections import OrderedDict
 from typing import List
 
 import numpy as np
-from core.merlin.dag.ops.selector import ColumnSelector
 
 try:
     import cupy as cp
@@ -38,7 +37,7 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
-from merlin.dag import BaseOperator, Node
+from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node
 from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
 from merlin.schema import Tags
@@ -84,6 +83,7 @@ class LoaderBase:
             )
             dataset.schema = dataset.infer_schema()
 
+        self.schema = dataset.schema
         self.sparse_names = []
         self.sparse_max = {}
         self.sparse_as_dense = set()
@@ -132,14 +132,19 @@ class LoaderBase:
         self._workers = None
 
         if transforms is not None:
-            if type(transforms, List):
+
+            if isinstance(transforms, List):
                 carry_node = Node(ColumnSelector("*"))
                 for transform in transforms:
                     # check that each transform is an operator:
-                    if not type(transform, BaseOperator):
+                    if not isinstance(transform, BaseOperator):
                         raise TypeError(f"Detected invalid transform, {type(transform)}")
                     carry_node = carry_node >> transform
-            self.transforms = carry_node
+                transform_graph = Graph(carry_node)
+            elif type(transforms, Graph):
+                transform_graph = transforms
+            self.transforms = transform_graph.construct_schema(self.schema).output_node
+            self.schema = self.transforms.output_schema
             # should we make one main local executor and hold that on dataloader?
             # Or build dynamically per batch?
             # is there a reason we might expose this to the user?
@@ -588,7 +593,7 @@ class LoaderBase:
         #           seems like we could benefit from an object here that encapsulates
         #               both lists and scalar tensor types?
         if self.transforms:
-            self.executor.transform(X, self.transforms)
+            X = self.executor.transform(DictArray(X), [self.transforms])
 
         return X, labels
 

@@ -77,6 +77,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         global_size=None,
         global_rank=None,
         drop_last=False,
+        transforms=None,
     ):
         LoaderBase.__init__(
             self,
@@ -88,6 +89,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             global_size=global_size,
             global_rank=global_rank,
             drop_last=drop_last,
+            transforms=transforms,
         )
 
     def __iter__(self):
