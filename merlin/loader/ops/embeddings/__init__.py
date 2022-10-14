@@ -15,5 +15,9 @@
 #
 
 # flake8: noqa
-from merlin.loader.ops.embeddings.tf_embedding_op import Numpy_Mmap_TFEmbedding
+from merlin.loader.ops.embeddings.tf_embedding_op import (
+    Numpy_Mmap_TFEmbedding,
+    Numpy_TFEmbeddingOperator,
+    TFEmbeddingOperator,
+)
 from merlin.loader.ops.embeddings.torch_embedding_op import Numpy_Mmap_TorchEmbedding
