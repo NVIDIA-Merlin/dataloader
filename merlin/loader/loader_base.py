@@ -467,7 +467,7 @@ class LoaderBase:
         tensor in the appropriate library, with an optional
         dtype kwarg to do explicit casting if need be
         """
-        return df.to_cupy()
+        raise NotImplementedError
 
     def _get_device_ctx(self, dev):
         """
@@ -475,13 +475,13 @@ class LoaderBase:
         to implement. Maps from a GPU index to a framework
         context object for placing tensors on specific GPUs
         """
-        return cp.cuda.Device(dev)
+        raise NotImplementedError
 
     def _cast_to_numpy_dtype(self, dtype):
         """
         Get the numpy dtype from the framework dtype.
         """
-        return dtype
+        raise NotImplementedError
 
     def _split_fn(self, tensor, idx, axis=0):
         raise NotImplementedError
