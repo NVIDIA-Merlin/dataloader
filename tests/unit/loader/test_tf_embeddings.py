@@ -81,16 +81,17 @@ def test_embedding_tf_np_dl(tmpdir, embedding_ids, embeddings_from_dataframe):
     dataset.schema = schema
     paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
     embeddings_ds = Dataset(paths)
+    embeddings_np = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:]
     data_loader = Loader(
         dataset,
         batch_size=100000,
-        transforms=[Numpy_TFEmbeddingOperator(embeddings_ds.to_ddf().compute().to_numpy())],
+        transforms=[Numpy_TFEmbeddingOperator(embeddings_np)],
         shuffle=False,
     )
     full_len = 0
     for batch in data_loader:
         assert "embeddings" in batch[0]
-        assert batch[0]["embeddings"][0].shape[0] == 1024
+        assert batch[0]["embeddings"].shape[-1] == 1024
         assert "id" in batch[0]
         full_len += batch[0]["id"].shape[0]
     assert full_len == embedding_ids.shape[0]

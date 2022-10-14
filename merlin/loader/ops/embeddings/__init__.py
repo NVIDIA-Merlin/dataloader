@@ -20,4 +20,8 @@ from merlin.loader.ops.embeddings.tf_embedding_op import (
     Numpy_TFEmbeddingOperator,
     TFEmbeddingOperator,
 )
-from merlin.loader.ops.embeddings.torch_embedding_op import Numpy_Mmap_TorchEmbedding
+from merlin.loader.ops.embeddings.torch_embedding_op import (
+    Numpy_Mmap_TorchEmbedding,
+    Numpy_TorchEmbeddingOperator,
+    TorchEmbeddingOperator,
+)

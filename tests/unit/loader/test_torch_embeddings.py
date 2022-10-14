@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import glob
+
 import pytest
 import rmm
 
@@ -22,10 +24,14 @@ from merlin.schema import Tags
 
 torch = pytest.importorskip("torch")
 
-from merlin.loader.ops.embeddings import Numpy_Mmap_TorchEmbedding  # noqa
+from merlin.loader.ops.embeddings import (  # noqa
+    Numpy_Mmap_TorchEmbedding,
+    Numpy_TorchEmbeddingOperator,
+    TorchEmbeddingOperator,
+)
 
 
-def test_embedding_torch_dl(tmpdir, embedding_ids, np_embeddings_from_pq):
+def test_embedding_torch_np_mmap_dl(tmpdir, embedding_ids, np_embeddings_from_pq):
     embeddings_file, _ = np_embeddings_from_pq
     rmm.reinitialize(managed_memory=True)
     cat_names = ["id"]
@@ -45,6 +51,66 @@ def test_embedding_torch_dl(tmpdir, embedding_ids, np_embeddings_from_pq):
         transforms=[Numpy_Mmap_TorchEmbedding(embeddings_file)],
         shuffle=False,
         # device="cpu",
+    )
+    full_len = 0
+    for batch in data_loader:
+        assert "embeddings" in batch[0]
+        assert "id" in batch[0]
+        full_len += batch[0]["embeddings"].shape[0]
+    assert full_len == embedding_ids.shape[0]
+
+
+def test_embedding_torch_np_dl(tmpdir, embedding_ids, embeddings_from_dataframe):
+    rmm.reinitialize(managed_memory=True)
+    cat_names = ["id"]
+
+    pq_path = tmpdir / "id.parquet"
+    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    dataset = Dataset(str(pq_path))
+    dataset = dataset.repartition(10)
+    schema = dataset.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    dataset.schema = schema
+    paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
+    embeddings_ds = Dataset(paths)
+    embeddings_df = embeddings_ds.to_ddf().compute().to_numpy()
+    data_loader = Loader(
+        dataset,
+        batch_size=100000,
+        transforms=[Numpy_TorchEmbeddingOperator(embeddings_df)],
+        shuffle=False,
+        # device="cpu",
+    )
+    full_len = 0
+    for batch in data_loader:
+        assert "embeddings" in batch[0]
+        assert "id" in batch[0]
+        full_len += batch[0]["embeddings"].shape[0]
+    assert full_len == embedding_ids.shape[0]
+
+
+def test_embedding_torch_dl(tmpdir, embedding_ids, embeddings_from_dataframe):
+    rmm.reinitialize(managed_memory=True)
+    cat_names = ["id"]
+
+    pq_path = tmpdir / "id.parquet"
+    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    dataset = Dataset(str(pq_path))
+    dataset = dataset.repartition(10)
+    schema = dataset.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    dataset.schema = schema
+    paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
+    embeddings_ds = Dataset(paths)
+    np_tensor = embeddings_ds.to_ddf().compute().to_numpy().astype("float32")
+    torch_tensor = torch.from_numpy(np_tensor)
+    data_loader = Loader(
+        dataset,
+        batch_size=100000,
+        transforms=[TorchEmbeddingOperator(torch_tensor)],
+        shuffle=False,
     )
     full_len = 0
     for batch in data_loader:
