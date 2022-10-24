@@ -44,16 +44,8 @@
               <p class="caption"><span class="caption-text">Contents</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Introduction</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#installation-required">Installation (Required)</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#installing-project-using-conda">Installing <em>project</em> Using Conda</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#installing-project-using-pip">Installing <em>project</em> Using Pip</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#installing-project-from-source">Installing <em>project</em> from Source</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#running-project-with-docker">Running <em>project</em> with Docker</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#getting-started-first-steps-using-project-optional">Getting Started / First Steps / Using <em>project</em> (Optional)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#notebook-examples-and-tutorials-optional">Notebook Examples and Tutorials (Optional)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#feedback-and-support-required">Feedback and Support (Required)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation-required">Installation (Required)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#basic-usage">Basic Usage</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">API Documentation</a></li>
@@ -88,94 +80,47 @@
 <a class="reference external" href="https://pypi.python.org/pypi/merlin-dataloader/"><img alt="PyPI version shields.io" src="https://img.shields.io/pypi/v/merlin-systems.svg" /></a>
 <img alt="GitHub License" src="https://img.shields.io/github/license/NVIDIA-Merlin/dataloader" />
 <a class="reference external" href="https://nvidia-merlin.github.io/dataloader/main/README.html"><img alt="Documentation" src="https://img.shields.io/badge/documentation-blue.svg" /></a></p>
-<p>Required: Write a one to three sentence paragraph that identifies what the project does and how the project solves an academic or business problem.</p>
-<p>This is the location to indicate the benefits of the project.
-Additional headings are optional.</p>
+<p>The merlin-dataloader lets you quickly train recommender models for TensorFlow and PyTorch. It eliminates the biggest bottleneck in training recommender models, by providing GPU optimized dataloaders that read data directly into the GPU, and then do a 0-copy transfer to TensorFlow and PyTorch using <a class="reference external" href="https://github.com/dmlc/dlpack">dlpack</a>.</p>
+<p>The benefits of the Merlin Dataloader include:</p>
+<ul class="simple">
+<li><p>Over 10x speedup over native framework dataloaders</p></li>
+<li><p>Handles larger than memory datasets</p></li>
+<li><p>Per-epoch shuffling</p></li>
+<li><p>Distributed training</p></li>
+</ul>
 <div class="section" id="installation-required">
 <h2>Installation (Required)<a class="headerlink" href="#installation-required" title="Permalink to this headline"></a></h2>
-<p>Specify prerequisites.
-Indicate which method is simplest or preferred—ideally say why the method
-is preferred.</p>
-<div class="section" id="installing-project-using-conda">
-<h3>Installing <em>project</em> Using Conda<a class="headerlink" href="#installing-project-using-conda" title="Permalink to this headline"></a></h3>
-<p>You can install <em>project</em> with Anaconda from the <code class="docutils literal notranslate"><span class="pre">nvidia</span></code> channel:</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>conda install -c ...
+<p>Merlin-dataloader requires Python version 3.7+. Additionally, GPU support requires CUDA 11.0+.</p>
+<p>To install using Conda:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">install</span> <span class="o">-</span><span class="n">c</span> <span class="n">nvidia</span> <span class="o">-</span><span class="n">c</span> <span class="n">rapidsai</span> <span class="o">-</span><span class="n">c</span> <span class="n">numba</span> <span class="o">-</span><span class="n">c</span> <span class="n">conda</span><span class="o">-</span><span class="n">forge</span> <span class="n">merlin</span><span class="o">-</span><span class="n">loader</span> <span class="n">python</span><span class="o">=</span><span class="mf">3.7</span> <span class="n">cudatoolkit</span><span class="o">=</span><span class="mf">11.2</span>
 </pre></div>
 </div>
-<p>If there is anything else to say or that is related to Conda, add it after the
-code block.</p>
-</div>
-<div class="section" id="installing-project-using-pip">
-<h3>Installing <em>project</em> Using Pip<a class="headerlink" href="#installing-project-using-pip" title="Permalink to this headline"></a></h3>
-<p>You can install <em>project</em> with <code class="docutils literal notranslate"><span class="pre">pip</span></code>:</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>pip install _project_
+<p>To install from PyPi:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">merlin</span><span class="o">-</span><span class="n">dataloader</span>
 </pre></div>
 </div>
+<p>There are also <a class="reference external" href="https://nvidia-merlin.github.io/Merlin/main/containers.html">docker containers on NGC</a> with the merlin-dataloader and dependencies included on them</p>
 </div>
-<div class="section" id="installing-project-from-source">
-<h3>Installing <em>project</em> from Source<a class="headerlink" href="#installing-project-from-source" title="Permalink to this headline"></a></h3>
-<p>Refer to the <a class="reference external" href="http://CONTRIBUTING.md">CONTRIBUTING.md</a> documentation for information about installing
-<em>project</em> from source.</p>
-</div>
-<div class="section" id="running-project-with-docker">
-<h3>Running <em>project</em> with Docker<a class="headerlink" href="#running-project-with-docker" title="Permalink to this headline"></a></h3>
-<p>NVIDIA provides <em>project</em> in the Merlin containers that are available from the
-container registry for NVIDIA GPU Cloud (NGC).</p>
-<p>If the project is not in all containers, list the containers that the project is in.</p>
-<p>For more information about the container names and URLs to the container images, see the
-<a class="reference external" href="https://nvidia-merlin.github.io/Merlin/main/containers.html">Merlin Containers</a> page.</p>
-</div>
-</div>
-<div class="section" id="getting-started-first-steps-using-project-optional">
-<h2>Getting Started / First Steps / Using <em>project</em> (Optional)<a class="headerlink" href="#getting-started-first-steps-using-project-optional" title="Permalink to this headline"></a></h2>
-<p>If you can show a short and runnable code sample that demonstrates how to use
-the project, include it here and consider omitting the next heading.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">myproject</span> <span class="kn">import</span> <span class="n">SomeClass</span>
+<div class="section" id="basic-usage">
+<h2>Basic Usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get a merlin dataset from a set of parquet files</span>
+<span class="kn">import</span> <span class="nn">merlin.io</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">merlin</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="n">PARQUET_FILE_PATHS</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;parquet&quot;</span><span class="p">)</span>
 
-<span class="n">SomeClass</span><span class="o">.</span><span class="n">doSomething</span><span class="p">()</span>
+<span class="c1"># Create a Tensorflow dataloader from the dataset, loading 65K items</span>
+<span class="c1"># per batch</span>
+<span class="kn">from</span> <span class="nn">merlin.loader.tensorflow</span> <span class="kn">import</span> <span class="n">Loader</span>
+<span class="n">loader</span> <span class="o">=</span> <span class="n">Loader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">65536</span><span class="p">)</span>
+
+<span class="c1"># Get a single batch of data. Inputs will be a dictionary of columnname</span>
+<span class="c1"># to TensorFlow tensors</span>
+<span class="n">inputs</span><span class="p">,</span> <span class="n">target</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">loader</span><span class="p">)</span>
+
+<span class="c1"># Train a Keras model with the dataloader</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span> <span class="o">...</span> <span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>If you cannot provide a short code sample that is runnable, consider providing a
-code sample that highlights the most important classes and functions. However,
-include comments in the code snippet to indicate that important code is omitted.
-Adding notebooks or examples under the following heading becomes more important.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">SomeClass</span> <span class="k">as</span> <span class="nn">sc</span>
-
-<span class="c1"># After data loading and preparation, use the whazzit function to...</span>
-
-<span class="n">x</span> <span class="o">=</span> <span class="n">SomeDataObject</span><span class="p">()</span>
-
-<span class="n">sc</span><span class="o">.</span><span class="n">whazzit</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="section" id="notebook-examples-and-tutorials-optional">
-<h2>Notebook Examples and Tutorials (Optional)<a class="headerlink" href="#notebook-examples-and-tutorials-optional" title="Permalink to this headline"></a></h2>
-<p>Specify what is unique or helpful about the notebooks.
-Consider providing a link to the examples directory.</p>
-<p>Consider providing a bulleted list with the name of each notebook or a link to
-the directory for multi-notebook examples.</p>
-</div>
-<div class="section" id="feedback-and-support-required">
-<h2>Feedback and Support (Required)<a class="headerlink" href="#feedback-and-support-required" title="Permalink to this headline"></a></h2>
-<p>Identify how customers report problems. Opening a GitHub issue seems likely.</p>
-<p>Is there an NVIDIA community that might help?</p>
-<p>I don’t think we have a presence on public Slack instances, but throwing it out
-there.</p>
-<!-- resources that were consulted
-
-https://www.freecodecamp.org/news/how-to-write-a-good-readme-file/
-
-https://github.com/NVIDIA-Merlin/NVTabular/README.md
-
-https://pandas.pydata.org/docs/getting_started/install.html
-
-** Never use this much bold text. **
-https://towardsdatascience.com/how-to-write-an-awesome-readme-68bf4be91f8b
-
-https://github.com/azavea/python-project-template/blob/master/README.md
-
--->
 </div>
 </div>
 
