@@ -14,7 +14,7 @@ The benefits of the Merlin Dataloader include:
  * Per-epoch shuffling
  * Distributed training
 
-## Installation (Required)
+## Installation
 
 Merlin-dataloader requires Python version 3.7+. Additionally, GPU support requires CUDA 11.0+.
 
