@@ -1,7 +1,7 @@
 # [Merlin Dataloader](https://github.com/NVIDIA-Merlin/dataloader)
 
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/merlin-dataloader)
-[![PyPI version shields.io](https://img.shields.io/pypi/v/merlin-systems.svg)](https://pypi.python.org/pypi/merlin-dataloader/)
+[![PyPI version shields.io](https://img.shields.io/pypi/v/merlin-dataloader.svg)](https://pypi.python.org/pypi/merlin-dataloader/)
 ![GitHub License](https://img.shields.io/github/license/NVIDIA-Merlin/dataloader)
 [![Documentation](https://img.shields.io/badge/documentation-blue.svg)](https://nvidia-merlin.github.io/dataloader/main/README.html)
 
