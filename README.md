@@ -5,105 +5,48 @@
 ![GitHub License](https://img.shields.io/github/license/NVIDIA-Merlin/dataloader)
 [![Documentation](https://img.shields.io/badge/documentation-blue.svg)](https://nvidia-merlin.github.io/dataloader/main/README.html)
 
-Required: Write a one to three sentence paragraph that identifies what the project does and how the project solves an academic or business problem.
+The merlin-dataloader lets you quickly train recommender models for TensorFlow and PyTorch. It eliminates the biggest bottleneck in training recommender models, by providing GPU optimized dataloaders that read data directly into the GPU, and then do a 0-copy transfer to TensorFlow and PyTorch using [dlpack](https://github.com/dmlc/dlpack).
 
-This is the location to indicate the benefits of the project.
-Additional headings are optional.
 
-## Installation (Required)
+The benefits of the Merlin Dataloader include:
+ * Over 10x speedup over native framework dataloaders
+ * Handles larger than memory datasets
+ * Per-epoch shuffling
+ * Distributed training
 
-Specify prerequisites.
-Indicate which method is simplest or preferred&mdash;ideally say why the method
-is preferred.
+## Installation
 
-### Installing _project_ Using Conda
+Merlin-dataloader requires Python version 3.7+. Additionally, GPU support requires CUDA 11.0+.
 
-You can install _project_ with Anaconda from the `nvidia` channel:
-
-```sh
-conda install -c ...
+To install using Conda:
+```
+conda install -c nvidia -c rapidsai -c numba -c conda-forge merlin-loader python=3.7 cudatoolkit=11.2
 ```
 
-If there is anything else to say or that is related to Conda, add it after the
-code block.
-
-### Installing _project_ Using Pip
-
-You can install _project_ with `pip`:
-
-```sh
-pip install _project_
+To install from PyPi:
+```
+pip install merlin-dataloader
 ```
 
-### Installing _project_ from Source
+There are also [docker containers on NGC](https://nvidia-merlin.github.io/Merlin/main/containers.html) with the merlin-dataloader and dependencies included on them
 
-Refer to the CONTRIBUTING.md documentation for information about installing
-_project_ from source.
-
-### Running _project_ with Docker
-
-NVIDIA provides _project_ in the Merlin containers that are available from the
-container registry for NVIDIA GPU Cloud (NGC).
-
-If the project is not in all containers, list the containers that the project is in.
-
-For more information about the container names and URLs to the container images, see the
-[Merlin Containers](https://nvidia-merlin.github.io/Merlin/main/containers.html) page.
-
-## Getting Started / First Steps / Using _project_ (Optional)
-
-If you can show a short and runnable code sample that demonstrates how to use
-the project, include it here and consider omitting the next heading.
+## Basic Usage
 
 ```python
-from myproject import SomeClass
+# Get a merlin dataset from a set of parquet files
+import merlin.io
+dataset = merlin.io.Dataset(PARQUET_FILE_PATHS, engine="parquet")
 
-SomeClass.doSomething()
+# Create a Tensorflow dataloader from the dataset, loading 65K items
+# per batch
+from merlin.loader.tensorflow import Loader
+loader = Loader(dataset, batch_size=65536)
+
+# Get a single batch of data. Inputs will be a dictionary of columnname
+# to TensorFlow tensors
+inputs, target = next(loader)
+
+# Train a Keras model with the dataloader
+model = tf.keras.Model( ... )
+model.fit(loader, epochs=5)
 ```
-
-If you cannot provide a short code sample that is runnable, consider providing a
-code sample that highlights the most important classes and functions. However,
-include comments in the code snippet to indicate that important code is omitted.
-Adding notebooks or examples under the following heading becomes more important.
-
-```python
-import SomeClass as sc
-
-# After data loading and preparation, use the whazzit function to...
-
-x = SomeDataObject()
-
-sc.whazzit(x)
-```
-
-## Notebook Examples and Tutorials (Optional)
-
-Specify what is unique or helpful about the notebooks.
-Consider providing a link to the examples directory.
-
-Consider providing a bulleted list with the name of each notebook or a link to
-the directory for multi-notebook examples.
-
-## Feedback and Support (Required)
-
-Identify how customers report problems. Opening a GitHub issue seems likely.
-
-Is there an NVIDIA community that might help?
-
-I don't think we have a presence on public Slack instances, but throwing it out
-there.
-
-<!-- resources that were consulted
-
-https://www.freecodecamp.org/news/how-to-write-a-good-readme-file/
-
-https://github.com/NVIDIA-Merlin/NVTabular/README.md
-
-https://pandas.pydata.org/docs/getting_started/install.html
-
-** Never use this much bold text. **
-https://towardsdatascience.com/how-to-write-an-awesome-readme-68bf4be91f8b
-
-https://github.com/azavea/python-project-template/blob/master/README.md
-
--->
