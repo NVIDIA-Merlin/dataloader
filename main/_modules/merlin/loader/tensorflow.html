@@ -354,8 +354,8 @@
             <span class="n">tensor</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">to_dense</span><span class="p">(</span><span class="n">tensor</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">tensor</span>
 
-    <span class="k">def</span> <span class="nf">_handle_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensors</span><span class="p">):</span>
-        <span class="n">to_return</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_handle_tensors</span><span class="p">(</span><span class="n">tensors</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_handle_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensors</span><span class="p">,</span> <span class="n">tensor_names</span><span class="p">):</span>
+        <span class="n">to_return</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_handle_tensors</span><span class="p">(</span><span class="n">tensors</span><span class="p">,</span> <span class="n">tensor_names</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">map_fn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_map_fns</span><span class="p">:</span>
             <span class="n">to_return</span> <span class="o">=</span> <span class="n">map_fn</span><span class="p">(</span><span class="o">*</span><span class="n">to_return</span><span class="p">)</span>
