@@ -17,7 +17,6 @@ import glob
 
 import numpy as np
 import pytest
-import rmm
 
 from merlin.io import Dataset
 from merlin.loader.tensorflow import Loader
@@ -35,7 +34,6 @@ from merlin.loader.ops.embeddings import (  # noqa
 def test_embedding_tf_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_from_pq):
     batch_size = 10000
     embeddings_file, _ = np_embeddings_from_pq
-    rmm.reinitialize(managed_memory=True)
     cat_names = ["id"]
     embeddings = np.load(embeddings_file)
     pq_path = tmpdir / "id.parquet"
@@ -70,7 +68,6 @@ def test_embedding_tf_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_
 def test_embedding_tf_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embeddings_from_pq):
     batch_size = 10000
     embeddings_file, id_lookup_file = np_embeddings_from_pq
-    rmm.reinitialize(managed_memory=True)
     cat_names = ["id"]
     embedding_ids = rev_embedding_ids
     embeddings = np.load(embeddings_file)
@@ -104,7 +101,6 @@ def test_embedding_tf_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embed
 
 
 def test_embedding_tf_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe):
-    rmm.reinitialize(managed_memory=True)
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
@@ -140,7 +136,6 @@ def test_embedding_tf_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dat
 
 
 def test_embedding_tf_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe):
-    rmm.reinitialize(managed_memory=True)
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
@@ -179,7 +174,6 @@ def test_embedding_tf_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
 
 
 def test_embedding_tf_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe):
-    rmm.reinitialize(managed_memory=True)
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
@@ -216,7 +210,6 @@ def test_embedding_tf_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_datafr
 
 
 def test_embedding_tf_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe):
-    rmm.reinitialize(managed_memory=True)
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
