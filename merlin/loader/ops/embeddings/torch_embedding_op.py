@@ -44,11 +44,12 @@ class TorchEmbeddingOperator(BaseOperator):
     def transform(
         self, col_selector: ColumnSelector, transformable: Transformable
     ) -> Transformable:
-        indices = transformable[self.lookup_key]
-        if self.id_lookup_table:
-            indices = torch.Tensor(np.in1d(self.id_lookup_table, indices.cpu()))
-        embeddings = self.embeddings(indices.cpu())
-        transformable[self.embedding_name] = embeddings.to(indices.device)
+        keys = transformable[self.lookup_key]
+        indices = keys.cpu()
+        if self.id_lookup_table is not None:
+            indices = torch.Tensor(np.in1d(self.id_lookup_table, indices))
+        embeddings = self.embeddings(indices)
+        transformable[self.embedding_name] = embeddings.to(keys.device)
         return transformable
 
     def compute_output_schema(
@@ -121,11 +122,12 @@ class Numpy_TorchEmbeddingOperator(BaseOperator):
     def transform(
         self, col_selector: ColumnSelector, transformable: Transformable
     ) -> Transformable:
-        indices = transformable[self.lookup_key]
-        if self.id_lookup_table:
-            indices = np.in1d(self.id_lookup_table, indices.cpu())
-        embeddings = self.embeddings[np.in1d(self.embeddings[:, 0], indices.cpu())]
-        transformable[self.embedding_name] = torch.from_numpy(embeddings[:, 1:]).to(indices.device)
+        keys = transformable[self.lookup_key]
+        indices = keys.cpu()
+        if self.id_lookup_table is not None:
+            indices = np.in1d(self.id_lookup_table, indices)
+        embeddings = self.embeddings[np.in1d(self.embeddings[:, 0], indices)]
+        transformable[self.embedding_name] = torch.from_numpy(embeddings[:, 1:]).to(keys.device)
         return transformable
 
     def compute_output_schema(
@@ -203,11 +205,13 @@ class Numpy_Mmap_TorchEmbedding(BaseOperator):
     def transform(
         self, col_selector: ColumnSelector, transformable: Transformable
     ) -> Transformable:
-        indices = transformable[self.lookup_key]
-        if self.id_lookup:
-            indices = np.in1d(self.id_lookup[:, 0], indices)
-        embeddings = self.embeddings[indices.cpu()]
-        transformable[self.embedding_name] = self.transform_function(embeddings).to(indices.device)
+        # keep keys, to maintain original device information
+        keys = transformable[self.lookup_key]
+        indices = keys.cpu()
+        if self.id_lookup is not None:
+            indices = np.in1d(self.id_lookup[:], indices)
+        embeddings = self.embeddings[indices]
+        transformable[self.embedding_name] = self.transform_function(embeddings).to(keys.device)
         return transformable
 
     def compute_output_schema(

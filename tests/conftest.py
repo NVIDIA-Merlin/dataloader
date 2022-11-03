@@ -181,9 +181,9 @@ def embedding_ids(num_embedding_ids, embeddings_part_size):
 
 @pytest.fixture(scope="session")
 def rev_embedding_ids(embedding_ids, tmpdir_factory):
-    df_rev = df[::-1]
+    df_rev = embedding_ids["id"][::-1]
     df_rev.reset_index(inplace=True, drop=True)
-    return df_rev
+    return make_df(df_rev)
 
 
 @pytest.fixture(scope="session")
@@ -205,13 +205,14 @@ def rev_embeddings_from_dataframe(rev_embedding_ids, num_embedding_ids, tmpdir_f
         vals = make_df(np.random.rand(splt.shape[0], 1024))
         ids = make_df({"id": np.squeeze(splt)})
         full = concat_columns([ids, vals])
+        full.columns = [str(col) for col in full.columns]
         full.to_parquet(f"{embed_dir}/{idx}.parquet")
     return embed_dir
 
 
 @pytest.fixture(scope="session")
-def np_embeddings_from_pq(embeddings_from_dataframe, tmpdir_factory):
-    paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
+def np_embeddings_from_pq(rev_embeddings_from_dataframe, tmpdir_factory):
+    paths = sorted(glob.glob(f"{rev_embeddings_from_dataframe}/*"))
     embed_dir = tmpdir_factory.mktemp("np_embeds")
     embeddings_file = f"{embed_dir}/embeddings.npy"
     lookup_ids_file = f"{embed_dir}/ids_lookup.npy"
