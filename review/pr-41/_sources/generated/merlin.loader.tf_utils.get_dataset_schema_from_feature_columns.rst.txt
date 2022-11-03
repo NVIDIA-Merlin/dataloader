@@ -1,0 +1,6 @@
+﻿merlin.loader.tf\_utils.get\_dataset\_schema\_from\_feature\_columns
+====================================================================
+
+.. currentmodule:: merlin.loader.tf_utils
+
+.. autofunction:: get_dataset_schema_from_feature_columns
