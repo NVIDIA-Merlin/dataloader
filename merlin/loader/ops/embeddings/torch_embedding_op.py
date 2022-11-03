@@ -126,8 +126,8 @@ class Numpy_TorchEmbeddingOperator(BaseOperator):
         indices = keys.cpu()
         if self.id_lookup_table is not None:
             indices = np.in1d(self.id_lookup_table, indices)
-        embeddings = self.embeddings[np.in1d(self.embeddings[:, 0], indices)]
-        transformable[self.embedding_name] = torch.from_numpy(embeddings[:, 1:]).to(keys.device)
+        embeddings = self.embeddings[indices]
+        transformable[self.embedding_name] = torch.from_numpy(embeddings).to(keys.device)
         return transformable
 
     def compute_output_schema(
