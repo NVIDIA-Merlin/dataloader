@@ -42,10 +42,10 @@ class TFEmbeddingOperator(BaseOperator):
         self, col_selector: ColumnSelector, transformable: Transformable
     ) -> Transformable:
         indices = transformable[self.lookup_key]
-        if self.id_lookup_table:
-            indices = np.in1d(self.id_lookup_table, indices)
+        if self.id_lookup_table is not None:
+            indices = np.nonzero(np.in1d(self.id_lookup_table, indices))
         embeddings = tf.nn.embedding_lookup(self.embeddings, indices)
-        transformable[self.embedding_name] = embeddings
+        transformable[self.embedding_name] = tf.squeeze(embeddings)
         return transformable
 
     def compute_output_schema(
@@ -119,10 +119,10 @@ class Numpy_TFEmbeddingOperator(BaseOperator):
         self, col_selector: ColumnSelector, transformable: Transformable
     ) -> Transformable:
         indices = transformable[self.lookup_key]
-        if self.id_lookup_table:
+        if self.id_lookup_table is not None:
             indices = np.in1d(self.id_lookup_table, indices)
         embeddings = self.embeddings[indices]
-        transformable[self.embedding_name] = tf.convert_to_tensor(embeddings)
+        transformable[self.embedding_name] = tf.squeeze(tf.convert_to_tensor(embeddings))
         return transformable
 
     def compute_output_schema(
@@ -201,13 +201,10 @@ class Numpy_Mmap_TFEmbedding(BaseOperator):
         self, col_selector: ColumnSelector, transformable: Transformable
     ) -> Transformable:
         ids_tensor = transformable[self.lookup_key]
-        if self.id_lookup:
-            ids_tensor = np.in1d(self.id_lookup[:, 0], ids_tensor)
+        if self.id_lookup is not None:
+            ids_tensor = np.in1d(self.id_lookup, ids_tensor)
         embeddings = self.embeddings[ids_tensor]
-        if self.transform_function:
-            transformable[self.embedding_name] = self.transform_function(embeddings)
-        else:
-            transformable[self.embedding_name] = embeddings
+        transformable[self.embedding_name] = tf.squeeze(tf.convert_to_tensor(embeddings))
         return transformable
 
     def compute_output_schema(

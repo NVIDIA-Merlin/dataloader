@@ -15,6 +15,7 @@
 #
 import glob
 
+import numpy as np
 import pytest
 import rmm
 
@@ -31,11 +32,12 @@ from merlin.loader.ops.embeddings import (  # noqa
 )
 
 
-def test_embedding_tf_np_mmap_dl(tmpdir, embedding_ids, np_embeddings_from_pq):
+def test_embedding_tf_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_from_pq):
+    batch_size = 10000
     embeddings_file, _ = np_embeddings_from_pq
     rmm.reinitialize(managed_memory=True)
     cat_names = ["id"]
-
+    embeddings = np.load(embeddings_file)
     pq_path = tmpdir / "id.parquet"
     embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
     dataset = Dataset(str(pq_path))
@@ -50,23 +52,61 @@ def test_embedding_tf_np_mmap_dl(tmpdir, embedding_ids, np_embeddings_from_pq):
     dataset.schema = schema
     data_loader = Loader(
         dataset,
-        batch_size=100000,
-        transforms=[Numpy_Mmap_TFEmbedding("/raid/data/embeds/embeddings.npy")],
+        batch_size=batch_size,
+        transforms=[Numpy_Mmap_TFEmbedding(embeddings_file)],
         shuffle=False,
     )
     full_len = 0
-    for batch in data_loader:
+    for idx, batch in enumerate(data_loader):
         assert "embeddings" in batch[0]
-        assert batch[0]["embeddings"][0].shape[1] == 1024
         assert "id" in batch[0]
-        full_len += batch[0]["id"].shape[0]
+        start = idx * batch_size
+        end = start + batch[0]["id"].shape[0]
+        assert (batch[0]["embeddings"].cpu().numpy() == embeddings[start:end]).all()
+        full_len += batch[0]["embeddings"].shape[0]
     assert full_len == embedding_ids.shape[0]
 
 
-def test_embedding_tf_np_dl(tmpdir, embedding_ids, embeddings_from_dataframe):
+def test_embedding_tf_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embeddings_from_pq):
+    batch_size = 10000
+    embeddings_file, id_lookup_file = np_embeddings_from_pq
     rmm.reinitialize(managed_memory=True)
     cat_names = ["id"]
+    embedding_ids = rev_embedding_ids
+    embeddings = np.load(embeddings_file)
+    pq_path = tmpdir / "id.parquet"
+    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    dataset = Dataset(str(pq_path))
+    dataset = dataset.repartition(10)
+    schema = dataset.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    dataset.schema = schema
 
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    dataset.schema = schema
+    data_loader = Loader(
+        dataset,
+        batch_size=batch_size,
+        transforms=[Numpy_Mmap_TFEmbedding(embeddings_file, ids_lookup_npz=id_lookup_file)],
+        shuffle=False,
+    )
+    full_len = 0
+    for idx, batch in enumerate(data_loader):
+        assert "embeddings" in batch[0]
+        assert "id" in batch[0]
+        start = idx * batch_size
+        end = start + batch[0]["id"].shape[0]
+        assert (batch[0]["embeddings"].cpu().numpy() == embeddings[start:end]).all()
+        full_len += batch[0]["embeddings"].shape[0]
+    assert full_len == embedding_ids.shape[0]
+
+
+def test_embedding_tf_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe):
+    rmm.reinitialize(managed_memory=True)
+    cat_names = ["id"]
+    batch_size = 10000
     pq_path = tmpdir / "id.parquet"
     embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
     dataset = Dataset(str(pq_path))
@@ -84,23 +124,64 @@ def test_embedding_tf_np_dl(tmpdir, embedding_ids, embeddings_from_dataframe):
     embeddings_np = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:]
     data_loader = Loader(
         dataset,
-        batch_size=100000,
+        batch_size=batch_size,
         transforms=[Numpy_TFEmbeddingOperator(embeddings_np)],
         shuffle=False,
     )
     full_len = 0
-    for batch in data_loader:
+    for idx, batch in enumerate(data_loader):
         assert "embeddings" in batch[0]
-        assert batch[0]["embeddings"].shape[-1] == 1024
         assert "id" in batch[0]
-        full_len += batch[0]["id"].shape[0]
+        start = idx * batch_size
+        end = start + batch[0]["id"].shape[0]
+        assert (batch[0]["embeddings"].cpu().numpy() == embeddings_np[start:end]).all()
+        full_len += batch[0]["embeddings"].shape[0]
     assert full_len == embedding_ids.shape[0]
 
 
-def test_embedding_tf_dl(tmpdir, embedding_ids, embeddings_from_dataframe):
+def test_embedding_tf_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe):
     rmm.reinitialize(managed_memory=True)
     cat_names = ["id"]
+    batch_size = 10000
+    pq_path = tmpdir / "id.parquet"
+    embedding_ids = rev_embedding_ids
+    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    dataset = Dataset(str(pq_path))
+    dataset = dataset.repartition(10)
+    schema = dataset.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    dataset.schema = schema
 
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    dataset.schema = schema
+    paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
+    embeddings_ds = Dataset(paths)
+    embeddings_np = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:]
+    data_loader = Loader(
+        dataset,
+        batch_size=batch_size,
+        transforms=[
+            Numpy_TFEmbeddingOperator(embeddings_np, id_lookup_table=embedding_ids.to_numpy())
+        ],
+        shuffle=False,
+    )
+    full_len = 0
+    for idx, batch in enumerate(data_loader):
+        assert "embeddings" in batch[0]
+        assert "id" in batch[0]
+        start = idx * batch_size
+        end = start + batch[0]["id"].shape[0]
+        assert (batch[0]["embeddings"].cpu().numpy() == embeddings_np[start:end]).all()
+        full_len += batch[0]["embeddings"].shape[0]
+    assert full_len == embedding_ids.shape[0]
+
+
+def test_embedding_tf_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe):
+    rmm.reinitialize(managed_memory=True)
+    cat_names = ["id"]
+    batch_size = 10000
     pq_path = tmpdir / "id.parquet"
     embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
     dataset = Dataset(str(pq_path))
@@ -115,18 +196,58 @@ def test_embedding_tf_dl(tmpdir, embedding_ids, embeddings_from_dataframe):
     dataset.schema = schema
     paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
     embeddings_ds = Dataset(paths)
-    np_tensor = embeddings_ds.to_ddf().compute().to_numpy()
-    tf_tensor = tf.convert_to_tensor(np_tensor[:, 1:])
+    np_tensor = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:]
+    tf_tensor = tf.convert_to_tensor(np_tensor)
     data_loader = Loader(
         dataset,
-        batch_size=100000,
+        batch_size=batch_size,
         transforms=[TFEmbeddingOperator(tf_tensor)],
         shuffle=False,
     )
     full_len = 0
-    for batch in data_loader:
+    for idx, batch in enumerate(data_loader):
         assert "embeddings" in batch[0]
-        assert batch[0]["embeddings"][0].shape[1] == 1024
         assert "id" in batch[0]
-        full_len += batch[0]["id"].shape[0]
+        start = idx * batch_size
+        end = start + batch[0]["id"].shape[0]
+        assert (batch[0]["embeddings"].cpu().numpy() == np_tensor[start:end]).all()
+        full_len += batch[0]["embeddings"].shape[0]
+    assert full_len == embedding_ids.shape[0]
+
+
+def test_embedding_tf_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe):
+    rmm.reinitialize(managed_memory=True)
+    cat_names = ["id"]
+    batch_size = 10000
+    pq_path = tmpdir / "id.parquet"
+    embedding_ids = rev_embedding_ids
+    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    dataset = Dataset(str(pq_path))
+    dataset = dataset.repartition(10)
+    schema = dataset.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    dataset.schema = schema
+
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+    dataset.schema = schema
+    paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
+    embeddings_ds = Dataset(paths)
+    np_tensor = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:]
+    tf_tensor = tf.convert_to_tensor(np_tensor)
+    data_loader = Loader(
+        dataset,
+        batch_size=batch_size,
+        transforms=[TFEmbeddingOperator(tf_tensor, id_lookup_table=embedding_ids.to_numpy())],
+        shuffle=False,
+    )
+    full_len = 0
+    for idx, batch in enumerate(data_loader):
+        assert "embeddings" in batch[0]
+        assert "id" in batch[0]
+        start = idx * batch_size
+        end = start + batch[0]["id"].shape[0]
+        assert (batch[0]["embeddings"].cpu().numpy() == np_tensor[start:end]).all()
+        full_len += batch[0]["embeddings"].shape[0]
     assert full_len == embedding_ids.shape[0]
