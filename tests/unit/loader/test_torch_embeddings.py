@@ -37,7 +37,7 @@ def test_embedding_torch_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_em
     cat_names = ["id"]
     embeddings = np.load(embeddings_file)
     pq_path = tmpdir / "id.parquet"
-    rev_embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    rev_embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
@@ -69,7 +69,7 @@ def test_embedding_torch_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddin
     cat_names = ["id"]
     embeddings = np.load(embeddings_file)
     pq_path = tmpdir / "id.parquet"
-    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
@@ -100,7 +100,7 @@ def test_embedding_torch_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings
     batch_size = 10000
     embedding_ids = rev_embedding_ids
     pq_path = tmpdir / "id.parquet"
-    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
@@ -134,7 +134,7 @@ def test_embedding_torch_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
-    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
@@ -167,7 +167,7 @@ def test_embedding_torch_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
     embedding_ids = rev_embedding_ids
-    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
@@ -199,7 +199,7 @@ def test_embedding_torch_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dat
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
-    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema

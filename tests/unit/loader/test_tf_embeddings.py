@@ -37,7 +37,7 @@ def test_embedding_tf_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_
     cat_names = ["id"]
     embeddings = np.load(embeddings_file)
     pq_path = tmpdir / "id.parquet"
-    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
@@ -72,7 +72,7 @@ def test_embedding_tf_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embed
     embedding_ids = rev_embedding_ids
     embeddings = np.load(embeddings_file)
     pq_path = tmpdir / "id.parquet"
-    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
@@ -104,7 +104,7 @@ def test_embedding_tf_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dat
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
-    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
@@ -140,7 +140,7 @@ def test_embedding_tf_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
     embedding_ids = rev_embedding_ids
-    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
@@ -177,7 +177,7 @@ def test_embedding_tf_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_datafr
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
-    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
@@ -214,7 +214,7 @@ def test_embedding_tf_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
     embedding_ids = rev_embedding_ids
-    embedding_ids.to_parquet(pq_path, row_group_size_bytes=134217728)
+    embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
