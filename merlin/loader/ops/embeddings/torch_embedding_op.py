@@ -47,9 +47,11 @@ class TorchEmbeddingOperator(BaseOperator):
         keys = transformable[self.lookup_key]
         indices = keys.cpu()
         if self.id_lookup_table is not None:
-            indices = torch.Tensor(np.in1d(self.id_lookup_table, indices))
+            indices = torch.Tensor(np.nonzero(np.in1d(self.id_lookup_table, indices))).to(
+                torch.int32
+            )
         embeddings = self.embeddings(indices)
-        transformable[self.embedding_name] = embeddings.to(keys.device)
+        transformable[self.embedding_name] = torch.squeeze(embeddings.to(keys.device))
         return transformable
 
     def compute_output_schema(

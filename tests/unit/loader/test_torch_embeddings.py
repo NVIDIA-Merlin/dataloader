@@ -182,12 +182,12 @@ def test_embedding_torch_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
     dataset.schema = schema
     paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
     embeddings_ds = Dataset(paths)
-    np_tensor = embeddings_ds.to_ddf().compute().to_numpy().astype("float32")
+    np_tensor = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:].astype("float32")
     torch_tensor = torch.from_numpy(np_tensor)
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[TorchEmbeddingOperator(torch_tensor, id_lookup_table=embedding_ids.numpy())],
+        transforms=[TorchEmbeddingOperator(torch_tensor, id_lookup_table=embedding_ids.to_numpy())],
         shuffle=False,
     )
     full_len = 0

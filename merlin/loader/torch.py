@@ -102,13 +102,13 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
 
     def _unpack(self, dlpack):
         if self.device == "cpu":
-            values = dlpack.values
+            values = dlpack.values if hasattr(dlpack, "values") else dlpack
             dtype = values.dtype
             dtype = numpy_to_torch_dtype_dict[dtype.type] if hasattr(dtype, "type") else dtype
             if (
-                len(dlpack.values.shape) == 2
-                and dlpack.values.shape[1] == 1
-                and isinstance(dlpack.values[0], np.ndarray)
+                len(values.shape) == 2
+                and values.shape[1] == 1
+                and isinstance(values[0], np.ndarray)
             ):
                 return torch.squeeze(torch.Tensor(values)).type(dtype)
             return torch.Tensor(values).type(dtype)
