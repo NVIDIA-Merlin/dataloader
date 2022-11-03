@@ -1,6 +1,6 @@
 [MASTER]
 
-ignore-patterns=_version.py,versioneer.py
+ignore-patterns=_version.py,model_config_pb2.py
 
 extension-pkg-allow-list=hugectr,nvtabular_cpp
 
@@ -22,6 +22,7 @@ disable=fixme,
     # we'll probably never enable these checks
     invalid-name,
     import-error,
+    no-self-use,
 
     # disable code-complexity checks for now
     # TODO: should we configure the thresholds for these rather than just disable?
@@ -58,16 +59,15 @@ disable=fixme,
     duplicate-string-formatting-argument,
     len-as-condition,
     cyclic-import,
-    consider-using-f-string,
-    arguments-renamed,
 
     # producing false positives
     unexpected-keyword-arg,
     not-an-iterable,
-    unsubscriptable-object
+    unsubscriptable-object,
+    signature-differs
 
 [SIMILARITIES]
-min-similarity-lines=30
+min-similarity-lines=50
 ignore-comments=yes
 ignore-docstrings=yes
 ignore-imports=yes
