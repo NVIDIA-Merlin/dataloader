@@ -33,10 +33,10 @@ jobs:
         python -m pip install --upgrade pip setuptools==59.4.0 wheel tox
     - name: Lint
       run: |
-        tox -re run lint
+        tox -re lint
     - name: Run unittests
       run: |
-        tox -re run test-cpu
+        tox -re test-cpu
     - name: Generate package for pypi
       run: |
         python setup.py sdist
