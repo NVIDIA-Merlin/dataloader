@@ -13,12 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import gc
 import glob
 import random
 
 import dask
 import numpy as np
 import pandas as pd
+from npy_append_array import NpyAppendArray
 
 try:
     import cudf
@@ -45,9 +47,8 @@ except ImportError:
 
 import pytest
 
-from merlin.core.dispatch import concat_columns, make_df
+from merlin.core.dispatch import concat_columns, get_lib, make_df
 from merlin.io import Dataset
-from merlin.loader.utils.embeddings import build_embeddings_from_pq
 from merlin.schema import Tags
 
 
@@ -208,6 +209,27 @@ def rev_embeddings_from_dataframe(rev_embedding_ids, num_embedding_ids, tmpdir_f
         full.columns = [str(col) for col in full.columns]
         full.to_parquet(f"{embed_dir}/{idx}.parquet")
     return embed_dir
+
+
+def build_embeddings_from_pq(
+    df_paths, embedding_filename="embeddings.npy", lookup_filename="lookup_ids"
+):
+    df_lib = get_lib()
+    with NpyAppendArray(embedding_filename) as nf:
+        with NpyAppendArray(lookup_filename) as lf:
+            for path in df_paths:
+                rows = df_lib.read_parquet(path)
+                numpy_rows = rows.to_numpy()
+                indices = np.ascontiguousarray(numpy_rows[:, 0])
+                vectors = np.ascontiguousarray(numpy_rows[:, 1:])
+                lf.append(indices)
+                nf.append(vectors)
+                del rows
+                del numpy_rows
+                del indices
+                del vectors
+                gc.collect()
+    return embedding_filename, lookup_filename
 
 
 @pytest.fixture(scope="session")
