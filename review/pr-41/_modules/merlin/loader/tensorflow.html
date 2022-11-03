@@ -183,6 +183,7 @@
         <span class="n">global_rank</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">drop_last</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">transforms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="n">LoaderBase</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span>
@@ -195,6 +196,7 @@
             <span class="n">global_rank</span><span class="o">=</span><span class="n">global_rank</span><span class="p">,</span>
             <span class="n">drop_last</span><span class="o">=</span><span class="n">drop_last</span><span class="p">,</span>
             <span class="n">transforms</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
+            <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_map_fns</span> <span class="o">=</span> <span class="p">[]</span></div>
 
