@@ -111,6 +111,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         global_rank=None,
         drop_last=False,
         transforms=None,
+        device=None,
     ):
         LoaderBase.__init__(
             self,
@@ -123,6 +124,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             global_rank=global_rank,
             drop_last=drop_last,
             transforms=transforms,
+            device=device,
         )
         self._map_fns = []
 

@@ -18,6 +18,7 @@ import glob
 import numpy as np
 import pytest
 
+from merlin.core.dispatch import HAS_GPU
 from merlin.io import Dataset
 from merlin.loader.torch import Loader
 from merlin.schema import Tags
@@ -31,7 +32,10 @@ from merlin.loader.ops.embeddings import (  # noqa
 )
 
 
-def test_embedding_torch_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embeddings_from_pq):
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_torch_np_mmap_dl_with_lookup(
+    tmpdir, rev_embedding_ids, np_embeddings_from_pq, cpu
+):
     batch_size = 10000
     embeddings_file, lookup_file = np_embeddings_from_pq
     cat_names = ["id"]
@@ -50,7 +54,7 @@ def test_embedding_torch_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_em
         batch_size=batch_size,
         transforms=[Numpy_Mmap_TorchEmbedding(embeddings_file, ids_lookup_npz=lookup_file)],
         shuffle=False,
-        # device="cpu",
+        device=cpu,
     )
     full_len = 0
     for idx, batch in enumerate(data_loader):
@@ -63,7 +67,8 @@ def test_embedding_torch_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_em
     assert full_len == rev_embedding_ids.shape[0]
 
 
-def test_embedding_torch_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_from_pq):
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_torch_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_from_pq, cpu):
     batch_size = 10000
     embeddings_file, lookup_file = np_embeddings_from_pq
     cat_names = ["id"]
@@ -82,7 +87,7 @@ def test_embedding_torch_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddin
         batch_size=batch_size,
         transforms=[Numpy_Mmap_TorchEmbedding(embeddings_file)],
         shuffle=False,
-        # device="cpu",
+        device=cpu,
     )
     full_len = 0
     for idx, batch in enumerate(data_loader):
@@ -95,7 +100,10 @@ def test_embedding_torch_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddin
     assert full_len == embedding_ids.shape[0]
 
 
-def test_embedding_torch_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe):
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_torch_np_dl_with_lookup(
+    tmpdir, rev_embedding_ids, embeddings_from_dataframe, cpu
+):
     cat_names = ["id"]
     batch_size = 10000
     embedding_ids = rev_embedding_ids
@@ -117,7 +125,7 @@ def test_embedding_torch_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings
             Numpy_TorchEmbeddingOperator(embeddings_df, id_lookup_table=embedding_ids.to_numpy())
         ],
         shuffle=False,
-        # device="cpu",
+        device=cpu,
     )
     full_len = 0
     for idx, batch in enumerate(data_loader):
@@ -130,7 +138,8 @@ def test_embedding_torch_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings
     assert full_len == embedding_ids.shape[0]
 
 
-def test_embedding_torch_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe):
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_torch_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe, cpu):
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
@@ -149,7 +158,7 @@ def test_embedding_torch_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_
         batch_size=batch_size,
         transforms=[Numpy_TorchEmbeddingOperator(embeddings_df)],
         shuffle=False,
-        # device="cpu",
+        device=cpu,
     )
     full_len = 0
     for idx, batch in enumerate(data_loader):
@@ -162,7 +171,8 @@ def test_embedding_torch_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_
     assert full_len == embedding_ids.shape[0]
 
 
-def test_embedding_torch_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe):
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_torch_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe, cpu):
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
@@ -183,6 +193,7 @@ def test_embedding_torch_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
         batch_size=batch_size,
         transforms=[TorchEmbeddingOperator(torch_tensor, id_lookup_table=embedding_ids.to_numpy())],
         shuffle=False,
+        device=cpu,
     )
     full_len = 0
     for idx, batch in enumerate(data_loader):
@@ -195,7 +206,8 @@ def test_embedding_torch_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
     assert full_len == embedding_ids.shape[0]
 
 
-def test_embedding_torch_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe):
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_torch_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe, cpu):
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
@@ -215,6 +227,7 @@ def test_embedding_torch_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dat
         batch_size=batch_size,
         transforms=[TorchEmbeddingOperator(torch_tensor)],
         shuffle=False,
+        device=cpu,
     )
     full_len = 0
     for idx, batch in enumerate(data_loader):

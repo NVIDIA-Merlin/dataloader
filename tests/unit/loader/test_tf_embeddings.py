@@ -18,6 +18,7 @@ import glob
 import numpy as np
 import pytest
 
+from merlin.core.dispatch import HAS_GPU
 from merlin.io import Dataset
 from merlin.loader.tensorflow import Loader
 from merlin.schema import Tags
@@ -31,7 +32,8 @@ from merlin.loader.ops.embeddings import (  # noqa
 )
 
 
-def test_embedding_tf_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_from_pq):
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_tf_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_from_pq, cpu):
     batch_size = 10000
     embeddings_file, _ = np_embeddings_from_pq
     cat_names = ["id"]
@@ -53,6 +55,7 @@ def test_embedding_tf_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_
         batch_size=batch_size,
         transforms=[Numpy_Mmap_TFEmbedding(embeddings_file)],
         shuffle=False,
+        device=cpu,
     )
     full_len = 0
     for idx, batch in enumerate(data_loader):
@@ -65,7 +68,8 @@ def test_embedding_tf_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_
     assert full_len == embedding_ids.shape[0]
 
 
-def test_embedding_tf_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embeddings_from_pq):
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_tf_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embeddings_from_pq, cpu):
     batch_size = 10000
     embeddings_file, id_lookup_file = np_embeddings_from_pq
     cat_names = ["id"]
@@ -88,6 +92,7 @@ def test_embedding_tf_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embed
         batch_size=batch_size,
         transforms=[Numpy_Mmap_TFEmbedding(embeddings_file, ids_lookup_npz=id_lookup_file)],
         shuffle=False,
+        device=cpu,
     )
     full_len = 0
     for idx, batch in enumerate(data_loader):
@@ -100,7 +105,8 @@ def test_embedding_tf_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embed
     assert full_len == embedding_ids.shape[0]
 
 
-def test_embedding_tf_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe):
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_tf_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe, cpu):
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
@@ -123,6 +129,7 @@ def test_embedding_tf_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dat
         batch_size=batch_size,
         transforms=[Numpy_TFEmbeddingOperator(embeddings_np)],
         shuffle=False,
+        device=cpu,
     )
     full_len = 0
     for idx, batch in enumerate(data_loader):
@@ -135,7 +142,8 @@ def test_embedding_tf_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dat
     assert full_len == embedding_ids.shape[0]
 
 
-def test_embedding_tf_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe):
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_tf_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe, cpu):
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
@@ -161,6 +169,7 @@ def test_embedding_tf_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
             Numpy_TFEmbeddingOperator(embeddings_np, id_lookup_table=embedding_ids.to_numpy())
         ],
         shuffle=False,
+        device=cpu,
     )
     full_len = 0
     for idx, batch in enumerate(data_loader):
@@ -173,7 +182,8 @@ def test_embedding_tf_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
     assert full_len == embedding_ids.shape[0]
 
 
-def test_embedding_tf_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe):
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_tf_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe, cpu):
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
@@ -197,6 +207,7 @@ def test_embedding_tf_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_datafr
         batch_size=batch_size,
         transforms=[TFEmbeddingOperator(tf_tensor)],
         shuffle=False,
+        device=cpu,
     )
     full_len = 0
     for idx, batch in enumerate(data_loader):
@@ -209,7 +220,8 @@ def test_embedding_tf_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_datafr
     assert full_len == embedding_ids.shape[0]
 
 
-def test_embedding_tf_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe):
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_tf_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe, cpu):
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
@@ -234,6 +246,7 @@ def test_embedding_tf_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_
         batch_size=batch_size,
         transforms=[TFEmbeddingOperator(tf_tensor, id_lookup_table=embedding_ids.to_numpy())],
         shuffle=False,
+        device=cpu,
     )
     full_len = 0
     for idx, batch in enumerate(data_loader):

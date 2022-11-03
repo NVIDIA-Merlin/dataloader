@@ -78,6 +78,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         global_rank=None,
         drop_last=False,
         transforms=None,
+        device=None,
     ):
         LoaderBase.__init__(
             self,
@@ -90,6 +91,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             global_rank=global_rank,
             drop_last=drop_last,
             transforms=transforms,
+            device=device,
         )
 
     def __iter__(self):
@@ -98,7 +100,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
     def _get_device_ctx(self, dev):
         if dev == "cpu":
             return torch.device("cpu")
-        return torch.cuda.device("cuda:{}".format(dev))
+        return torch.cuda.device(f"cuda:{dev}")
 
     def _unpack(self, dlpack):
         if self.device == "cpu":

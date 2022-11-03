@@ -63,6 +63,7 @@ class LoaderBase:
         global_rank=None,
         drop_last=False,
         transforms=None,
+        device=None,
     ):
         self.dataset = dataset
         self.batch_size = batch_size
@@ -74,7 +75,10 @@ class LoaderBase:
         self.drop_last = drop_last
 
         self.indices = cp.arange(self.dataset.npartitions)
-        self.device = "cpu" if not HAS_GPU or dataset.cpu else 0
+        if device:
+            self.device = device
+        else:
+            self.device = "cpu" if not HAS_GPU or dataset.cpu else 0
 
         if not dataset.schema:
             warnings.warn(
@@ -602,7 +606,8 @@ class LoaderBase:
     def _pack(self, gdf):
         if isinstance(gdf, np.ndarray):
             return gdf
-        elif hasattr(gdf, "to_dlpack") and callable(getattr(gdf, "to_dlpack")):
+        # if self.device has value ('cpu') gdf should not be transferred to dlpack
+        elif hasattr(gdf, "to_dlpack") and callable(getattr(gdf, "to_dlpack")) and not self.device:
             return gdf.to_dlpack()
         elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
             gdf = gdf.to_numpy()
