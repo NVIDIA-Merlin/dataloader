@@ -278,8 +278,8 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             tensor = tf.sparse.to_dense(tensor)
         return tensor
 
-    def _handle_tensors(self, tensors):
-        to_return = super()._handle_tensors(tensors)
+    def _handle_tensors(self, tensors, tensor_names):
+        to_return = super()._handle_tensors(tensors, tensor_names)
 
         for map_fn in self._map_fns:
             to_return = map_fn(*to_return)
