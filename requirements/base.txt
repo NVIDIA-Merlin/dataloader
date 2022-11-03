@@ -1,1 +1,2 @@
 merlin-core
+npy_append_array
