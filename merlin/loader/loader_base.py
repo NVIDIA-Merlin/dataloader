@@ -56,7 +56,7 @@ class LoaderBase:
         self,
         dataset,
         batch_size,
-        shuffle,
+        shuffle=True,
         seed_fn=None,
         parts_per_chunk=1,
         global_size=None,
@@ -273,7 +273,9 @@ class LoaderBase:
 
     def _data_iter(self, epochs):
         indices = self._indices_for_process()
-        return self.dataset.to_iter(indices=indices, epochs=epochs)
+        return self.dataset.to_iter(
+            indices=indices, epochs=epochs, columns=self.dataset.schema.column_names
+        )
 
     def _fetch_chunk(self):
         chunks = self._buff.get()
@@ -343,7 +345,7 @@ class LoaderBase:
         """
         split_idx = self._get_segment_lengths(len(gdf))
         # map from big chunk to framework-specific tensors
-        chunks = self._create_tensors(gdf)
+        chunks, names = self._create_tensors(gdf)
 
         # if we have any offsets, calculate nnzs up front
         # will need to get offsets if list columns detected in schema
@@ -428,7 +430,7 @@ class LoaderBase:
                     c = (c, batch_lists)
 
                 batches[n].append(c)
-        return (self._handle_tensors(batch) for batch in batches)
+        return (self._handle_tensors(batch, names) for batch in batches)
 
     def _get_segment_lengths(self, num_samples):
         """
@@ -503,6 +505,7 @@ class LoaderBase:
         Can be overrideen
         """
         tensors = []
+        tensor_names = []
         offsets = make_df(device=self.device)
         for column_names in self.dtype_reverse_map.values():
             # for column names using schema find scalars and lists columns
@@ -535,6 +538,7 @@ class LoaderBase:
                     list_tensors[column_name] = self._to_tensor(leaves)
                 x = x, list_tensors
             tensors.append(x)
+            tensor_names.append(column_names)
 
         if not offsets.empty:
             offsets_tensor = self._to_tensor(offsets)
@@ -543,18 +547,16 @@ class LoaderBase:
             tensors.append(offsets_tensor)
         del gdf, offsets
 
-        return tensors
+        return tensors, tensor_names
 
     @annotate("_handle_tensors", color="darkgreen", domain="merlin_loader")
-    def _handle_tensors(self, tensors):
+    def _handle_tensors(self, tensors, tensor_names):
         # tensors =  dictionary of all tensors
         X = {}
-        for idx, tensor in enumerate(tensors):
+        for idx, (tensor, names) in enumerate(zip(tensors, tensor_names)):
             lists = {}
             if isinstance(tensor, tuple):
                 tensor, lists = tensor
-            dtype = self._cast_to_numpy_dtype(tensor.dtype) if tensor is not None else None
-            names = self.dtype_reverse_map[np.dtype(dtype)] if dtype is not None else []
 
             names = [i for i in names if i not in lists]
 

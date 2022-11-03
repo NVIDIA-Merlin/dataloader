@@ -1,0 +1,3 @@
+include versioneer.py
+recursive-include merlin *.pt
+include requirements/*.txt
