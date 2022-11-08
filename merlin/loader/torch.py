@@ -29,7 +29,7 @@ numpy_to_torch_dtype_dict = {
     np.int64: torch.int64,
     np.float16: torch.float16,
     np.float32: torch.float32,
-    np.float64: torch.double,
+    np.float64: torch.float64,
     np.complex64: torch.complex64,
     np.complex128: torch.complex128,
 }
