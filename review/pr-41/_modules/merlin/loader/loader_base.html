@@ -214,17 +214,17 @@
                 <span class="k">for</span> <span class="n">transform</span> <span class="ow">in</span> <span class="n">transforms</span><span class="p">:</span>
                     <span class="c1"># check that each transform is an operator:</span>
                     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">BaseOperator</span><span class="p">):</span>
-                        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Detected invalid transform, </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;Detected invalid transform, </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span><span class="si">}</span><span class="s2">,&quot;</span>
+                            <span class="s2">&quot;we only support operators based on the merlin core&quot;</span>
+                            <span class="s2">&quot;`BaseOperator`&quot;</span>
+                        <span class="p">)</span>
                     <span class="n">carry_node</span> <span class="o">=</span> <span class="n">carry_node</span> <span class="o">&gt;&gt;</span> <span class="n">transform</span>
                 <span class="n">transform_graph</span> <span class="o">=</span> <span class="n">Graph</span><span class="p">(</span><span class="n">carry_node</span><span class="p">)</span>
             <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">transforms</span><span class="p">,</span> <span class="n">Graph</span><span class="p">):</span>
                 <span class="n">transform_graph</span> <span class="o">=</span> <span class="n">transforms</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="o">=</span> <span class="n">transform_graph</span><span class="o">.</span><span class="n">construct_schema</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="p">)</span><span class="o">.</span><span class="n">output_node</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">schema</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">output_schema</span>
-            <span class="c1"># should we make one main local executor and hold that on dataloader?</span>
-            <span class="c1"># Or build dynamically per batch?</span>
-            <span class="c1"># is there a reason we might expose this to the user?</span>
-            <span class="c1"># change to something other than local?</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="n">LocalExecutor</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Like this to be more explicit about what occurs.</span>
@@ -659,17 +659,6 @@
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label_names</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">labels</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
-        <span class="c1"># with tensors all in one dictionary</span>
-        <span class="c1"># apply transforms graph here against the tensors</span>
-        <span class="c1">#</span>
-        <span class="c1"># tensors = local_executor.transform_data(tensors)</span>
-
-        <span class="c1"># bad thing here is that we dont have the labels, what is required, for some</span>
-        <span class="c1">#   reason by op transform logic?</span>
-        <span class="c1"># bad thing here is that some of this entries are lists, which are tuples?</span>
-        <span class="c1">#           are all operators going to need to know about lists as tuples?</span>
-        <span class="c1">#           seems like we could benefit from an object here that encapsulates</span>
-        <span class="c1">#               both lists and scalar tensor types?</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">:</span>
             <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">executor</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">DictArray</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">])</span>
 
