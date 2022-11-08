@@ -140,7 +140,6 @@ class LoaderBase:
             if isinstance(transforms, List):
                 carry_node = Node(ColumnSelector("*"))
                 for transform in transforms:
-                    # check that each transform is an operator:
                     if not isinstance(transform, BaseOperator):
                         raise TypeError(
                             f"Detected invalid transform, {type(transform)},"
@@ -155,7 +154,6 @@ class LoaderBase:
             self.schema = self.transforms.output_schema
             self.executor = LocalExecutor()
         else:
-            # Like this to be more explicit about what occurs.
             self.transforms = None
             self.executor = None
 
