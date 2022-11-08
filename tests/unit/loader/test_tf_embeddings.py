@@ -26,8 +26,8 @@ from merlin.schema import Tags
 tf = pytest.importorskip("tensorflow")
 
 from merlin.loader.ops.embeddings import (  # noqa
-    Numpy_Mmap_TFEmbedding,
-    Numpy_TFEmbeddingOperator,
+    TF_MmapNumpyTorchEmbedding,
+    TF_NumpyEmbeddingOperator,
     TFEmbeddingOperator,
 )
 
@@ -53,7 +53,7 @@ def test_embedding_tf_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[Numpy_Mmap_TFEmbedding(embeddings_file)],
+        transforms=[TF_MmapNumpyTorchEmbedding(embeddings_file)],
         shuffle=False,
         device=cpu,
     )
@@ -90,7 +90,7 @@ def test_embedding_tf_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embed
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[Numpy_Mmap_TFEmbedding(embeddings_file, ids_lookup_npz=id_lookup_file)],
+        transforms=[TF_MmapNumpyTorchEmbedding(embeddings_file, ids_lookup_npz=id_lookup_file)],
         shuffle=False,
         device=cpu,
     )
@@ -127,7 +127,7 @@ def test_embedding_tf_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dat
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[Numpy_TFEmbeddingOperator(embeddings_np)],
+        transforms=[TF_NumpyEmbeddingOperator(embeddings_np)],
         shuffle=False,
         device=cpu,
     )
@@ -166,7 +166,7 @@ def test_embedding_tf_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
         dataset,
         batch_size=batch_size,
         transforms=[
-            Numpy_TFEmbeddingOperator(embeddings_np, id_lookup_table=embedding_ids.to_numpy())
+            TF_NumpyEmbeddingOperator(embeddings_np, id_lookup_table=embedding_ids.to_numpy())
         ],
         shuffle=False,
         device=cpu,

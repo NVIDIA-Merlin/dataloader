@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 # flake8: noqa
 from merlin.loader.ops.embeddings.tf_embedding_op import (
-    Numpy_Mmap_TFEmbedding,
-    Numpy_TFEmbeddingOperator,
+    TF_MmapNumpyTorchEmbedding,
+    TF_NumpyEmbeddingOperator,
     TFEmbeddingOperator,
 )
 from merlin.loader.ops.embeddings.torch_embedding_op import (
-    Numpy_Mmap_TorchEmbedding,
-    Numpy_TorchEmbeddingOperator,
+    Torch_MmapNumpyTorchEmbedding,
+    Torch_NumpyEmbeddingOperator,
     TorchEmbeddingOperator,
 )

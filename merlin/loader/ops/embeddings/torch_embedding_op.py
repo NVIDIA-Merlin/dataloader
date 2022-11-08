@@ -1,14 +1,30 @@
-import numpy as np
+#
+# Copyright (c) 2022, NVIDIA CORPORATION.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import torch
 from torch.nn import Embedding
 
-from merlin.core.protocols import Transformable
-from merlin.dag import BaseOperator
-from merlin.dag.selector import ColumnSelector
-from merlin.schema import ColumnSchema, Schema, Tags
+from merlin.loader.ops.embeddings.embedding_op import (
+    EmbeddingOperator,
+    MmapNumpyTorchEmbedding,
+    NumpyEmbeddingOperator,
+)
 
 
-class TorchEmbeddingOperator(BaseOperator):
+class TorchEmbeddingOperator(EmbeddingOperator):
     """Create an operator that will apply a torch embedding table to supplied indices.
     This operator allows the user to supply an id lookup table if the indices supplied
     via the id_lookup_table.
@@ -25,74 +41,27 @@ class TorchEmbeddingOperator(BaseOperator):
         numpy array of values that represent embedding indices, by default None
     """
 
-    def __init__(
-        self,
-        embeddings: np.ndarray,
-        lookup_key: str = "id",
-        embedding_name: str = "embeddings",
-        id_lookup_table=None,
-    ):
-        self.embeddings = (
+    def _load_embeddings(self, embeddings):
+        return (
             embeddings
             if isinstance(embeddings, Embedding)
             else Embedding.from_pretrained(torch.FloatTensor(embeddings))
         )
-        self.lookup_key = lookup_key
-        self.embedding_name = embedding_name
-        self.id_lookup_table = id_lookup_table
 
-    def transform(
-        self, col_selector: ColumnSelector, transformable: Transformable
-    ) -> Transformable:
-        keys = transformable[self.lookup_key]
-        indices = keys.cpu()
-        if self.id_lookup_table is not None:
-            indices = torch.Tensor(np.nonzero(np.in1d(self.id_lookup_table, indices))).to(
-                torch.int32
-            )
-        embeddings = self.embeddings(indices)
-        transformable[self.embedding_name] = torch.squeeze(embeddings.to(keys.device))
-        return transformable
+    def _create_tensor(self, values):
+        return torch.Tensor(values).to(torch.int32)
 
-    def compute_output_schema(
-        self,
-        input_schema: Schema,
-        col_selector: ColumnSelector,
-        prev_output_schema: Schema = None,
-    ) -> Schema:
-        """Creates the output schema for this operator.
+    def _embeddings_lookup(self, indices):
+        return self.embeddings(indices)
 
-        Parameters
-        ----------
-        input_schema : Schema
-            schema coming from ancestor nodes
-        col_selector : ColumnSelector
-            subselection of columns to apply to this operator
-        prev_output_schema : Schema, optional
-            the output schema of the previously executed operators, by default None
+    def _format_embeddings(self, embeddings, keys):
+        return torch.squeeze(embeddings.to(keys.device))
 
-        Returns
-        -------
-        Schema
-            Schema representing the correct output for this operator.
-        """
-        col_schemas = []
-        for _, col_schema in input_schema.column_schemas.items():
-            col_schemas.append(col_schema)
-        col_schemas.append(
-            ColumnSchema(
-                name=self.embedding_name,
-                tags=[Tags.CONTINUOUS],
-                dtype=self.embeddings.weight.numpy().dtype,
-                is_list=True,
-                is_ragged=False,
-            )
-        )
-
-        return Schema(col_schemas)
+    def _get_dtype(self, embeddings):
+        return embeddings.weight.numpy().dtype
 
 
-class Numpy_TorchEmbeddingOperator(BaseOperator):
+class Torch_NumpyEmbeddingOperator(NumpyEmbeddingOperator):
     """Create an embedding table from supplied embeddings to add embedding entry
     to records based on supplied indices. Support for indices lookup table is available.
     Embedding table is stored in host memory.
@@ -109,68 +78,11 @@ class Numpy_TorchEmbeddingOperator(BaseOperator):
         numpy array of values that represent embedding indices, by default None
     """
 
-    def __init__(
-        self,
-        embeddings: np.ndarray,
-        lookup_key: str = "id",
-        embedding_name: str = "embeddings",
-        id_lookup_table=None,
-    ):
-        self.embeddings = embeddings
-        self.lookup_key = lookup_key
-        self.embedding_name = embedding_name
-        self.id_lookup_table = id_lookup_table
-
-    def transform(
-        self, col_selector: ColumnSelector, transformable: Transformable
-    ) -> Transformable:
-        keys = transformable[self.lookup_key]
-        indices = keys.cpu()
-        if self.id_lookup_table is not None:
-            indices = np.in1d(self.id_lookup_table, indices)
-        embeddings = self.embeddings[indices]
-        transformable[self.embedding_name] = torch.from_numpy(embeddings).to(keys.device)
-        return transformable
-
-    def compute_output_schema(
-        self,
-        input_schema: Schema,
-        col_selector: ColumnSelector,
-        prev_output_schema: Schema = None,
-    ) -> Schema:
-        """Creates the output schema for this operator.
-
-        Parameters
-        ----------
-        input_schema : Schema
-            schema coming from ancestor nodes
-        col_selector : ColumnSelector
-            subselection of columns to apply to this operator
-        prev_output_schema : Schema, optional
-            the output schema of the previously executed operators, by default None
-
-        Returns
-        -------
-        Schema
-            Schema representing the correct output for this operator.
-        """
-        col_schemas = []
-        for _, col_schema in input_schema.column_schemas.items():
-            col_schemas.append(col_schema)
-        col_schemas.append(
-            ColumnSchema(
-                name=self.embedding_name,
-                tags=[Tags.CONTINUOUS],
-                dtype=self.embeddings.dtype,
-                is_list=True,
-                is_ragged=False,
-            )
-        )
-
-        return Schema(col_schemas)
+    def _format_embeddings(self, embeddings, keys):
+        return torch.from_numpy(embeddings).to(keys.device)
 
 
-class Numpy_Mmap_TorchEmbedding(BaseOperator):
+class Torch_MmapNumpyTorchEmbedding(MmapNumpyTorchEmbedding):
     """Operator loads numpy embedding table from file using memory map to be used to create
     torch embedding representations. This allows for larger than host memory embedding
     tables to be used for embedding lookups. The only limit to the size is what fits in
@@ -190,65 +102,5 @@ class Numpy_Mmap_TorchEmbedding(BaseOperator):
         function that will transform embedding from numpy to torch, by default None
     """
 
-    def __init__(
-        self,
-        embedding_npz,
-        ids_lookup_npz=None,
-        lookup_key="id",
-        embedding_name="embeddings",
-        transform_function=None,
-    ):
-        self.embeddings = np.load(embedding_npz, mmap_mode="r")
-        self.id_lookup = np.load(ids_lookup_npz) if ids_lookup_npz else None
-        self.lookup_key = lookup_key
-        self.embedding_name = embedding_name
-        self.transform_function = transform_function or torch.from_numpy
-
-    def transform(
-        self, col_selector: ColumnSelector, transformable: Transformable
-    ) -> Transformable:
-        # keep keys, to maintain original device information
-        keys = transformable[self.lookup_key]
-        indices = keys.cpu()
-        if self.id_lookup is not None:
-            indices = np.in1d(self.id_lookup[:], indices)
-        embeddings = self.embeddings[indices]
-        transformable[self.embedding_name] = self.transform_function(embeddings).to(keys.device)
-        return transformable
-
-    def compute_output_schema(
-        self,
-        input_schema: Schema,
-        col_selector: ColumnSelector,
-        prev_output_schema: Schema = None,
-    ) -> Schema:
-        """Creates the output schema for this operator.
-
-        Parameters
-        ----------
-        input_schema : Schema
-            schema coming from ancestor nodes
-        col_selector : ColumnSelector
-            subselection of columns to apply to this operator
-        prev_output_schema : Schema, optional
-            the output schema of the previously executed operators, by default None
-
-        Returns
-        -------
-        Schema
-            Schema representing the correct output for this operator.
-        """
-        col_schemas = []
-        for _, col_schema in input_schema.column_schemas.items():
-            col_schemas.append(col_schema)
-        col_schemas.append(
-            ColumnSchema(
-                name=self.embedding_name,
-                tags=[Tags.CONTINUOUS],
-                dtype=self.embeddings.dtype,
-                is_list=True,
-                is_ragged=False,
-            )
-        )
-
-        return Schema(col_schemas)
+    def _format_embeddings(self, embeddings, keys):
+        return torch.from_numpy(embeddings).to(keys.device)

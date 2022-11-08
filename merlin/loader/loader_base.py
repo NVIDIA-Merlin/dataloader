@@ -142,17 +142,17 @@ class LoaderBase:
                 for transform in transforms:
                     # check that each transform is an operator:
                     if not isinstance(transform, BaseOperator):
-                        raise TypeError(f"Detected invalid transform, {type(transform)}")
+                        raise TypeError(
+                            f"Detected invalid transform, {type(transform)},"
+                            "we only support operators based on the merlin core"
+                            "`BaseOperator`"
+                        )
                     carry_node = carry_node >> transform
                 transform_graph = Graph(carry_node)
             elif type(transforms, Graph):
                 transform_graph = transforms
             self.transforms = transform_graph.construct_schema(self.schema).output_node
             self.schema = self.transforms.output_schema
-            # should we make one main local executor and hold that on dataloader?
-            # Or build dynamically per batch?
-            # is there a reason we might expose this to the user?
-            # change to something other than local?
             self.executor = LocalExecutor()
         else:
             # Like this to be more explicit about what occurs.
@@ -587,17 +587,6 @@ class LoaderBase:
         if len(self.label_names) > 0:
             labels = X.pop(self.label_names[0])
 
-        # with tensors all in one dictionary
-        # apply transforms graph here against the tensors
-        #
-        # tensors = local_executor.transform_data(tensors)
-
-        # bad thing here is that we dont have the labels, what is required, for some
-        #   reason by op transform logic?
-        # bad thing here is that some of this entries are lists, which are tuples?
-        #           are all operators going to need to know about lists as tuples?
-        #           seems like we could benefit from an object here that encapsulates
-        #               both lists and scalar tensor types?
         if self.transforms:
             X = self.executor.transform(DictArray(X), [self.transforms])
 

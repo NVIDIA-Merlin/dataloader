@@ -26,8 +26,8 @@ from merlin.schema import Tags
 torch = pytest.importorskip("torch")
 
 from merlin.loader.ops.embeddings import (  # noqa
-    Numpy_Mmap_TorchEmbedding,
-    Numpy_TorchEmbeddingOperator,
+    Torch_MmapNumpyTorchEmbedding,
+    Torch_NumpyEmbeddingOperator,
     TorchEmbeddingOperator,
 )
 
@@ -52,7 +52,7 @@ def test_embedding_torch_np_mmap_dl_with_lookup(
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[Numpy_Mmap_TorchEmbedding(embeddings_file, ids_lookup_npz=lookup_file)],
+        transforms=[Torch_MmapNumpyTorchEmbedding(embeddings_file, ids_lookup_npz=lookup_file)],
         shuffle=False,
         device=cpu,
     )
@@ -85,7 +85,7 @@ def test_embedding_torch_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddin
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[Numpy_Mmap_TorchEmbedding(embeddings_file)],
+        transforms=[Torch_MmapNumpyTorchEmbedding(embeddings_file)],
         shuffle=False,
         device=cpu,
     )
@@ -122,7 +122,7 @@ def test_embedding_torch_np_dl_with_lookup(
         dataset,
         batch_size=batch_size,
         transforms=[
-            Numpy_TorchEmbeddingOperator(embeddings_df, id_lookup_table=embedding_ids.to_numpy())
+            Torch_NumpyEmbeddingOperator(embeddings_df, id_lookup_table=embedding_ids.to_numpy())
         ],
         shuffle=False,
         device=cpu,
@@ -156,7 +156,7 @@ def test_embedding_torch_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[Numpy_TorchEmbeddingOperator(embeddings_df)],
+        transforms=[Torch_NumpyEmbeddingOperator(embeddings_df)],
         shuffle=False,
         device=cpu,
     )
