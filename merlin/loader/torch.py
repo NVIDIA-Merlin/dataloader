@@ -77,6 +77,8 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         global_size=None,
         global_rank=None,
         drop_last=False,
+        transforms=None,
+        device=None,
     ):
         LoaderBase.__init__(
             self,
@@ -88,6 +90,8 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             global_size=global_size,
             global_rank=global_rank,
             drop_last=drop_last,
+            transforms=transforms,
+            device=device,
         )
 
     def __iter__(self):
@@ -96,22 +100,17 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
     def _get_device_ctx(self, dev):
         if dev == "cpu":
             return torch.device("cpu")
-        return torch.cuda.device("cuda:{}".format(dev))
-
-    def _pack(self, gdf):
-        if self.device == "cpu":
-            return gdf
-        return gdf.to_dlpack()
+        return torch.cuda.device(f"cuda:{dev}")
 
     def _unpack(self, dlpack):
         if self.device == "cpu":
-            values = dlpack.values
+            values = dlpack.values if hasattr(dlpack, "values") else dlpack
             dtype = values.dtype
             dtype = numpy_to_torch_dtype_dict[dtype.type] if hasattr(dtype, "type") else dtype
             if (
-                len(dlpack.values.shape) == 2
-                and dlpack.values.shape[1] == 1
-                and isinstance(dlpack.values[0], np.ndarray)
+                len(values.shape) == 2
+                and values.shape[1] == 1
+                and isinstance(values[0], np.ndarray)
             ):
                 return torch.squeeze(torch.Tensor(values)).type(dtype)
             return torch.Tensor(values).type(dtype)

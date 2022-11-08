@@ -19,6 +19,7 @@ import queue
 import threading
 import warnings
 from collections import OrderedDict
+from typing import List
 
 import numpy as np
 
@@ -36,6 +37,8 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
+from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node
+from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
 from merlin.schema import Tags
 
@@ -59,6 +62,8 @@ class LoaderBase:
         global_size=None,
         global_rank=None,
         drop_last=False,
+        transforms=None,
+        device=None,
     ):
         self.dataset = dataset
         self.batch_size = batch_size
@@ -70,7 +75,10 @@ class LoaderBase:
         self.drop_last = drop_last
 
         self.indices = cp.arange(self.dataset.npartitions)
-        self.device = "cpu" if not HAS_GPU or dataset.cpu else 0
+        if device:
+            self.device = device
+        else:
+            self.device = "cpu" if not HAS_GPU or dataset.cpu else 0
 
         if not dataset.schema:
             warnings.warn(
@@ -79,6 +87,7 @@ class LoaderBase:
             )
             dataset.schema = dataset.infer_schema()
 
+        self.schema = dataset.schema
         self.sparse_names = []
         self.sparse_max = {}
         self.sparse_as_dense = set()
@@ -125,6 +134,28 @@ class LoaderBase:
         self.__buff_len = None
         self._batch_itr = None
         self._workers = None
+
+        if transforms is not None:
+
+            if isinstance(transforms, List):
+                carry_node = Node(ColumnSelector("*"))
+                for transform in transforms:
+                    if not isinstance(transform, BaseOperator):
+                        raise TypeError(
+                            f"Detected invalid transform, {type(transform)},"
+                            "we only support operators based on the merlin core"
+                            "`BaseOperator`"
+                        )
+                    carry_node = carry_node >> transform
+                transform_graph = Graph(carry_node)
+            elif type(transforms, Graph):
+                transform_graph = transforms
+            self.transforms = transform_graph.construct_schema(self.schema).output_node
+            self.schema = self.transforms.output_schema
+            self.executor = LocalExecutor()
+        else:
+            self.transforms = None
+            self.executor = None
 
     @property
     def _buff(self):
@@ -553,7 +584,24 @@ class LoaderBase:
         labels = None
         if len(self.label_names) > 0:
             labels = X.pop(self.label_names[0])
+
+        if self.transforms:
+            X = self.executor.transform(DictArray(X), [self.transforms])
+
         return X, labels
+
+    def _pack(self, gdf):
+        if isinstance(gdf, np.ndarray):
+            return gdf
+        # if self.device has value ('cpu') gdf should not be transferred to dlpack
+        elif hasattr(gdf, "to_dlpack") and callable(getattr(gdf, "to_dlpack")) and not self.device:
+            return gdf.to_dlpack()
+        elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
+            gdf = gdf.to_numpy()
+            if isinstance(gdf[0], list):
+                gdf = np.stack(gdf)
+            return gdf
+        return gdf.toDlpack()
 
 
 class ChunkQueue:

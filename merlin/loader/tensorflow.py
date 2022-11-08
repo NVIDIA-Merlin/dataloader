@@ -16,8 +16,6 @@
 import contextlib
 import logging
 
-import numpy as np
-
 from merlin.loader.loader_base import LoaderBase
 from merlin.loader.tf_utils import configure_tensorflow
 
@@ -112,6 +110,8 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         global_size=None,
         global_rank=None,
         drop_last=False,
+        transforms=None,
+        device=None,
     ):
         LoaderBase.__init__(
             self,
@@ -123,6 +123,8 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             global_size=global_size,
             global_rank=global_rank,
             drop_last=drop_last,
+            transforms=transforms,
+            device=device,
         )
         self._map_fns = []
 
@@ -179,17 +181,13 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         """
         return tf.split(tensor, idx, axis=axis)
 
-    def _pack(self, gdf):
-        if isinstance(gdf, np.ndarray):
-            return gdf
-        elif hasattr(gdf, "to_dlpack") and callable(getattr(gdf, "to_dlpack")):
-            return gdf.to_dlpack()
-        elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
-            gdf = gdf.to_numpy()
-            if isinstance(gdf[0], list):
-                gdf = np.stack(gdf)
-            return gdf
-        return gdf.toDlpack()
+    @property
+    def _LONG_DTYPE(self):
+        return tf.int64
+
+    @property
+    def _FLOAT32_DTYPE(self):
+        return tf.float32
 
     def _unpack(self, gdf):
         if hasattr(gdf, "shape"):
