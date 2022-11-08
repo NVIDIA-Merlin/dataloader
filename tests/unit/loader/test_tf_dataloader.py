@@ -20,7 +20,9 @@ import subprocess
 import time
 import timeit
 
+import merlin.models.tf as mm
 from merlin.core.dispatch import HAS_GPU, make_df
+from merlin.datasets.synthetic import generate_data
 from merlin.io import Dataset
 from merlin.schema import Tags
 
@@ -258,7 +260,7 @@ def test_tensorflow_dataloader(
                 rows += num_samples
                 continue
             else:
-                raise ValueError("Batch size too small at idx {}".format(idx))
+                raise ValueError(f"Batch size too small at idx {idx}")
 
         # check that all the features in X have the
         # appropriate length and that the set of
@@ -616,3 +618,100 @@ def test_lazy_dataset_map():
 
     assert map_function_called
     assert elapsed_time_seconds < 1
+
+
+def test_transformer_with_causal_language_modeling():
+    sequence_testing_data = generate_data("sequence-testing", num_rows=100)
+
+    seq_schema = sequence_testing_data.schema.select_by_tag(Tags.SEQUENCE).select_by_tag(
+        Tags.CATEGORICAL
+    )
+    target = sequence_testing_data.schema.select_by_tag(Tags.ITEM_ID).column_names[0]
+    predict_next = mm.SequencePredictNext(schema=seq_schema, target=target)
+
+    loader = tf_dataloader.Loader(sequence_testing_data, batch_size=8, shuffle=False)
+    loader = loader.map(predict_next)
+
+    # Converting this to a list fixes the error
+    # loader = iter([batch for batch in loader])
+
+    model = mm.Model(
+        mm.InputBlockV2(
+            seq_schema,
+            categorical=mm.Embeddings(
+                seq_schema.select_by_tag(Tags.CATEGORICAL), sequence_combiner=None
+            ),
+        ),
+        mm.GPT2Block(d_model=48, n_head=8, n_layer=2),
+        mm.CategoricalOutput(
+            seq_schema.select_by_name(target), default_loss="categorical_crossentropy"
+        ),
+    )
+
+    batch = next(iter(loader))[0]
+    outputs = model(batch)
+    assert list(outputs.shape) == [8, 3, 51997]
+
+    model.compile(run_eagerly=True, optimizer="adam")
+    model.fit(loader, epochs=1, steps_per_epoch=1)
+
+    metrics = model.evaluate(loader, batch_size=8, steps=1, return_dict=True)
+    assert len(metrics) > 0
+
+    predictions = model.predict(loader, batch_size=8, steps=1)
+    assert predictions.shape == (8, 3, 51997)
+
+
+def test_ragged_features():
+    num_rows = 100
+
+    list_features = [f"list_feature_{i}" for i in range(10)]
+    df_data = {"target": [1, 0, 1] * num_rows}
+    for feature_name in list_features:
+        df_data[feature_name] = [[1, 2, 3], [4, 5], [6]] * num_rows
+
+    df = make_df(df_data)
+    dataset = Dataset(df)
+    dataset.schema["target"] = dataset.schema["target"].with_tags([Tags.TARGET])
+
+    loader = tf_dataloader.Loader(dataset, batch_size=8)
+
+    class MyModel(tf.keras.models.Model):
+        def __init__(self, max_seq_length):
+            super().__init__()
+            self.embedding = tf.keras.layers.Embedding(10, 4)
+            self.dense = tf.keras.layers.Dense(1)
+            self.max_seq_length = max_seq_length
+
+        def build(self, input_shapes):
+            self.embedding.build(input_shapes["list_feature_0"])
+
+        def call(self, inputs):
+            embeddings = []
+            for feature_name, feature in inputs.items():
+                ragged_tensor = self.to_ragged(feature)
+                embedding_inputs = ragged_tensor.to_sparse()
+                feature_embedding = tf.nn.safe_embedding_lookup_sparse(
+                    self.embedding.embeddings, embedding_inputs
+                )
+                embeddings.append(feature_embedding)
+
+            dense_inputs = tf.concat(embeddings, axis=1)
+
+            outputs = self.dense(dense_inputs)
+            return outputs
+
+        def to_ragged(self, feature):
+            values, row_lengths = feature
+            values = values[:, 0]
+            row_lengths = row_lengths[:, 0]
+            ragged_tensor = tf.RaggedTensor.from_row_lengths(values, row_lengths)
+            return ragged_tensor
+
+    model = MyModel(max_seq_length=3)
+    model.compile(optimizer="adam", loss="categorical_crossentropy", run_eagerly=True)
+
+    # forcing all batches to be evaluated up front fixes the error
+    # loader = iter([batch for batch in loader])
+
+    model.fit(loader, epochs=3, steps_per_epoch=1)
