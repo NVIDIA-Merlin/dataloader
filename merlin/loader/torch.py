@@ -135,7 +135,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             offsets = torch.arange(values.size()[0], device=self.device)
         num_rows = len(offsets)
         if HAS_GPU:
-            offsets = torch.cat([offsets, torch.cuda.LongTensor([len(values)])])
+            offsets = torch.cat([offsets, torch.cuda.LongTensor([len(values)], device=self.device)])
         else:
             offsets = torch.cat([offsets, torch.LongTensor([len(values)])])
         diff_offsets = offsets[1:] - offsets[:-1]
