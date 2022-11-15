@@ -20,16 +20,16 @@ import pytest
 
 from merlin.core.dispatch import HAS_GPU
 from merlin.io import Dataset
-from merlin.loader.torch import Loader
 from merlin.schema import Tags
 
 torch = pytest.importorskip("torch")
 
-from merlin.loader.ops.embeddings import (  # noqa
+from merlin.loader.ops.embeddings.torch_embedding_op import (  # noqa
     Torch_MmapNumpyTorchEmbedding,
     Torch_NumpyEmbeddingOperator,
     TorchEmbeddingOperator,
 )
+from merlin.loader.torch import Loader  # noqa
 
 
 @pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
