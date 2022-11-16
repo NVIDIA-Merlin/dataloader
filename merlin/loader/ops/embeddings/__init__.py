@@ -13,15 +13,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-# flake8: noqa
-from merlin.loader.ops.embeddings.tf_embedding_op import (
-    TF_MmapNumpyTorchEmbedding,
-    TF_NumpyEmbeddingOperator,
-    TFEmbeddingOperator,
-)
-from merlin.loader.ops.embeddings.torch_embedding_op import (
-    Torch_MmapNumpyTorchEmbedding,
-    Torch_NumpyEmbeddingOperator,
-    TorchEmbeddingOperator,
-)
