@@ -117,8 +117,6 @@ class LoaderBase:
 
         self._epochs = 1
 
-        self.cat_names = dataset.schema.select_by_tag(Tags.CATEGORICAL).column_names
-        self.cont_names = dataset.schema.select_by_tag(Tags.CONTINUOUS).column_names
         self.label_names = dataset.schema.select_by_tag(Tags.TARGET).column_names
 
         if len(list(self.dtype_reverse_map.keys())) == 0:
