@@ -1,5 +1,6 @@
 scipy
 scikit-learn>=0.20
+npy_append_array
 
 black==22.3.0
 click<8.1.0

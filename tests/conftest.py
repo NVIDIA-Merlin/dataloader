@@ -13,11 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import gc
+import glob
 import random
 
 import dask
 import numpy as np
 import pandas as pd
+from npy_append_array import NpyAppendArray
 
 try:
     import cudf
@@ -44,7 +47,7 @@ except ImportError:
 
 import pytest
 
-from merlin.core.dispatch import make_df
+from merlin.core.dispatch import concat_columns, get_lib, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
@@ -159,3 +162,83 @@ def multihot_dataset(multihot_data):
     ds = Dataset(make_df(multihot_data))
     ds.schema["Post"] = ds.schema["Post"].with_tags(Tags.TARGET)
     return ds
+
+
+@pytest.fixture(scope="session")
+def num_embedding_ids():
+    return 1
+
+
+@pytest.fixture(scope="session")
+def embeddings_part_size():
+    return 1e5
+
+
+@pytest.fixture(scope="session")
+def embedding_ids(num_embedding_ids, embeddings_part_size):
+    df = make_df({"id": np.arange(num_embedding_ids * embeddings_part_size).astype("int32")})
+    return df
+
+
+@pytest.fixture(scope="session")
+def rev_embedding_ids(embedding_ids, tmpdir_factory):
+    df_rev = embedding_ids["id"][::-1]
+    df_rev.reset_index(inplace=True, drop=True)
+    return make_df(df_rev)
+
+
+@pytest.fixture(scope="session")
+def embeddings_from_dataframe(embedding_ids, num_embedding_ids, tmpdir_factory):
+    embed_dir = tmpdir_factory.mktemp("embeds")
+    for idx, splt in enumerate(np.array_split(embedding_ids.to_numpy(), num_embedding_ids)):
+        vals = make_df(np.random.rand(splt.shape[0], 1024))
+        ids = make_df({"id": np.squeeze(splt)})
+        full = concat_columns([ids, vals])
+        full.columns = [str(col) for col in full.columns]
+        full.to_parquet(f"{embed_dir}/{idx}.parquet")
+    return embed_dir
+
+
+@pytest.fixture(scope="session")
+def rev_embeddings_from_dataframe(rev_embedding_ids, num_embedding_ids, tmpdir_factory):
+    embed_dir = tmpdir_factory.mktemp("rev_embeds")
+    for idx, splt in enumerate(np.array_split(rev_embedding_ids.to_numpy(), num_embedding_ids)):
+        vals = make_df(np.random.rand(splt.shape[0], 1024))
+        ids = make_df({"id": np.squeeze(splt)})
+        full = concat_columns([ids, vals])
+        full.columns = [str(col) for col in full.columns]
+        full.to_parquet(f"{embed_dir}/{idx}.parquet")
+    return embed_dir
+
+
+def build_embeddings_from_pq(
+    df_paths, embedding_filename="embeddings.npy", lookup_filename="lookup_ids"
+):
+    df_lib = get_lib()
+    with NpyAppendArray(embedding_filename) as nf:
+        with NpyAppendArray(lookup_filename) as lf:
+            for path in df_paths:
+                rows = df_lib.read_parquet(path)
+                numpy_rows = rows.to_numpy()
+                indices = np.ascontiguousarray(numpy_rows[:, 0])
+                vectors = np.ascontiguousarray(numpy_rows[:, 1:])
+                lf.append(indices)
+                nf.append(vectors)
+                del rows
+                del numpy_rows
+                del indices
+                del vectors
+                gc.collect()
+    return embedding_filename, lookup_filename
+
+
+@pytest.fixture(scope="session")
+def np_embeddings_from_pq(rev_embeddings_from_dataframe, tmpdir_factory):
+    paths = sorted(glob.glob(f"{rev_embeddings_from_dataframe}/*"))
+    embed_dir = tmpdir_factory.mktemp("np_embeds")
+    embeddings_file = f"{embed_dir}/embeddings.npy"
+    lookup_ids_file = f"{embed_dir}/ids_lookup.npy"
+    npy_filename, lookup_filename = build_embeddings_from_pq(
+        paths, embeddings_file, lookup_ids_file
+    )
+    return npy_filename, lookup_filename
