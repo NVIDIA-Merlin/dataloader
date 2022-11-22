@@ -116,8 +116,8 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             return torch.Tensor(values).type(dtype)
         return from_dlpack(dlpack)
 
-    def _to_tensor(self, df):
-        return self._unpack(self._pack(df))
+    def _to_tensor(self, gdf):
+        return self._unpack(self._pack(gdf))
 
     def _split_fn(self, tensor, idx, axis=0):
         return torch.split(tensor, idx, dim=axis)
