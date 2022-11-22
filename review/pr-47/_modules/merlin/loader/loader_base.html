@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../../../_static/togglebutton.css" type="text/css" />
       <link rel="stylesheet" href="../../../_static/mystnb.css" type="text/css" />
+    <link rel="canonical" href="https://nvidia-merlin.github.io/dataloader/main/_modules/merlin/loader/loader_base.html" />
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -174,7 +175,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">sparse_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>
 
                 <span class="n">value_count</span> <span class="o">=</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">value_count</span>
-                <span class="k">if</span> <span class="n">value_count</span> <span class="ow">and</span> <span class="n">value_count</span><span class="o">.</span><span class="n">min</span> <span class="o">==</span> <span class="n">value_count</span><span class="o">.</span><span class="n">max</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">value_count</span> <span class="ow">and</span> <span class="n">value_count</span><span class="o">.</span><span class="n">max</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">sparse_max</span><span class="p">[</span><span class="n">col_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value_count</span><span class="o">.</span><span class="n">max</span>
 
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">is_ragged</span><span class="p">:</span>
@@ -536,7 +537,7 @@
             <span class="n">values</span><span class="p">,</span> <span class="n">offsets</span><span class="p">,</span> <span class="n">diff_offsets</span><span class="p">,</span> <span class="n">num_rows</span><span class="p">,</span> <span class="n">seq_limit</span><span class="p">,</span> <span class="n">sparse_as_dense</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_to_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_to_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        One of the mandatory functions a child class needs</span>
 <span class="sd">        to implement. Maps from a cudf DataFrame to a</span>
@@ -837,7 +838,18 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+    <!-- Theme Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NVJ1Y1YJHK"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-NVJ1Y1YJHK', {
+          'anonymize_ip': false,
+      });
+    </script> 
 
 </body>
 </html>
