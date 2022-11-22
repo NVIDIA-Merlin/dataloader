@@ -102,7 +102,7 @@ class LoaderBase:
                 self.sparse_names.append(col_name)
 
                 value_count = col_spec.value_count
-                if value_count and value_count.min == value_count.max:
+                if value_count and value_count.max:
                     self.sparse_max[col_name] = value_count.max
 
                 if not col_spec.is_ragged:

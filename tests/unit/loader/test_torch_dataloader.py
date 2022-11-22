@@ -287,7 +287,7 @@ def test_sparse_tensors(sparse_dense):
     for col_name in spa_lst:
         if not sparse_dense:
             schema[col_name] = schema[col_name].with_properties(
-                {"value_count": {"min": spa_mx[col_name], "max": spa_mx[col_name]}}
+                {"value_count": {"max": spa_mx[col_name]}}
             )
     ds.schema = schema
 
