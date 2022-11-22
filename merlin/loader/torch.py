@@ -14,4 +14,6 @@
 # limitations under the License.
 #
 
-from merlin.dataloader.torch import *
+# pylint: disable=wildcard-import
+# pylint: disable=unused-wildcard-import
+from merlin.dataloader.torch import *  # noqa

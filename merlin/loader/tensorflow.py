@@ -13,4 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from merlin.dataloader.tensorflow import *
+
+# pylint: disable=wildcard-import
+# pylint: disable=unused-wildcard-import
+from merlin.dataloader.tensorflow import *  # noqa
