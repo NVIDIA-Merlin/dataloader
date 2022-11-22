@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+# pylint: skip-file
 # Version: 0.23
 
 """The Versioneer - like a rocketeer, but for versions.

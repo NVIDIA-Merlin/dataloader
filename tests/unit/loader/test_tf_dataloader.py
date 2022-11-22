@@ -258,7 +258,7 @@ def test_tensorflow_dataloader(
                 rows += num_samples
                 continue
             else:
-                raise ValueError("Batch size too small at idx {}".format(idx))
+                raise ValueError(f"Batch size too small at idx {idx}")
 
         # check that all the features in X have the
         # appropriate length and that the set of
