@@ -1,7 +1,9 @@
 from testbook import testbook
+import pytest
 
 
 pytest.importorskip("torch")
+
 
 @testbook("examples/01b-Getting-started-Pytorch", execute=False)
 def test_getting_started_pytorch(tb):

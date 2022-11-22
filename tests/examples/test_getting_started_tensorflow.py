@@ -1,7 +1,9 @@
 from testbook import testbook
+import pytest
 
 
 pytest.importorskip("tensorflow")
+
 
 @testbook("examples/01a-Getting-started-Tensorflow.ipynb", execute=False)
 def test_getting_started_tensorflow(tb):
