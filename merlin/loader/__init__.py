@@ -13,7 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import warnings
 
-from merlin.loader import _version
+from merlin.dataloader import _version
 
 __version__ = _version.get_versions()["version"]
+
+
+warnings.warn(
+    "The `merlin.loader` package has been moved to `merlin.dataloader`. "
+    "Please update your imports, importing from `merlin.loader` is "
+    "deprecated and will be removed in a future version",
+    DeprecationWarning,
+)

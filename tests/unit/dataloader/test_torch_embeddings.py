@@ -24,12 +24,12 @@ from merlin.schema import Tags
 
 torch = pytest.importorskip("torch")
 
-from merlin.loader.ops.embeddings.torch_embedding_op import (  # noqa
+from merlin.dataloader.ops.embeddings.torch_embedding_op import (  # noqa
     Torch_MmapNumpyTorchEmbedding,
     Torch_NumpyEmbeddingOperator,
     TorchEmbeddingOperator,
 )
-from merlin.loader.torch import Loader  # noqa
+from merlin.dataloader.torch import Loader  # noqa
 
 
 @pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])

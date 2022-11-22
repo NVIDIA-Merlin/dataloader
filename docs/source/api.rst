@@ -2,10 +2,10 @@
 API Documentation
 *****************
 
-Merlin Loader for TensorFlow Constructors
+Merlin Dataloader for TensorFlow Constructors
 -----------------------------------------
 
-.. currentmodule:: merlin.loader.tensorflow
+.. currentmodule:: merlin.dataloader.tensorflow
 
 .. autosummary::
    :toctree: generated
@@ -14,10 +14,10 @@ Merlin Loader for TensorFlow Constructors
    KerasSequenceValidater
 
 
-Merlin Loader for TensorFlow Utility Functions
+Merlin Dataloader for TensorFlow Utility Functions
 ----------------------------------------------
 
-.. currentmodule:: merlin.loader.tf_utils
+.. currentmodule:: merlin.dataloader.tf_utils
 
 .. autosummary::
    :toctree: generated
@@ -27,10 +27,10 @@ Merlin Loader for TensorFlow Utility Functions
    HAS_GPU
 
 
-Merlin Loader for PyTorch Constructors
+Merlin Dataloader for PyTorch Constructors
 -----------------------------------------
 
-.. currentmodule:: merlin.loader.torch
+.. currentmodule:: merlin.dataloader.torch
 
 .. autosummary::
    :toctree: generated
@@ -39,10 +39,21 @@ Merlin Loader for PyTorch Constructors
    DLDataLoader
 
 
-Merlin Loader Base Constructors
+Merlin Dataloader for JAX Constructors
+-----------------------------------------
+
+.. currentmodule:: merlin.dataloader.jax
+
+.. autosummary::
+   :toctree: generated
+
+   Loader
+
+
+Merlin Dataloader Base Constructors
 -------------------------------
 
-.. currentmodule:: merlin.loader.loader_base
+.. currentmodule:: merlin.dataloader.loader_base
 
 .. autosummary::
    :toctree: generated

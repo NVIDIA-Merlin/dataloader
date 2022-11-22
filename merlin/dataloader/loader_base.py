@@ -241,7 +241,7 @@ class LoaderBase:
         start = self.global_rank * per_worker
         return self.indices[start : start + per_worker].tolist()
 
-    @annotate("_shuffle_indices", color="darkgreen", domain="merlin_loader")
+    @annotate("_shuffle_indices", color="darkgreen", domain="merlin_dataloader")
     def _shuffle_indices(self):
         generate_local_seed(self.global_rank, self.global_size)
         if self.seed_fn:
@@ -328,7 +328,7 @@ class LoaderBase:
                 break
         return batch
 
-    @annotate("make_tensors", color="darkgreen", domain="merlin_loader")
+    @annotate("make_tensors", color="darkgreen", domain="merlin_dataloader")
     def make_tensors(self, gdf, use_nnz=False):
         """Turns a gdf into tensor representation by column
 
@@ -499,7 +499,7 @@ class LoaderBase:
                 scalars.append(col)
         return scalars, lists
 
-    @annotate("_create_tensors", color="darkgreen", domain="merlin_loader")
+    @annotate("_create_tensors", color="darkgreen", domain="merlin_dataloader")
     def _create_tensors(self, gdf):
         """
         Breaks a dataframe down into the relevant
@@ -551,7 +551,7 @@ class LoaderBase:
 
         return tensors, tensor_names
 
-    @annotate("_handle_tensors", color="darkgreen", domain="merlin_loader")
+    @annotate("_handle_tensors", color="darkgreen", domain="merlin_dataloader")
     def _handle_tensors(self, tensors, tensor_names):
         # tensors =  dictionary of all tensors
         X = {}
@@ -658,7 +658,7 @@ class ChunkQueue:
             except queue.Full:
                 continue
 
-    @annotate("batch", color="darkgreen", domain="merlin_loader")
+    @annotate("batch", color="darkgreen", domain="merlin_dataloader")
     def batch(self, itr):
         """Iterates through gpu_mem_frac size chunks of dataset
         and concatenates every `num_parts` of them.
@@ -677,7 +677,7 @@ class ChunkQueue:
                 yield current
                 current = []
 
-    @annotate("chunk_logic", color="darkgreen", domain="merlin_loader")
+    @annotate("chunk_logic", color="darkgreen", domain="merlin_dataloader")
     def chunk_logic(self, itr):
         spill = None
         for chunks in self.batch(itr):
@@ -706,7 +706,7 @@ class ChunkQueue:
             spill = self.dataloader.make_tensors(spill, self.dataloader._use_nnz)
             self.put(spill)
 
-    @annotate("load_chunks", color="darkgreen", domain="merlin_loader")
+    @annotate("load_chunks", color="darkgreen", domain="merlin_dataloader")
     def load_chunks(self, dev):
         try:
             itr = iter(self.itr)

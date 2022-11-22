@@ -13,4 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from merlin.dataloader.tensorflow import *
+
+from merlin.dataloader import _version
+
+__version__ = _version.get_versions()["version"]
