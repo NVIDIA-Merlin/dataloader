@@ -1,5 +1,5 @@
-from testbook import testbook
 import pytest
+from testbook import testbook
 
 
 pytest.importorskip("tensorflow")
