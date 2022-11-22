@@ -175,7 +175,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">sparse_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>
 
                 <span class="n">value_count</span> <span class="o">=</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">value_count</span>
-                <span class="k">if</span> <span class="n">value_count</span> <span class="ow">and</span> <span class="n">value_count</span><span class="o">.</span><span class="n">min</span> <span class="o">==</span> <span class="n">value_count</span><span class="o">.</span><span class="n">max</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">value_count</span> <span class="ow">and</span> <span class="n">value_count</span><span class="o">.</span><span class="n">max</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">sparse_max</span><span class="p">[</span><span class="n">col_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value_count</span><span class="o">.</span><span class="n">max</span>
 
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">is_ragged</span><span class="p">:</span>
