@@ -31,9 +31,6 @@ jobs:
     - name: Install and upgrade python packages
       run: |
         python -m pip install --upgrade pip setuptools==59.4.0 wheel tox
-    - name: Lint
-      run: |
-        tox -re lint
     - name: Run unittests
       run: |
         tox -re test-cpu

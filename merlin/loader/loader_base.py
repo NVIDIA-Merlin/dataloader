@@ -464,7 +464,7 @@ class LoaderBase:
             values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
         )
 
-    def _to_tensor(self, df):
+    def _to_tensor(self, gdf):
         """
         One of the mandatory functions a child class needs
         to implement. Maps from a cudf DataFrame to a
