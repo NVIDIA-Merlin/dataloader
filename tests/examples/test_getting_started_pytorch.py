@@ -1,7 +1,6 @@
 import pytest
 from testbook import testbook
 
-
 pytest.importorskip("torch")
 
 
