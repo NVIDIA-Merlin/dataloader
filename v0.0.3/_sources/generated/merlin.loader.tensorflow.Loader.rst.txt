@@ -1,0 +1,27 @@
+﻿merlin.loader.tensorflow.Loader
+===============================
+
+.. currentmodule:: merlin.loader.tensorflow
+
+.. autoclass:: Loader
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Loader.__init__
+      ~Loader.epochs
+      ~Loader.make_tensors
+      ~Loader.map
+      ~Loader.on_epoch_end
+      ~Loader.stop
+   
+   
+
+   
+   
+   

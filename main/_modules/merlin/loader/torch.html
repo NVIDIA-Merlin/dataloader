@@ -189,8 +189,8 @@
             <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">values</span><span class="p">)</span><span class="o">.</span><span class="n">type</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">from_dlpack</span><span class="p">(</span><span class="n">dlpack</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_to_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unpack</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pack</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
+    <span class="k">def</span> <span class="nf">_to_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unpack</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pack</span><span class="p">(</span><span class="n">gdf</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_split_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensor</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
@@ -291,6 +291,7 @@
       <dt>Tags</dt>
       <dd><a href="../../../../v0.0.1/index.html">v0.0.1</a></dd>
       <dd><a href="../../../../v0.0.2/index.html">v0.0.2</a></dd>
+      <dd><a href="../../../../v0.0.3/index.html">v0.0.3</a></dd>
     </dl>
     <dl>
       <dt>Branches</dt>
