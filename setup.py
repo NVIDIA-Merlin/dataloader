@@ -60,6 +60,7 @@ setup(
     long_description_content_type="text/markdown",
     install_requires=requirements["base"],
     test_suite="tests",
+    python_requires=">=3.8",
     extras_require={
         **requirements,
         "all": list(itertools.chain(*list(requirements.values()))),
