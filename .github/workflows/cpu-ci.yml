@@ -40,7 +40,8 @@ jobs:
           raw=$(git branch -r --contains ${{ github.ref_name }})
           branch=${raw/origin\/}
         fi
-        tox -e test-cpu -- $branch    - name: Generate package for pypi
+        tox -e test-cpu -- $branch    
+    - name: Generate package for pypi
       run: |
         python setup.py sdist
     - name: Upload pypi artifacts to github
