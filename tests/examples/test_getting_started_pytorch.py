@@ -4,7 +4,7 @@ from testbook import testbook
 pytest.importorskip("torch")
 
 
-@testbook("examples/01b-Getting-started-Pytorch", execute=False)
+@testbook("examples/01b-Getting-started-Pytorch.ipynb", execute=False)
 def test_getting_started_pytorch(tb):
     tb.inject(
         """
