@@ -1,7 +1,7 @@
-﻿merlin.loader.tensorflow.KerasSequenceValidater
-===============================================
+﻿merlin.dataloader.tensorflow.KerasSequenceValidater
+===================================================
 
-.. currentmodule:: merlin.loader.tensorflow
+.. currentmodule:: merlin.dataloader.tensorflow
 
 .. autoclass:: KerasSequenceValidater
 

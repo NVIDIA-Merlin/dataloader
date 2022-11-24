@@ -1,7 +1,7 @@
-﻿merlin.loader.loader\_base.ChunkQueue
-=====================================
+﻿merlin.dataloader.loader\_base.ChunkQueue
+=========================================
 
-.. currentmodule:: merlin.loader.loader_base
+.. currentmodule:: merlin.dataloader.loader_base
 
 .. autoclass:: ChunkQueue
 

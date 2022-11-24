@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>merlin.loader.tf_utils.configure_tensorflow &mdash; Merlin Dataloader  documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <title>merlin.dataloader.tf_utils.configure_tensorflow &mdash; Merlin Dataloader  documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/togglebutton.css" type="text/css" />
       <link rel="stylesheet" href="../_static/mystnb.css" type="text/css" />
-    <link rel="canonical" href="https://nvidia-merlin.github.io/dataloader/main/generated/merlin.loader.tf_utils.configure_tensorflow.html" />
+    <link rel="canonical" href="https://nvidia-merlin.github.io/dataloader/main/generated/merlin.dataloader.tf_utils.configure_tensorflow.html" />
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -23,8 +23,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="merlin.loader.tf_utils.get_dataset_schema_from_feature_columns" href="merlin.loader.tf_utils.get_dataset_schema_from_feature_columns.html" />
-    <link rel="prev" title="merlin.loader.tensorflow.KerasSequenceValidater" href="merlin.loader.tensorflow.KerasSequenceValidater.html" /> 
+    <link rel="next" title="merlin.dataloader.tf_utils.get_dataset_schema_from_feature_columns" href="merlin.dataloader.tf_utils.get_dataset_schema_from_feature_columns.html" />
+    <link rel="prev" title="merlin.dataloader.tensorflow.KerasSequenceValidater" href="merlin.dataloader.tensorflow.KerasSequenceValidater.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -46,15 +46,16 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../README.html">Introduction</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../api.html">API Documentation</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="../api.html#merlin-loader-for-tensorflow-constructors">Merlin Loader for TensorFlow Constructors</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="../api.html#merlin-loader-for-tensorflow-utility-functions">Merlin Loader for TensorFlow Utility Functions</a><ul class="current">
-<li class="toctree-l3 current"><a class="current reference internal" href="#">merlin.loader.tf_utils.configure_tensorflow</a></li>
-<li class="toctree-l3"><a class="reference internal" href="merlin.loader.tf_utils.get_dataset_schema_from_feature_columns.html">merlin.loader.tf_utils.get_dataset_schema_from_feature_columns</a></li>
-<li class="toctree-l3"><a class="reference internal" href="merlin.loader.tf_utils.HAS_GPU.html">merlin.loader.tf_utils.HAS_GPU</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api.html#merlin-dataloader-for-tensorflow-constructors">Merlin Dataloader for TensorFlow Constructors</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../api.html#merlin-dataloader-for-tensorflow-utility-functions">Merlin Dataloader for TensorFlow Utility Functions</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">merlin.dataloader.tf_utils.configure_tensorflow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="merlin.dataloader.tf_utils.get_dataset_schema_from_feature_columns.html">merlin.dataloader.tf_utils.get_dataset_schema_from_feature_columns</a></li>
+<li class="toctree-l3"><a class="reference internal" href="merlin.dataloader.tf_utils.HAS_GPU.html">merlin.dataloader.tf_utils.HAS_GPU</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../api.html#merlin-loader-for-pytorch-constructors">Merlin Loader for PyTorch Constructors</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../api.html#merlin-loader-base-constructors">Merlin Loader Base Constructors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api.html#merlin-dataloader-for-pytorch-constructors">Merlin Dataloader for PyTorch Constructors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api.html#merlin-dataloader-for-jax-constructors">Merlin Dataloader for JAX Constructors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api.html#merlin-dataloader-base-constructors">Merlin Dataloader Base Constructors</a></li>
 </ul>
 </li>
 </ul>
@@ -74,7 +75,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../api.html">API Documentation</a> &raquo;</li>
-      <li>merlin.loader.tf_utils.configure_tensorflow</li>
+      <li>merlin.dataloader.tf_utils.configure_tensorflow</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -83,11 +84,11 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="merlin-loader-tf-utils-configure-tensorflow">
-<h1>merlin.loader.tf_utils.configure_tensorflow<a class="headerlink" href="#merlin-loader-tf-utils-configure-tensorflow" title="Permalink to this headline"></a></h1>
+  <div class="section" id="merlin-dataloader-tf-utils-configure-tensorflow">
+<h1>merlin.dataloader.tf_utils.configure_tensorflow<a class="headerlink" href="#merlin-dataloader-tf-utils-configure-tensorflow" title="Permalink to this headline"></a></h1>
 <dl class="py function">
-<dt id="merlin.loader.tf_utils.configure_tensorflow">
-<code class="sig-prename descclassname"><span class="pre">merlin.loader.tf_utils.</span></code><code class="sig-name descname"><span class="pre">configure_tensorflow</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">memory_allocation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/merlin/loader/tf_utils.html#configure_tensorflow"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#merlin.loader.tf_utils.configure_tensorflow" title="Permalink to this definition"></a></dt>
+<dt id="merlin.dataloader.tf_utils.configure_tensorflow">
+<code class="sig-prename descclassname"><span class="pre">merlin.dataloader.tf_utils.</span></code><code class="sig-name descname"><span class="pre">configure_tensorflow</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">memory_allocation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/merlin/dataloader/tf_utils.html#configure_tensorflow"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#merlin.dataloader.tf_utils.configure_tensorflow" title="Permalink to this definition"></a></dt>
 <dd><p>Control the GPU memory allocation that is performed when using TensorFlow.</p>
 <p>Example usage:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Allocate 20% of GPU memory to TensorFlow on the first</span>
@@ -119,8 +120,8 @@ The default value is None.</p></li>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="merlin.loader.tensorflow.KerasSequenceValidater.html" class="btn btn-neutral float-left" title="merlin.loader.tensorflow.KerasSequenceValidater" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="merlin.loader.tf_utils.get_dataset_schema_from_feature_columns.html" class="btn btn-neutral float-right" title="merlin.loader.tf_utils.get_dataset_schema_from_feature_columns" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="merlin.dataloader.tensorflow.KerasSequenceValidater.html" class="btn btn-neutral float-left" title="merlin.dataloader.tensorflow.KerasSequenceValidater" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="merlin.dataloader.tf_utils.get_dataset_schema_from_feature_columns.html" class="btn btn-neutral float-right" title="merlin.dataloader.tf_utils.get_dataset_schema_from_feature_columns" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

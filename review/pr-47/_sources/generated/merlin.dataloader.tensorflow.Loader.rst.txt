@@ -1,7 +1,7 @@
-﻿merlin.loader.tensorflow.Loader
-===============================
+﻿merlin.dataloader.tensorflow.Loader
+===================================
 
-.. currentmodule:: merlin.loader.tensorflow
+.. currentmodule:: merlin.dataloader.tensorflow
 
 .. autoclass:: Loader
 

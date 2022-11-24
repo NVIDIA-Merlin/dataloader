@@ -1,7 +1,7 @@
-﻿merlin.loader.loader\_base.LoaderBase
-=====================================
+﻿merlin.dataloader.loader\_base.LoaderBase
+=========================================
 
-.. currentmodule:: merlin.loader.loader_base
+.. currentmodule:: merlin.dataloader.loader_base
 
 .. autoclass:: LoaderBase
 
