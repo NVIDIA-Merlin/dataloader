@@ -6,6 +6,7 @@ ipython_genutils
 nbsphinx>=0.6
 pytest>=5
 pytest-cov>=2
+testbook
 
 moto>=2
 cpplint>=1.5
