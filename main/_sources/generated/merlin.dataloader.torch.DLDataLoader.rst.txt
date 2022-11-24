@@ -1,0 +1,30 @@
+﻿merlin.dataloader.torch.DLDataLoader
+====================================
+
+.. currentmodule:: merlin.dataloader.torch
+
+.. autoclass:: DLDataLoader
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DLDataLoader.__init__
+      ~DLDataLoader.check_worker_number_rationality
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DLDataLoader.device
+      ~DLDataLoader.multiprocessing_context
+   
+   
