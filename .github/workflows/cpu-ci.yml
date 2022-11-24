@@ -18,11 +18,11 @@ jobs:
         os: [ubuntu-latest]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
        fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install Ubuntu packages
@@ -45,7 +45,7 @@ jobs:
       run: |
         python setup.py sdist
     - name: Upload pypi artifacts to github
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: dist
         path: dist
@@ -62,9 +62,9 @@ jobs:
         conda mambabuild . -c defaults -c conda-forge -c numba -c rapidsai -c nvidia --output-folder ./conda_packages
         export CONDA_PACKAGE=$(find ./conda_packages/ -name merlin-dataloader*.tar.bz2)
         echo "conda_package : $CONDA_PACKAGE"
-        echo "::set-output name=conda_package::$CONDA_PACKAGE"
+        echo "conda_package=$CONDA_PACKAGE" >> $GITHUB_OUTPUT
     - name: Upload conda artifacts to github
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: conda
         path: ${{ steps.conda_build.outputs.conda_package }}
@@ -73,7 +73,7 @@ jobs:
       run: |
         tox -re docs
     - name: Upload HTML
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: html-build-artifact
         path: docs/build/html
@@ -97,7 +97,7 @@ jobs:
     if: "startsWith(github.ref, 'refs/tags/')"
     needs: [build]
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         with:
           name: dist
           path: dist
@@ -116,7 +116,7 @@ jobs:
         run: |
           pip install --upgrade wheel pip setuptools twine
           twine upload dist/*
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         with:
           name: conda
           path: conda
