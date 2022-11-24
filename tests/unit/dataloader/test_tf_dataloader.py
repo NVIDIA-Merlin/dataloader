@@ -16,6 +16,7 @@
 
 import importlib.util
 import os
+import random
 import subprocess
 import time
 import timeit
@@ -37,6 +38,34 @@ tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
 # tf_dataloader import needs to happen after this line
 tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
+
+
+def test_list_features_load_time(tmpdir):
+    num_rows = 1000
+    num_features = 40
+
+    df = make_df(
+        {
+            f"feature_{i}": [[random.randint(1, 10) for _ in range(4)] for _ in range(num_rows)]
+            for i in range(num_features)
+        }
+    )
+    dataset = Dataset(df)
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+
+    start_t = time.time()
+    _ = next(loader)
+    end_t = time.time()
+    first_batch_load_time = end_t - start_t
+    assert first_batch_load_time < 1.0
+
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    start_t = time.time()
+    for _ in loader:
+        pass
+    end_t = time.time()
+    full_load_time = end_t - start_t
+    assert full_load_time < 1.0
 
 
 def test_nested_list():
