@@ -16,7 +16,7 @@ os.environ["TF_MEMORY_ALLOCATION"] = "0.3"  # fraction of free memory
 
 import nvtabular as nvt  # noqa: E402 isort:skip
 from nvtabular.framework_utils.tensorflow import layers  # noqa: E402 isort:skip
-from merlin.loader.tensorflow import KerasSequenceLoader  # noqa: E402 isort:skip
+from merlin.dataloader.tensorflow import Loader  # noqa: E402 isort:skip
 
 import tensorflow as tf  # noqa: E402 isort:skip
 import horovod.tensorflow as hvd  # noqa: E402 isort:skip
@@ -74,7 +74,7 @@ EMBEDDING_TABLE_SHAPES, MH_EMBEDDING_TABLE_SHAPES = nvt.ops.get_embedding_sizes(
 EMBEDDING_TABLE_SHAPES.update(MH_EMBEDDING_TABLE_SHAPES)
 
 ds = Dataset(TRAIN_PATHS, engine="parquet", part_mem_frac=0.06)
-train_dataset_tf = KerasSequenceLoader(
+train_dataset_tf = Loader(
     ds,  # you could also use a glob pattern
     batch_size=BATCH_SIZE,
     shuffle=True,

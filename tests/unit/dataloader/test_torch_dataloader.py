@@ -30,7 +30,7 @@ from merlin.schema import Tags
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
 torch = pytest.importorskip("torch")
-import merlin.loader.torch as torch_dataloader  # noqa isort:skip
+import merlin.dataloader.torch as torch_dataloader  # noqa isort:skip
 
 
 def test_shuffling():
