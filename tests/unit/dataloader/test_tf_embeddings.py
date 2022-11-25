@@ -22,6 +22,8 @@ from merlin.core.dispatch import HAS_GPU
 from merlin.io import Dataset
 from merlin.schema import Tags
 
+pytestmark = pytest.mark.tensorflow
+
 tf = pytest.importorskip("tensorflow")
 
 from merlin.dataloader.ops.embeddings.tf_embedding_op import (  # noqa
