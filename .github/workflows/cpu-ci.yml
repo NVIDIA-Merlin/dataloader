@@ -3,11 +3,11 @@ name: CPU CI
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
     tags:
       - v*
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
@@ -18,78 +18,78 @@ jobs:
         os: [ubuntu-latest]
 
     steps:
-    - uses: actions/checkout@v3
-      with:
-       fetch-depth: 0
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install Ubuntu packages
-      run: |
-        sudo apt-get update -y
-    - name: Install and upgrade python packages
-      run: |
-        python -m pip install --upgrade pip setuptools==59.4.0 wheel tox
-    - name: Run unittests
-      run: |
-        ref_type=${{ github.ref_type }}
-        branch=main
-        if [[ $ref_type == "tag"* ]]
-        then
-          raw=$(git branch -r --contains ${{ github.ref_name }})
-          branch=${raw/origin\/}
-        fi
-        tox -e test-cpu -- $branch    
-    - name: Generate package for pypi
-      run: |
-        python setup.py sdist
-    - name: Upload pypi artifacts to github
-      uses: actions/upload-artifact@v3
-      with:
-        name: dist
-        path: dist
-    - uses: conda-incubator/setup-miniconda@v2
-      with:
-        auto-update-conda: true
-    - name: Generate package for conda
-      id: conda_build
-      run: |
-        echo "conda pkgs dir $CONDA_PKGS_DIRS"
-        conda update conda
-        conda install -c conda-forge mamba
-        mamba install -c conda-forge conda-build boa
-        conda mambabuild . -c defaults -c conda-forge -c numba -c rapidsai -c nvidia --output-folder ./conda_packages
-        export CONDA_PACKAGE=$(find ./conda_packages/ -name merlin-dataloader*.tar.bz2)
-        echo "conda_package : $CONDA_PACKAGE"
-        echo "conda_package=$CONDA_PACKAGE" >> $GITHUB_OUTPUT
-    - name: Upload conda artifacts to github
-      uses: actions/upload-artifact@v3
-      with:
-        name: conda
-        path: ${{ steps.conda_build.outputs.conda_package }}
-    # Build docs, treat warnings as errors
-    - name: Building docs
-      run: |
-        tox -re docs
-    - name: Upload HTML
-      uses: actions/upload-artifact@v3
-      with:
-        name: html-build-artifact
-        path: docs/build/html
-        if-no-files-found: error
-        retention-days: 1
-    - name: Store PR information
-      run: |
-        mkdir ./pr
-        echo ${{ github.event.number }}              > ./pr/pr.txt
-        echo ${{ github.event.pull_request.merged }} > ./pr/merged.txt
-        echo ${{ github.event.action }}              > ./pr/action.txt
-    - name: Upload PR information
-      uses: actions/upload-artifact@v2
-      with:
-        name: pr
-        path: pr/
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Ubuntu packages
+        run: |
+          sudo apt-get update -y
+      - name: Install and upgrade python packages
+        run: |
+          python -m pip install --upgrade pip setuptools==59.4.0 wheel tox
+      - name: Run unittests
+        run: |
+          ref_type=${{ github.ref_type }}
+          branch=main
+          if [[ $ref_type == "tag"* ]]
+          then
+            raw=$(git branch -r --contains ${{ github.ref_name }})
+            branch=${raw/origin\/}
+          fi
+          tox -e test-cpu -- $branch
+      - name: Generate package for pypi
+        run: |
+          python setup.py sdist
+      - name: Upload pypi artifacts to github
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: dist
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+      - name: Generate package for conda
+        id: conda_build
+        run: |
+          echo "conda pkgs dir $CONDA_PKGS_DIRS"
+          conda update conda
+          conda install -c conda-forge mamba
+          mamba install -c conda-forge conda-build boa
+          conda mambabuild . -c defaults -c conda-forge -c numba -c rapidsai -c nvidia --output-folder ./conda_packages
+          export CONDA_PACKAGE=$(find ./conda_packages/ -name merlin-dataloader*.tar.bz2)
+          echo "conda_package : $CONDA_PACKAGE"
+          echo "conda_package=$CONDA_PACKAGE" >> $GITHUB_OUTPUT
+      - name: Upload conda artifacts to github
+        uses: actions/upload-artifact@v3
+        with:
+          name: conda
+          path: ${{ steps.conda_build.outputs.conda_package }}
+      # Build docs, treat warnings as errors
+      - name: Building docs
+        run: |
+          tox -re docs
+      - name: Upload HTML
+        uses: actions/upload-artifact@v3
+        with:
+          name: html-build-artifact
+          path: docs/build/html
+          if-no-files-found: error
+          retention-days: 1
+      - name: Store PR information
+        run: |
+          mkdir ./pr
+          echo ${{ github.event.number }}              > ./pr/pr.txt
+          echo ${{ github.event.pull_request.merged }} > ./pr/merged.txt
+          echo ${{ github.event.action }}              > ./pr/action.txt
+      - name: Upload PR information
+        uses: actions/upload-artifact@v2
+        with:
+          name: pr
+          path: pr/
 
   release:
     name: Release
