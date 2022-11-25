@@ -27,7 +27,6 @@ repos:
     rev: v1.28.0
     hooks:
       - id: yamllint
-        args: [--format, parsable, --strict]
   # notebooks
   - repo: https://github.com/s-weigand/flake8-nb
     rev: v0.5.2
