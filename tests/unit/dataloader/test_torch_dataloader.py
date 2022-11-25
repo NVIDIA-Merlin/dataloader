@@ -175,6 +175,8 @@ def test_dataloader_break(dataset, batch_size, part_mem_fraction, cpu):
             break
         del chunk
 
+    dataloader.stop()
+
     assert idx < len_dl
 
     first_chunk_2 = 0
