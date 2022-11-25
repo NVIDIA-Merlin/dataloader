@@ -60,6 +60,7 @@ setup(
     long_description_content_type="text/markdown",
     install_requires=requirements["base"],
     test_suite="tests",
+    python_requires=">=3.8",
     extras_require={
         **requirements,
         "all": list(itertools.chain(*list(requirements.values()))),
@@ -68,6 +69,10 @@ setup(
     classifiers=[
         "Development Status :: 4 - Beta",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3 :: Only",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: Apache Software License",
         "Topic :: Software Development :: Libraries",
