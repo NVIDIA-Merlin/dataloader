@@ -1,4 +1,16 @@
-docs/build
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Distribution / packaging
+build/
+sdist/
+dist/
+*.egg-info/
+
+# Sphinx Documentation
 docs/source/generated
 docs/source/README.md
 docs/source/examples
+
+# Jupyter Notebook
+.ipynb_checkpoints/
