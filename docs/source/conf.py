@@ -77,6 +77,7 @@ suppress_warnings = ["etoc.toctree", "myst.hader", "misc.highlighting_failure"]
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
+html_copy_source = False
 html_show_sourcelink = False
 html_theme_options = {
     "navigation_depth": 3,

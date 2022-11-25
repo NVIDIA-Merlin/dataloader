@@ -36,7 +36,7 @@ from sklearn.metrics import roc_auc_score
 tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
 # tf_dataloader import needs to happen after this line
-tf_dataloader = pytest.importorskip("merlin.loader.tensorflow")
+tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
 
 
 def test_nested_list():
@@ -258,7 +258,7 @@ def test_tensorflow_dataloader(
                 rows += num_samples
                 continue
             else:
-                raise ValueError("Batch size too small at idx {}".format(idx))
+                raise ValueError(f"Batch size too small at idx {idx}")
 
         # check that all the features in X have the
         # appropriate length and that the set of
@@ -540,8 +540,8 @@ def test_horovod_multigpu(tmpdir):
     proc.save(target_path)
     curr_path = os.path.abspath(__file__)
     repo_root = os.path.relpath(os.path.normpath(os.path.join(curr_path, "../../../..")))
-    hvd_wrap_path = os.path.join(repo_root, "merlin/loader/utils/tf/hvd_wrapper.sh")
-    hvd_exam_path = os.path.join(repo_root, "merlin/loader/utils/tf/tf_trainer.py")
+    hvd_wrap_path = os.path.join(repo_root, "merlin/dataloader/utils/tf/hvd_wrapper.sh")
+    hvd_exam_path = os.path.join(repo_root, "merlin/dataloader/utils/tf/tf_trainer.py")
     with subprocess.Popen(
         [
             "horovodrun",

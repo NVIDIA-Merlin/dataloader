@@ -43,8 +43,8 @@ def get_config():
     cfg.VCS = "git"
     cfg.style = "pep440"
     cfg.tag_prefix = "v"
-    cfg.parentdir_prefix = "merlin-loader-"
-    cfg.versionfile_source = "merlin/loader/_version.py"
+    cfg.parentdir_prefix = "merlin-dataloader-"
+    cfg.versionfile_source = "merlin/dataloader/_version.py"
     cfg.verbose = False
     return cfg
 

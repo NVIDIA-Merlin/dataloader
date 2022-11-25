@@ -22,7 +22,7 @@ from merlin.io import Dataset
 from merlin.schema import Tags
 
 jax = pytest.importorskip("jax")
-jax_dataloader = pytest.importorskip("merlin.loader.jax")
+jax_dataloader = pytest.importorskip("merlin.dataloader.jax")
 
 
 @pytest.mark.parametrize("num_rows", [1000, 10000])
