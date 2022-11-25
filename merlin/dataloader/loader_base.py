@@ -251,6 +251,9 @@ class LoaderBase:
         generate_local_seed(self.global_rank, self.global_size)
 
     def __iter__(self):
+        if self._batch_itr is not None:
+            return self
+
         self.stop()
         self.num_rows_processed = 0
         if self._buff.stopped:
