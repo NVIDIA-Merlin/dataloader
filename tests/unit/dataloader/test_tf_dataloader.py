@@ -15,11 +15,11 @@
 #
 
 import importlib.util
+import itertools
 import os
 import subprocess
 import time
 import timeit
-import itertools
 
 from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
@@ -50,7 +50,7 @@ def test_peek_and_restore():
     dataset = Dataset(df)
     loader = tf_dataloader.Loader(dataset, batch_size=1)
     xs = peek_and_restore(loader)
-    assert len([batch for batch in xs]) == 3
+    assert len(list(xs)) == 3
 
 
 def test_simple_model():
