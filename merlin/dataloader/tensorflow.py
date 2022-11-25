@@ -30,7 +30,7 @@ import tensorflow as tf  # noqa
 # pylint: disable=no-value-for-parameter,unexpected-keyword-arg,redundant-keyword-arg
 
 
-class Loader(tf.keras.utils.Sequence, LoaderBase):
+class Loader(LoaderBase):
     """
     Infinite generator used to asynchronously iterate through CSV or Parquet
     dataframes on GPU by leveraging an `merlin.io.Dataset`.
@@ -127,23 +127,6 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             device=device,
         )
         self._map_fns = []
-
-    def __len__(self):
-        """
-        Computes the number of items in the dataset
-
-        This is required for Keras compatibility
-        """
-        LoaderBase.stop(self)
-        return LoaderBase.__len__(self)
-
-    def __getitem__(self, idx):
-        """
-        implemented exclusively for consistency
-        with Keras model.fit. Does not leverage
-        passed idx in any way
-        """
-        return LoaderBase.__next__(self)
 
     def map(self, fn):
         """
