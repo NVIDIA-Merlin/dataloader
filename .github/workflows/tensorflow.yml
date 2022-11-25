@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -28,10 +28,10 @@ jobs:
     - name: Install and upgrade python packages
       run: |
         python -m pip install --upgrade pip tox
-    - name: Install TensorFlow
+    - name: Set TensorFlow Version
         run: |
           echo "tensorflow${{ matrix.tensorflow-version }}" > requirements/tensorflow.txt
-    - name: Run unittests
+    - name: Run Tests
       run: |
         ref_type=${{ github.ref_type }}
         branch=main
