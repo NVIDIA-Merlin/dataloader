@@ -1,6 +1,0 @@
-﻿merlin.loader.tf\_utils.configure\_tensorflow
-=============================================
-
-.. currentmodule:: merlin.loader.tf_utils
-
-.. autofunction:: configure_tensorflow
