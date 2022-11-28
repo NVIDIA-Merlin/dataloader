@@ -31,7 +31,7 @@ jobs:
           python -m pip install --upgrade pip tox
       - name: Set Jax Version
         run: |
-          echo "jax${{ matrix.jax-version }}" > requirements/jax.txt
+          echo "jax[cpu]${{ matrix.jax-version }}" > requirements/jax.txt
       - name: Run Tests
         run: |
           ref_type=${{ github.ref_type }}
