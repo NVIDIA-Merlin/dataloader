@@ -15,6 +15,7 @@
 #
 
 import importlib.util
+import itertools
 import os
 import subprocess
 import time
@@ -41,6 +42,40 @@ tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
 # tf_dataloader import needs to happen after this line
 tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
+
+
+def peek_and_restore(x):
+    peek = next(x)
+    return itertools.chain([peek], x)
+
+
+def test_peek_and_restore():
+    df = make_df({"a": [1, 2, 3]})
+    dataset = Dataset(df)
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    xs = peek_and_restore(loader)
+    assert len(list(xs)) == 3
+
+
+def test_simple_model():
+    df = make_df({"a": [0.1, 0.2, 0.3], "label": [0, 1, 0]})
+    dataset = Dataset(df)
+    dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
+
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+
+    inputs = tf.keras.Input(name="a", dtype=tf.float32, shape=(1,))
+    outputs = tf.keras.layers.Dense(16, "relu")(inputs)
+    outputs = tf.keras.layers.Dense(1, activation="softmax")(outputs)
+    model = tf.keras.Model(inputs=inputs, outputs=outputs)
+    model.compile(optimizer="sgd", loss="binary_crossentropy", metrics=["accuracy"])
+    model.fit(loader, epochs=2)
+
+    preds_model = model.predict({"a": tf.constant([0.1, 0.2, 0.3])})
+    preds_loader = model.predict(loader)
+    assert preds_model.shape == preds_loader.shape
+
+    _ = model.evaluate(loader)
 
 
 def test_nested_list():
