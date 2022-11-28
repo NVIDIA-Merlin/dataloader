@@ -20,18 +20,22 @@ import subprocess
 import time
 import timeit
 
+import numpy as np
+import pandas as pd
+import pytest
+from sklearn.metrics import roc_auc_score
+
 from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
+
+pytestmark = pytest.mark.tensorflow
 
 try:
     import cupy
 except ImportError:
     cupy = None
-import numpy as np
-import pandas as pd
-import pytest
-from sklearn.metrics import roc_auc_score
+
 
 tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
