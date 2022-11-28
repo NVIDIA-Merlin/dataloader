@@ -15,28 +15,67 @@
 #
 
 import importlib.util
+import itertools
 import os
 import subprocess
 import time
 import timeit
 
-from merlin.core.dispatch import HAS_GPU, make_df
-from merlin.io import Dataset
-from merlin.schema import Tags
-
-try:
-    import cupy
-except ImportError:
-    cupy = None
 import numpy as np
 import pandas as pd
 import pytest
 from sklearn.metrics import roc_auc_score
 
+from merlin.core.dispatch import HAS_GPU, make_df
+from merlin.io import Dataset
+from merlin.schema import Tags
+
+pytestmark = pytest.mark.tensorflow
+
+try:
+    import cupy
+except ImportError:
+    cupy = None
+
+
 tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
 # tf_dataloader import needs to happen after this line
 tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
+
+
+def peek_and_restore(x):
+    peek = next(x)
+    return itertools.chain([peek], x)
+
+
+def test_peek_and_restore():
+    df = make_df({"a": [1, 2, 3]})
+    dataset = Dataset(df)
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    xs = peek_and_restore(loader)
+    assert len(list(xs)) == 3
+
+
+def test_simple_model():
+    df = make_df({"a": [0.1, 0.2, 0.3], "label": [0, 1, 0]})
+    dataset = Dataset(df)
+    dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
+
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+
+    inputs = tf.keras.Input(name="a", dtype=tf.float32, shape=(1,))
+    outputs = tf.keras.layers.Dense(16, "relu")(inputs)
+    outputs = tf.keras.layers.Dense(1, activation="softmax")(outputs)
+    model = tf.keras.Model(inputs=inputs, outputs=outputs)
+    model.compile(optimizer="sgd", loss="binary_crossentropy", metrics=["accuracy"])
+    model.fit(loader, epochs=2)
+
+    preds_model = model.predict({"a": tf.constant([0.1, 0.2, 0.3])})
+    preds_loader = model.predict(loader)
+    assert preds_model.shape == preds_loader.shape
+
+    _ = model.evaluate(loader)
 
 
 def test_nested_list():

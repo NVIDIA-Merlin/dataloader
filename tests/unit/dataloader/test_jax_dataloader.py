@@ -21,6 +21,8 @@ from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
+pytestmark = pytest.mark.jax
+
 jax = pytest.importorskip("jax")
 jax_dataloader = pytest.importorskip("merlin.dataloader.jax")
 
