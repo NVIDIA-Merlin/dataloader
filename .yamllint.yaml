@@ -2,9 +2,9 @@
 extends: default
 
 ignore: |
-    conda/
+  conda/
 
 rules:
-    line-length: disable
-    document-start: disable
-    truthy: disable
+  line-length: disable
+  document-start: disable
+  truthy: disable
