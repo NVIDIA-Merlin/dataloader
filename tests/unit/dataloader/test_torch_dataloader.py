@@ -27,6 +27,8 @@ from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
+pytestmark = pytest.mark.torch
+
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
 torch = pytest.importorskip("torch")
@@ -174,6 +176,8 @@ def test_dataloader_break(dataset, batch_size, part_mem_fraction, cpu):
         if idx == 1:
             break
         del chunk
+
+    dataloader.stop()
 
     assert idx < len_dl
 

@@ -3,6 +3,8 @@ from testbook import testbook
 
 pytest.importorskip("torch")
 
+pytestmark = pytest.mark.tensorflow
+
 
 @testbook("examples/01b-Getting-started-Pytorch", execute=False)
 def test_getting_started_pytorch(tb):

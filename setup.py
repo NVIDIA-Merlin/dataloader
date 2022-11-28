@@ -42,6 +42,8 @@ requirements = {
     "base": read_requirements("requirements/base.txt"),
     "tensorflow": read_requirements("requirements/tensorflow.txt"),
     "pytorch": read_requirements("requirements/torch.txt"),
+    "torch": read_requirements("requirements/torch.txt"),
+    "jax": read_requirements("requirements/jax.txt"),
     "dev": read_requirements("requirements/dev.txt"),
 }
 

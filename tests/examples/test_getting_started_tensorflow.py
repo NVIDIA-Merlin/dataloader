@@ -3,6 +3,8 @@ from testbook import testbook
 
 pytest.importorskip("tensorflow")
 
+pytestmark = pytest.mark.tensorflow
+
 
 @testbook("examples/01a-Getting-started-Tensorflow.ipynb", execute=False)
 def test_getting_started_tensorflow(tb):
