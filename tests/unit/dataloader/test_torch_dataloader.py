@@ -27,6 +27,8 @@ from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
+pytestmark = pytest.mark.torch
+
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
 torch = pytest.importorskip("torch")
