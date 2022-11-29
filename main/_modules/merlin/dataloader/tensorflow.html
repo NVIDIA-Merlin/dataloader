@@ -103,7 +103,7 @@
 <span class="c1"># pylint: disable=no-value-for-parameter,unexpected-keyword-arg,redundant-keyword-arg</span>
 
 
-<div class="viewcode-block" id="Loader"><a class="viewcode-back" href="../../../generated/merlin.dataloader.tensorflow.Loader.html#merlin.dataloader.tensorflow.Loader">[docs]</a><span class="k">class</span> <span class="nc">Loader</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">Sequence</span><span class="p">,</span> <span class="n">LoaderBase</span><span class="p">):</span>
+<div class="viewcode-block" id="Loader"><a class="viewcode-back" href="../../../generated/merlin.dataloader.tensorflow.Loader.html#merlin.dataloader.tensorflow.Loader">[docs]</a><span class="k">class</span> <span class="nc">Loader</span><span class="p">(</span><span class="n">LoaderBase</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Infinite generator used to asynchronously iterate through CSV or Parquet</span>
 <span class="sd">    dataframes on GPU by leveraging an `merlin.io.Dataset`.</span>
@@ -200,23 +200,6 @@
             <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_map_fns</span> <span class="o">=</span> <span class="p">[]</span></div>
-
-    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Computes the number of items in the dataset</span>
-
-<span class="sd">        This is required for Keras compatibility</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">LoaderBase</span><span class="o">.</span><span class="n">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">LoaderBase</span><span class="o">.</span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        implemented exclusively for consistency</span>
-<span class="sd">        with Keras model.fit. Does not leverage</span>
-<span class="sd">        passed idx in any way</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">LoaderBase</span><span class="o">.</span><span class="fm">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Loader.map"><a class="viewcode-back" href="../../../generated/merlin.dataloader.tensorflow.Loader.html#merlin.dataloader.tensorflow.Loader.map">[docs]</a>    <span class="k">def</span> <span class="nf">map</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
