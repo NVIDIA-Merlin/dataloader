@@ -7,23 +7,25 @@
 
 The merlin-dataloader lets you quickly train recommender models for TensorFlow, PyTorch and JAX. It eliminates the biggest bottleneck in training recommender models, by providing GPU optimized dataloaders that read data directly into the GPU, and then do a 0-copy transfer to TensorFlow and PyTorch using [dlpack](https://github.com/dmlc/dlpack).
 
-
 The benefits of the Merlin Dataloader include:
- * Over 10x speedup over native framework dataloaders
- * Handles larger than memory datasets
- * Per-epoch shuffling
- * Distributed training
+
+- Over 10x speedup over native framework dataloaders
+- Handles larger than memory datasets
+- Per-epoch shuffling
+- Distributed training
 
 ## Installation
 
 Merlin-dataloader requires Python version 3.7+. Additionally, GPU support requires CUDA 11.0+.
 
 To install using Conda:
+
 ```
 conda install -c nvidia -c rapidsai -c numba -c conda-forge merlin-dataloader python=3.7 cudatoolkit=11.2
 ```
 
 To install from PyPi:
+
 ```
 pip install merlin-dataloader
 ```
