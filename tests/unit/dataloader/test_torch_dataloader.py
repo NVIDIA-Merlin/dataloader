@@ -46,7 +46,7 @@ def test_shuffling():
 
     train_dataset = torch_dataloader.Loader(ds, batch_size=batch_size, shuffle=True)
 
-    batch = next(iter(train_dataset))
+    batch = next(train_dataset)
 
     first_batch = batch[0]["a"].cpu()
     in_order = torch.arange(0, batch_size)
@@ -323,7 +323,7 @@ def test_dataloader_schema(df, dataset, batch_size, cpu):
         shuffle=False,
     )
 
-    X, y = next(iter(data_loader))
+    X, y = next(data_loader)
     columns = set(dataset.schema.column_names) - {"label"}
     assert columns == set(X.keys())
 
