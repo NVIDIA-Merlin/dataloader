@@ -49,6 +49,6 @@ def test_dataloader_schema(tmpdir, dataset, cpu, num_rows):
         shuffle=False,
     )
 
-    inputs, target = next(iter(data_loader))
+    inputs, target = next(data_loader)
     columns = set(dataset.schema.column_names) - {"label"}
     assert set(inputs) == columns

@@ -57,6 +57,17 @@ def test_peek_and_restore():
     assert len(list(xs)) == 3
 
 
+def test_peek():
+    df = make_df({"a": [1, 2, 3]})
+    dataset = Dataset(df)
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    first_batch = loader.peek()
+    all_batches = list(loader)
+    test_case = tf.test.TestCase()
+    test_case.assertAllEqual(first_batch, all_batches[0])
+    assert len(all_batches) == 3
+
+
 def test_simple_model():
     df = make_df({"a": [0.1, 0.2, 0.3], "label": [0, 1, 0]})
     dataset = Dataset(df)
@@ -101,7 +112,7 @@ def test_nested_list():
         shuffle=False,
     )
 
-    batch = next(iter(train_dataset))
+    batch = next(train_dataset)
     # [[1,2,3],[3,1],[...],[]]
     nested_data_col = tf.RaggedTensor.from_row_lengths(
         batch[0]["data"][0][:, 0], tf.cast(batch[0]["data"][1][:, 0], tf.int32)
@@ -135,7 +146,7 @@ def test_shuffling():
 
     train_dataset = tf_dataloader.Loader(ds, batch_size=batch_size, shuffle=True)
 
-    batch = next(iter(train_dataset))
+    batch = next(train_dataset)
 
     first_batch = tf.reshape(tf.cast(batch[0]["a"].cpu(), tf.int32), (batch_size,))
     in_order = tf.range(0, batch_size, dtype=tf.int32)
@@ -618,7 +629,7 @@ def test_dataloader_schema(tmpdir, dataset, batch_size, cpu):
         shuffle=False,
     )
 
-    batch = next(iter(data_loader))
+    batch = next(data_loader)
 
     columns = set(dataset.schema.column_names) - {"label"}
     assert set(batch[0]) == columns

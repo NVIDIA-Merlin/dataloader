@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import copy
+import itertools
 import math
 import queue
 import threading
@@ -274,7 +275,12 @@ class LoaderBase:
         return self
 
     def __next__(self):
+        """Get the next batch."""
         return self._get_next_batch()
+
+    def peek(self):
+        """Get the next batch without advancing the iterator."""
+        return self._peek_next_batch()
 
     def _data_iter(self, epochs):
         indices = self._indices_for_process()
@@ -288,6 +294,36 @@ class LoaderBase:
             self.stop()
             raise chunks
         self._batch_itr = iter(chunks)
+
+    def _peek_next_batch(self):
+        """Return next batch without advancing the iterator."""
+        if self._workers is None:
+            LoaderBase.__iter__(self)
+
+        # get the first chunks
+        if self._batch_itr is None:
+            self._fetch_chunk()
+
+        # try to iterate through existing batches
+        try:
+            batch = next(self._batch_itr)
+            self._batch_itr = itertools.chain([batch], self._batch_itr)
+
+        except StopIteration:
+            # anticipate any more chunks getting created
+            # if not, raise the StopIteration
+            if not self._working and self._buff.empty:
+                self._workers = None
+                self._batch_itr = None
+                raise
+
+            # otherwise get the next chunks and return
+            # the first batch
+            self._fetch_chunk()
+            batch = next(self._batch_itr)
+            self._batch_itr = itertools.chain([batch], self._batch_itr)
+
+        return batch
 
     def _get_next_batch(self):
         """
