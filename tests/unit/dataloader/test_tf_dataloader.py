@@ -57,6 +57,17 @@ def test_peek_and_restore():
     assert len(list(xs)) == 3
 
 
+def test_peek():
+    df = make_df({"a": [1, 2, 3]})
+    dataset = Dataset(df)
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    first_batch = loader.peek()
+    all_batches = list(loader)
+    test_case = tf.test.TestCase()
+    test_case.assertAllEqual(first_batch, all_batches[0])
+    assert len(all_batches) == 3
+
+
 def test_simple_model():
     df = make_df({"a": [0.1, 0.2, 0.3], "label": [0, 1, 0]})
     dataset = Dataset(df)
