@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>merlin.dataloader.tensorflow.Loader &mdash; Merlin Dataloader  documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/togglebutton.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/mystnb.css" type="text/css" />
+    <link rel="canonical" href="https://nvidia-merlin.github.io/dataloader/main/generated/merlin.dataloader.tensorflow.Loader.html" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script >let toggleHintShow = 'Click to show';</script>
+        <script >let toggleHintHide = 'Click to hide';</script>
+        <script >let toggleOpenOnPrint = 'true';</script>
+        <script src="../_static/togglebutton.js"></script>
+        <script >var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="merlin.dataloader.tensorflow.KerasSequenceValidater" href="merlin.dataloader.tensorflow.KerasSequenceValidater.html" />
+    <link rel="prev" title="API Documentation" href="../api.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Merlin Dataloader
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../README.html">Introduction</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">API Documentation</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../api.html#merlin-dataloader-for-tensorflow-constructors">Merlin Dataloader for TensorFlow Constructors</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">merlin.dataloader.tensorflow.Loader</a></li>
+<li class="toctree-l3"><a class="reference internal" href="merlin.dataloader.tensorflow.KerasSequenceValidater.html">merlin.dataloader.tensorflow.KerasSequenceValidater</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api.html#merlin-dataloader-for-tensorflow-utility-functions">Merlin Dataloader for TensorFlow Utility Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api.html#merlin-dataloader-for-pytorch-constructors">Merlin Dataloader for PyTorch Constructors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api.html#merlin-dataloader-for-jax-constructors">Merlin Dataloader for JAX Constructors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api.html#merlin-dataloader-base-constructors">Merlin Dataloader Base Constructors</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Merlin Dataloader</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../api.html">API Documentation</a> &raquo;</li>
+      <li>merlin.dataloader.tensorflow.Loader</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="merlin-dataloader-tensorflow-loader">
+<h1>merlin.dataloader.tensorflow.Loader<a class="headerlink" href="#merlin-dataloader-tensorflow-loader" title="Permalink to this headline"></a></h1>
+<dl class="py class">
+<dt id="merlin.dataloader.tensorflow.Loader">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">merlin.dataloader.tensorflow.</span></code><code class="sig-name descname"><span class="pre">Loader</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shuffle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parts_per_chunk</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">global_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">global_rank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">drop_last</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/merlin/dataloader/tensorflow.html#Loader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#merlin.dataloader.tensorflow.Loader" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase" title="merlin.dataloader.loader_base.LoaderBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">merlin.dataloader.loader_base.LoaderBase</span></code></a></p>
+<p>Infinite generator used to asynchronously iterate through CSV or Parquet
+dataframes on GPU by leveraging an <cite>merlin.io.Dataset</cite>.</p>
+<p>This lazily loads merlin.io.Dataset objects  and outputs tabular dictionaries of TensorFlow
+Tensors via <a class="reference external" href="https://github.com/dmlc/dlpack">dlpack</a>. Useful for training tabular models
+built in Keras and trained via
+<a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/keras/Model">tf.keras.Model.fit</a>.</p>
+<p>The data loading scheme is implemented by loading, preprocessing, and
+batching data in an asynchronous thread. The amount of randomness in
+shuffling is controlled by the <cite>buffer_size</cite> and <cite>parts_per_chunk</cite>
+kwargs. At load time, sub-chunks of data with size controlled by
+<cite>buffer_size</cite> are loaded from random partitions in the dataset,
+and <cite>parts_per_chunk</cite> of them are concatenated into a single chunk,
+shuffled, and split into batches. This means that each chunk has
+<cite>buffer_size*parts_per_chunk</cite> rows, and due to the asynchronous
+nature of the dataloader that means there are, including the batch
+being processed by your network, <cite>3*buffer_*parts_per_chunk</cite>
+rows of data in GPU memory at any given time. This means that
+for a fixed memory budget, using more <cite>parts_per_chunk</cite> will
+come at the expense of smaller <cite>buffer_size</cite>, increasing the number
+of reads and reducing throughput. The goal should be to maximize the
+total amount of memory utilized at once without going OOM and with
+the fewest number of reads to meet your epoch-level randomness needs.</p>
+<p>An important thing to note is that TensorFlow’s default behavior
+is to claim all GPU memory for itself at initialziation time,
+which leaves none for this class to load or preprocess data.
+As such, we attempt to configure TensorFlow to restrict
+its memory allocation on a given GPU using the environment variables
+<cite>TF_MEMORY_ALLOCATION</cite> and <cite>TF_VISIBLE_DEVICE</cite>. If <cite>TF_MEMORY_ALLOCATION &lt; 1</cite>,
+it will be assumed that this refers to a fraction of free GPU
+memory on the given device. Otherwise, it will refer to an explicit
+allocation amount in MB. <cite>TF_VISIBLE_DEVICE</cite> should be an integer GPU
+index.</p>
+<p>Iterator output is of the form <cite>(dict(features), list(labels))</cite>,
+where each element of the features dict is a
+<cite>feature_name: feature_tensor</cite> and each element of the labels
+list is a tensor, and all tensors are of shape <cite>(batch_size, 1)</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://nvidia-merlin.github.io/core/main/api/merlin.io.html#merlin.io.Dataset" title="(in Merlin Core)"><em>merlin.io.Dataset</em></a>) – The dataset to load</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Number of rows to yield at each iteration</p></li>
+<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>default True</em>) – Whether to shuffle chunks of batches before iterating through them.</p></li>
+<li><p><strong>seed_fn</strong> (<em>callable</em>) – Function used to initialize random state</p></li>
+<li><p><strong>parts_per_chunk</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Number of dataset partitions with size dictated by <cite>buffer_size</cite>
+to load and concatenate asynchronously. More partitions leads to
+better epoch-level randomness but can negatively impact throughput</p></li>
+<li><p><strong>global_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a><em>, </em><em>optional</em>) – When doing distributed training, this indicates the number of total processes that are
+training the model.</p></li>
+<li><p><strong>global_rank</strong> – When doing distributed training, this indicates the local rank for the current process.</p></li>
+<li><p><strong>drop_last</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>default False</em>) – Whether or not to drop the last batch in an epoch. This is useful when you need to
+guarantee that each batch contains exactly <cite>batch_size</cite> rows - since the last batch
+will usually contain fewer rows.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="merlin.dataloader.tensorflow.Loader.__init__">
+<code class="sig-name descname"><span class="pre">__init__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shuffle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parts_per_chunk</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">global_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">global_rank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">drop_last</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/merlin/dataloader/tensorflow.html#Loader.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#merlin.dataloader.tensorflow.Loader.__init__" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<p class="rubric">Methods</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#merlin.dataloader.tensorflow.Loader.__init__" title="merlin.dataloader.tensorflow.Loader.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(dataset, batch_size[, shuffle, …])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">epochs</span></code>([epochs])</p></td>
+<td><p>Create a dataloader that will efficiently run for more than one epoch.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_tensors</span></code>(gdf[, use_nnz])</p></td>
+<td><p>Turns a gdf into tensor representation by column</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#merlin.dataloader.tensorflow.Loader.map" title="merlin.dataloader.tensorflow.Loader.map"><code class="xref py py-obj docutils literal notranslate"><span class="pre">map</span></code></a>(fn)</p></td>
+<td><p>Applying a function to each batch.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">peek</span></code>()</p></td>
+<td><p>Get the next batch without advancing the iterator.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">stop</span></code>()</p></td>
+<td><p>Halts and resets the initialization parameters of the dataloader.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt id="merlin.dataloader.tensorflow.Loader.map">
+<code class="sig-name descname"><span class="pre">map</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/merlin/dataloader/tensorflow.html#Loader.map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#merlin.dataloader.tensorflow.Loader.map" title="Permalink to this definition"></a></dt>
+<dd><p>Applying a function to each batch.</p>
+<p>This can for instance be used to add <cite>sample_weight</cite> to the model.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../api.html" class="btn btn-neutral float-left" title="API Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="merlin.dataloader.tensorflow.KerasSequenceValidater.html" class="btn btn-neutral float-right" title="merlin.dataloader.tensorflow.KerasSequenceValidater" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, NVIDIA.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+    <!-- Theme Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NVJ1Y1YJHK"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-NVJ1Y1YJHK', {
+          'anonymize_ip': false,
+      });
+    </script> 
+
+</body>
+</html>
