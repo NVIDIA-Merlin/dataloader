@@ -87,6 +87,7 @@
 <span class="c1"># limitations under the License.</span>
 <span class="c1">#</span>
 <span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">queue</span>
 <span class="kn">import</span> <span class="nn">threading</span>
@@ -347,7 +348,12 @@
         <span class="k">return</span> <span class="bp">self</span>
 
     <span class="k">def</span> <span class="fm">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the next batch.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_next_batch</span><span class="p">()</span>
+
+<div class="viewcode-block" id="LoaderBase.peek"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.peek">[docs]</a>    <span class="k">def</span> <span class="nf">peek</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the next batch without advancing the iterator.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_peek_next_batch</span><span class="p">()</span></div>
 
     <span class="k">def</span> <span class="nf">_data_iter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epochs</span><span class="p">):</span>
         <span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_indices_for_process</span><span class="p">()</span>
@@ -361,6 +367,36 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
             <span class="k">raise</span> <span class="n">chunks</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_peek_next_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return next batch without advancing the iterator.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">LoaderBase</span><span class="o">.</span><span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c1"># get the first chunks</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_chunk</span><span class="p">()</span>
+
+        <span class="c1"># try to iterate through existing batches</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">batch</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">([</span><span class="n">batch</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="c1"># anticipate any more chunks getting created</span>
+            <span class="c1"># if not, raise the StopIteration</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_working</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buff</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_workers</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">raise</span>
+
+            <span class="c1"># otherwise get the next chunks and return</span>
+            <span class="c1"># the first batch</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_chunk</span><span class="p">()</span>
+            <span class="n">batch</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">([</span><span class="n">batch</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">batch</span>
 
     <span class="k">def</span> <span class="nf">_get_next_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
