@@ -111,7 +111,10 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.make_tensors" title="merlin.dataloader.loader_base.LoaderBase.make_tensors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_tensors</span></code></a>(gdf[, use_nnz])</p></td>
 <td><p>Turns a gdf into tensor representation by column</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.stop" title="merlin.dataloader.loader_base.LoaderBase.stop"><code class="xref py py-obj docutils literal notranslate"><span class="pre">stop</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.peek" title="merlin.dataloader.loader_base.LoaderBase.peek"><code class="xref py py-obj docutils literal notranslate"><span class="pre">peek</span></code></a>()</p></td>
+<td><p>Get the next batch without advancing the iterator.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.stop" title="merlin.dataloader.loader_base.LoaderBase.stop"><code class="xref py py-obj docutils literal notranslate"><span class="pre">stop</span></code></a>()</p></td>
 <td><p>Halts and resets the initialization parameters of the dataloader.</p></td>
 </tr>
 </tbody>
@@ -137,6 +140,12 @@
 <dt id="merlin.dataloader.loader_base.LoaderBase.stop">
 <code class="sig-name descname"><span class="pre">stop</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/merlin/dataloader/loader_base.html#LoaderBase.stop"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#merlin.dataloader.loader_base.LoaderBase.stop" title="Permalink to this definition"></a></dt>
 <dd><p>Halts and resets the initialization parameters of the dataloader.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="merlin.dataloader.loader_base.LoaderBase.peek">
+<code class="sig-name descname"><span class="pre">peek</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/merlin/dataloader/loader_base.html#LoaderBase.peek"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#merlin.dataloader.loader_base.LoaderBase.peek" title="Permalink to this definition"></a></dt>
+<dd><p>Get the next batch without advancing the iterator.</p>
 </dd></dl>
 
 <dl class="py method">
