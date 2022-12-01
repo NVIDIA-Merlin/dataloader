@@ -60,9 +60,9 @@ def test_peek_and_restore():
 def test_peek():
     df = make_df({"a": [1, 2, 3]})
     dataset = Dataset(df)
-    loader = tf_dataloader.Loader(dataset, batch_size=1)
-    first_batch = loader.peek()
-    all_batches = list(loader)
+    with tf_dataloader.Loader(dataset, batch_size=1) as loader:
+        first_batch = loader.peek()
+        all_batches = list(loader)
     test_case = tf.test.TestCase()
     test_case.assertAllEqual(first_batch, all_batches[0])
     assert len(all_batches) == 3
@@ -623,13 +623,13 @@ def test_horovod_multigpu(tmpdir):
 @pytest.mark.parametrize("batch_size", [1000])
 @pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_schema(tmpdir, dataset, batch_size, cpu):
-    data_loader = tf_dataloader.Loader(
+    with tf_dataloader.Loader(
         dataset,
         batch_size=batch_size,
         shuffle=False,
-    )
+    ) as data_loader:
 
-    batch = next(data_loader)
+        batch = data_loader.peek()
 
     columns = set(dataset.schema.column_names) - {"label"}
     assert set(batch[0]) == columns
