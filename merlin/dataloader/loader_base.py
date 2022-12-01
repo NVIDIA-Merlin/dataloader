@@ -158,6 +158,12 @@ class LoaderBase:
             self.transforms = None
             self.executor = None
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.stop()
+
     @property
     def _buff(self):
         if self.__buff is None:
