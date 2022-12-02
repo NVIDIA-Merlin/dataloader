@@ -103,7 +103,7 @@
 <span class="c1"># pylint: disable=no-value-for-parameter,unexpected-keyword-arg,redundant-keyword-arg</span>
 
 
-<div class="viewcode-block" id="Loader"><a class="viewcode-back" href="../../../generated/merlin.dataloader.tensorflow.Loader.html#merlin.dataloader.tensorflow.Loader">[docs]</a><span class="k">class</span> <span class="nc">Loader</span><span class="p">(</span><span class="n">LoaderBase</span><span class="p">):</span>
+<div class="viewcode-block" id="Loader"><a class="viewcode-back" href="../../../generated/merlin.dataloader.tensorflow.Loader.html#merlin.dataloader.tensorflow.Loader">[docs]</a><span class="k">class</span> <span class="nc">Loader</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">Sequence</span><span class="p">,</span> <span class="n">LoaderBase</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Infinite generator used to asynchronously iterate through CSV or Parquet</span>
 <span class="sd">    dataframes on GPU by leveraging an `merlin.io.Dataset`.</span>
