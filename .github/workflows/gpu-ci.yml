@@ -26,10 +26,7 @@ jobs:
         - ${{ github.workspace }}:/dataloader
       options: --gpus all --ipc=host --privileged
     steps:
-    - name: Install
-      run: |
-        cd /dataloader; pip install . --no-deps
     - name: Test 
       run: |
-        cd /dataloader; pytest tests/unit
+        cd ${{ github.workspace }}; tox -e test-gpu
 
