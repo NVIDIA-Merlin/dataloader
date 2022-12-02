@@ -14,11 +14,13 @@
 # limitations under the License.
 #
 import copy
+import itertools
 import math
 import queue
 import threading
 import warnings
 from collections import OrderedDict
+from typing import List
 
 import numpy as np
 
@@ -36,7 +38,9 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
-from merlin.io import DataFrameIter, shuffle_df
+from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node
+from merlin.dag.executors import LocalExecutor
+from merlin.io import shuffle_df
 from merlin.schema import Tags
 
 
@@ -44,182 +48,66 @@ def _num_steps(num_samples, step_size):
     return math.ceil(num_samples / step_size)
 
 
-class ChunkQueue:
-    """This class takes partitions (parts) from an NVTabular dataset
-     and concatenates them into a cudf dataframe "chunk". This chunk
-    is subsequently transformed into its tensor representation using
-    the iterator's transform.
+class LoaderBase:
+    """Base class containing common functionality between the PyTorch and TensorFlow dataloaders."""
 
-    Parameters
-    -----------
-    qsize: int
-        Max number of elements to hold in the buffer at once
-    num_parts : int
-        number of partitions from the iterator, an NVTabular Dataset to concatenate into a "chunk"
-    shuffle : bool
-        enable/disable chunk-level shuffling
-    put_wait: float
-        amount of timeout to wait for a full queue to open up
-        before checking for errors and trying again
-    """
-
-    def __init__(self, dataloader, qsize, num_parts=1, shuffle=False, put_wait=1e-6, epochs=1):
-        self.num_parts = num_parts
-        self.shuffle = shuffle
-        self.put_wait = put_wait
-        self.q_out = queue.Queue(qsize)
-        self._stop_event = threading.Event()
-        self.itr = dataloader._data_iter(epochs)
-        self.dataloader = dataloader
-
-    def __len__(self):
-        return len(self.itr)
-
-    @property
-    def stopped(self):
-        return self._stop_event.is_set()
-
-    @property
-    def empty(self):
-        return self.q_out.empty()
-
-    def get(self):
-        return self.q_out.get()
-
-    def put(self, packet):
-        while True:
-            if self.stopped:
-                return True
-
-            try:
-                self.q_out.put(packet, timeout=self.put_wait)
-                return False
-            except queue.Full:
-                continue
-
-    @annotate("batch", color="darkgreen", domain="nvt_python")
-    def batch(self, itr):
-        """
-        iterates through gpu_mem_frac size chunks of dataset
-        and concatenates every `num_parts` of them.
-        """
-        current = []
-        while True:
-            try:
-                value = next(itr)
-            except StopIteration:
-                if len(current) > 0:
-                    yield current
-                break
-
-            current.append(value)
-            if len(current) == self.num_parts:
-                yield current
-                current = []
-
-    @annotate("chunk_logic", color="darkgreen", domain="nvt_python")
-    def chunk_logic(self, itr):
-        spill = None
-        for chunks in self.batch(itr):
-            if self.stopped:
-                return
-
-            if spill is not None and not spill.empty:
-                chunks.insert(0, spill)
-
-            chunks = concat(chunks)
-            chunks.reset_index(drop=True, inplace=True)
-            chunks, spill = self.get_batch_div_chunk(chunks, self.dataloader.batch_size)
-            if self.shuffle:
-                chunks = shuffle_df(chunks)
-
-            if len(chunks) > 0:
-                chunks = self.dataloader.make_tensors(chunks, self.dataloader._use_nnz)
-                # put returns True if buffer is stopped before
-                # packet can be put in queue. Keeps us from
-                # freezing on a put on a full queue
-                if self.put(chunks):
-                    return
-            chunks = None
-        # takes care final batch, which is less than batch size
-        if not self.dataloader.drop_last and spill is not None and not spill.empty:
-            spill = self.dataloader.make_tensors(spill, self.dataloader._use_nnz)
-            self.put(spill)
-
-    @annotate("load_chunks", color="darkgreen", domain="nvt_python")
-    def load_chunks(self, dev):
-        try:
-            itr = iter(self.itr)
-            if self.dataloader.device != "cpu":
-                with self.dataloader._get_device_ctx(dev):
-                    self.chunk_logic(itr)
-            else:
-                self.chunk_logic(itr)
-        except Exception as e:  # pylint: disable=broad-except
-            self.put(e)
-
-    # For when an iterator is stopped before iteration is complete.
-    def stop(self):
-        self._stop_event.set()
-        # TODO: should we be clearing? I can imagine a world where
-        # you want the thread to stop but still want to grab
-        # data out of the buffer
-        self.q_out.queue.clear()
-
-    def start(self):
-        self._stop_event.clear()
-
-    def get_batch_div_chunk(self, chunks, batch_size):
-        # TODO: is there a way to do this using cupy?
-        spill_idx = int(chunks.shape[0] / batch_size) * batch_size
-        spill = make_df(chunks.iloc[spill_idx:])
-        chunks = make_df(chunks.iloc[:spill_idx])
-        if not chunks.empty:
-            chunks.reset_index(drop=True, inplace=True)
-        if not spill.empty:
-            spill.reset_index(drop=True, inplace=True)
-        return chunks, spill
-
-
-def _get_dataset_schema(dataset):
-    return dataset.schema if hasattr(dataset, "schema") else None
-
-
-class DataLoader:
     _use_nnz = False
 
     def __init__(
         self,
         dataset,
         batch_size,
-        shuffle,
+        shuffle=True,
         seed_fn=None,
         parts_per_chunk=1,
         global_size=None,
         global_rank=None,
         drop_last=False,
+        transforms=None,
+        device=None,
     ):
-        self.data = dataset
-        self.schema = _get_dataset_schema(dataset)
-        # self.data is ddf format
-        self.indices = cp.arange(self.data.npartitions)
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.seed_fn = seed_fn
+        self.parts_per_chunk = parts_per_chunk
+        self.global_size = global_size or 1
+        self.global_rank = global_rank or 0
         self.drop_last = drop_last
-        self.device = "cpu" if not HAS_GPU or dataset.cpu else 0
-        sparse_names = []
-        sparse_max = {}
-        sparse_as_dense = set()
+
+        self.indices = cp.arange(self.dataset.npartitions)
+        if device:
+            self.device = device
+        else:
+            self.device = "cpu" if not HAS_GPU or dataset.cpu else 0
+
+        if not dataset.schema:
+            warnings.warn(
+                "no schema associated with the input dataset. "
+                "Calling dataset.infer_schema to automatically generate"
+            )
+            dataset.schema = dataset.infer_schema()
+
+        self.schema = dataset.schema
+        self.sparse_names = []
+        self.sparse_max = {}
+        self.sparse_as_dense = set()
+        self.dtype_reverse_map = {}
 
         for col_name, col_spec in dataset.schema.column_schemas.items():
+            if col_spec.dtype not in self.dtype_reverse_map:
+                self.dtype_reverse_map[col_spec.dtype] = [col_name]
+            else:
+                self.dtype_reverse_map[col_spec.dtype].append(col_name)
             if col_spec.is_list:
-                sparse_names.append(col_name)
+                self.sparse_names.append(col_name)
 
                 value_count = col_spec.value_count
-                if value_count:
-                    sparse_max[col_name] = value_count.max
+                if value_count and value_count.max:
+                    self.sparse_max[col_name] = value_count.max
 
                 if not col_spec.is_ragged:
-                    # TODO: set this per column,
-                    sparse_as_dense.add(col_name)
+                    self.sparse_as_dense.add(col_name)
 
                     if not value_count:
                         # TODO: error message linking to docs
@@ -228,44 +116,53 @@ class DataLoader:
                             " in the schema"
                         )
 
-        self.sparse_names = sparse_names
-
-        self.sparse_max = sparse_max or {}
-        self.sparse_as_dense = sparse_as_dense
-        self.global_size = global_size or 1
-        self.global_rank = global_rank or 0
         self._epochs = 1
 
-        self.cat_names = (
-            self.schema.select_by_tag(Tags.CATEGORICAL).column_names if self.schema else []
-        )
+        self.cat_names = dataset.schema.select_by_tag(Tags.CATEGORICAL).column_names
+        self.cont_names = dataset.schema.select_by_tag(Tags.CONTINUOUS).column_names
+        self.label_names = dataset.schema.select_by_tag(Tags.TARGET).column_names
 
-        self.cont_names = (
-            self.schema.select_by_tag(Tags.CONTINUOUS).column_names if self.schema else []
-        )
-        self.label_names = (
-            self.schema.select_by_tag(Tags.TARGET).column_names if self.schema else []
-        )
-
-        if not self.cat_names and not self.cont_names:
+        if len(list(self.dtype_reverse_map.keys())) == 0:
             raise ValueError(
                 "Neither Categorical or Continuous columns were found by the dataloader. "
                 "You must either specify the cat_names, cont_names and "
                 "label_names properties or supply a schema.pbtxt file in dataset directory."
             )
 
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.seed_fn = seed_fn
-
         self.num_rows_processed = 0
 
-        self.parts_per_chunk = parts_per_chunk
-        self.shuffle = shuffle
         self.__buff = None
         self.__buff_len = None
         self._batch_itr = None
         self._workers = None
+
+        if transforms is not None:
+
+            if isinstance(transforms, List):
+                carry_node = Node(ColumnSelector("*"))
+                for transform in transforms:
+                    if not isinstance(transform, BaseOperator):
+                        raise TypeError(
+                            f"Detected invalid transform, {type(transform)},"
+                            "we only support operators based on the merlin core"
+                            "`BaseOperator`"
+                        )
+                    carry_node = carry_node >> transform
+                transform_graph = Graph(carry_node)
+            elif type(transforms, Graph):
+                transform_graph = transforms
+            self.transforms = transform_graph.construct_schema(self.schema).output_node
+            self.schema = self.transforms.output_schema
+            self.executor = LocalExecutor()
+        else:
+            self.transforms = None
+            self.executor = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.stop()
 
     @property
     def _buff(self):
@@ -288,6 +185,18 @@ class DataLoader:
         return self.__buff_len
 
     def epochs(self, epochs=1):
+        """Create a dataloader that will efficiently run for more than one epoch.
+
+        Parameters
+        ----------
+        epochs : int, optional
+            Number of epochs the dataloader should process data, by default 1
+
+        Returns
+        -------
+        DataLoader
+            return a dataloader that will run for user defined epochs.
+        """
         if epochs == self._epochs:
             return self
         new_dataloader = copy.copy(self)
@@ -313,6 +222,7 @@ class DataLoader:
         return False
 
     def stop(self):
+        """Halts and resets the initialization parameters of the dataloader."""
         # TODO: raise warning or even error if condition
         # isn't met?
         if self._workers is not None:
@@ -325,7 +235,7 @@ class DataLoader:
             self._buff.q_out.queue.clear()
         self._batch_itr = None
 
-    def _gather_indices_for_dev(self, dev):
+    def _indices_for_process(self):
         # this should be self.indices divided by total processes, global set
         if len(self.indices) < self.global_size:
             warnings.warn(
@@ -338,7 +248,7 @@ class DataLoader:
         start = self.global_rank * per_worker
         return self.indices[start : start + per_worker].tolist()
 
-    @annotate("_shuffle_indices", color="darkgreen", domain="nvt_python")
+    @annotate("_shuffle_indices", color="darkgreen", domain="merlin_dataloader")
     def _shuffle_indices(self):
         generate_local_seed(self.global_rank, self.global_size)
         if self.seed_fn:
@@ -348,6 +258,9 @@ class DataLoader:
         generate_local_seed(self.global_rank, self.global_size)
 
     def __iter__(self):
+        if self._batch_itr is not None:
+            return self
+
         self.stop()
         self.num_rows_processed = 0
         if self._buff.stopped:
@@ -368,13 +281,18 @@ class DataLoader:
         return self
 
     def __next__(self):
+        """Get the next batch."""
         return self._get_next_batch()
 
+    def peek(self):
+        """Get the next batch without advancing the iterator."""
+        return self._peek_next_batch()
+
     def _data_iter(self, epochs):
-        indices = self._gather_indices_for_dev(0)
-        if hasattr(self.data, "to_iter"):
-            return self.data.to_iter(indices=indices, epochs=epochs)
-        return DataFrameIter(self.data, epochs=epochs)
+        indices = self._indices_for_process()
+        return self.dataset.to_iter(
+            indices=indices, epochs=epochs, columns=self.dataset.schema.column_names
+        )
 
     def _fetch_chunk(self):
         chunks = self._buff.get()
@@ -382,6 +300,36 @@ class DataLoader:
             self.stop()
             raise chunks
         self._batch_itr = iter(chunks)
+
+    def _peek_next_batch(self):
+        """Return next batch without advancing the iterator."""
+        if self._workers is None:
+            LoaderBase.__iter__(self)
+
+        # get the first chunks
+        if self._batch_itr is None:
+            self._fetch_chunk()
+
+        # try to iterate through existing batches
+        try:
+            batch = next(self._batch_itr)
+            self._batch_itr = itertools.chain([batch], self._batch_itr)
+
+        except StopIteration:
+            # anticipate any more chunks getting created
+            # if not, raise the StopIteration
+            if not self._working and self._buff.empty:
+                self._workers = None
+                self._batch_itr = None
+                raise
+
+            # otherwise get the next chunks and return
+            # the first batch
+            self._fetch_chunk()
+            batch = next(self._batch_itr)
+            self._batch_itr = itertools.chain([batch], self._batch_itr)
+
+        return batch
 
     def _get_next_batch(self):
         """
@@ -397,7 +345,7 @@ class DataLoader:
         # need this because tf.keras.Model.fit will
         # call next() cold
         if self._workers is None:
-            DataLoader.__iter__(self)
+            LoaderBase.__iter__(self)
 
         # get the first chunks
         if self._batch_itr is None:
@@ -425,15 +373,37 @@ class DataLoader:
                 break
         return batch
 
-    @annotate("make_tensors", color="darkgreen", domain="nvt_python")
+    @annotate("make_tensors", color="darkgreen", domain="merlin_dataloader")
     def make_tensors(self, gdf, use_nnz=False):
-        split_idx = self._get_segment_lengths(len(gdf))
+        """Turns a gdf into tensor representation by column
 
+        Parameters
+        ----------
+        gdf : DataFrame
+            A dataframe type object.
+        use_nnz : bool, optional
+            toggle nnzs or use offsets for list columns, by default False
+
+        Returns
+        -------
+        Dict[Tensors]
+            A dictionary of the column tensor representations.
+
+        """
+        split_idx = self._get_segment_lengths(len(gdf))
         # map from big chunk to framework-specific tensors
-        chunks = self._create_tensors(gdf)
+        chunks, names = self._create_tensors(gdf)
 
         # if we have any offsets, calculate nnzs up front
-        if len(chunks) == 4:
+        # will need to get offsets if list columns detected in schema
+
+        # if len(chunks) == 4:
+        lists_list = [
+            col_name
+            for col_name, col_schema in self.dataset.schema.column_schemas.items()
+            if col_schema.is_list
+        ]
+        if len(lists_list) > 0:
             offsets = chunks[-1]
             if use_nnz:
                 nnzs = offsets[1:] - offsets[:-1]
@@ -507,7 +477,7 @@ class DataLoader:
                     c = (c, batch_lists)
 
                 batches[n].append(c)
-        return [self._handle_tensors(*batch) for batch in batches]
+        return (self._handle_tensors(batch, names) for batch in batches)
 
     def _get_segment_lengths(self, num_samples):
         """
@@ -539,7 +509,7 @@ class DataLoader:
             values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
         )
 
-    def _to_tensor(self, gdf, dtype=None):
+    def _to_tensor(self, gdf):
         """
         One of the mandatory functions a child class needs
         to implement. Maps from a cudf DataFrame to a
@@ -556,15 +526,13 @@ class DataLoader:
         """
         raise NotImplementedError
 
+    def _cast_to_numpy_dtype(self, dtype):
+        """
+        Get the numpy dtype from the framework dtype.
+        """
+        raise NotImplementedError
+
     def _split_fn(self, tensor, idx, axis=0):
-        raise NotImplementedError
-
-    @property
-    def _LONG_DTYPE(self):
-        raise NotImplementedError
-
-    @property
-    def _FLOAT32_DTYPE(self):
         raise NotImplementedError
 
     def _separate_list_columns(self, gdf):
@@ -576,18 +544,18 @@ class DataLoader:
                 scalars.append(col)
         return scalars, lists
 
-    @annotate("_create_tensors", color="darkgreen", domain="nvt_python")
+    @annotate("_create_tensors", color="darkgreen", domain="merlin_dataloader")
     def _create_tensors(self, gdf):
         """
         Breaks a dataframe down into the relevant
         categorical, continuous, and label tensors.
         Can be overrideen
         """
-        workflow_nodes = (self.cat_names, self.cont_names, self.label_names)
-        dtypes = (self._LONG_DTYPE, self._FLOAT32_DTYPE, self._FLOAT32_DTYPE)
         tensors = []
+        tensor_names = []
         offsets = make_df(device=self.device)
-        for column_names, dtype in zip(workflow_nodes, dtypes):
+        for column_names in self.dtype_reverse_map.values():
+            # for column names using schema find scalars and lists columns
             if len(column_names) == 0:
                 tensors.append(None)
                 continue
@@ -599,59 +567,220 @@ class DataLoader:
 
             x = None
             if scalars:
+                # split out cols and change all scalars
                 # should always return dict column_name: values, offsets (optional)
-                x = self._to_tensor(gdf_i[scalars], dtype)
+                x = self._to_tensor(gdf_i[scalars])
             if lists:
+                # split out lists
                 list_tensors = OrderedDict()
                 for column_name in lists:
                     column = gdf_i.pop(column_name)
                     leaves, col_offsets = pull_apart_list(column, device=self.device)
-                    if isinstance(leaves[0], list):
 
+                    if isinstance(leaves[0], list):
                         leaves, nest_offsets = pull_apart_list(leaves, device=self.device)
                         col_offsets = nest_offsets.iloc[col_offsets[:]]
+
                     offsets[column_name] = col_offsets.reset_index(drop=True)
-                    list_tensors[column_name] = self._to_tensor(leaves, dtype)
+                    list_tensors[column_name] = self._to_tensor(leaves)
                 x = x, list_tensors
             tensors.append(x)
+            tensor_names.append(column_names)
 
         if not offsets.empty:
-            offsets_tensor = self._to_tensor(offsets, self._LONG_DTYPE)
+            offsets_tensor = self._to_tensor(offsets)
             if len(offsets_tensor.shape) == 1:
                 offsets_tensor = offsets_tensor[:, None]
             tensors.append(offsets_tensor)
         del gdf, offsets
 
-        return tensors
+        return tensors, tensor_names
 
-    @annotate("_handle_tensors", color="darkgreen", domain="nvt_python")
-    def _handle_tensors(self, cats, conts, labels):
+    @annotate("_handle_tensors", color="darkgreen", domain="merlin_dataloader")
+    def _handle_tensors(self, tensors, tensor_names):
+        # tensors =  dictionary of all tensors
         X = {}
-        for tensor, names in zip([cats, conts], [self.cat_names, self.cont_names]):
+        for idx, (tensor, names) in enumerate(zip(tensors, tensor_names)):
             lists = {}
             if isinstance(tensor, tuple):
                 tensor, lists = tensor
+
             names = [i for i in names if i not in lists]
 
             # now add in any scalar tensors
             if len(names) > 1:
                 tensors = self._tensor_split(tensor, len(names), axis=1)
+                # pull out label tensor from here
                 lists.update(zip(names, tensors))
             elif len(names) == 1:
                 lists[names[0]] = tensor
             X.update(lists)
 
-        for column_name in X:
-
-            if column_name in self.sparse_names:
-                if column_name in self.sparse_max:
-                    # raise ValueError(
-                    #     f"Did not convert {column_name} to sparse due to missing sparse_max entry"
-                    # )
-                    X[column_name] = self._to_sparse_tensor(X[column_name], column_name)
+        for column_name in self.sparse_names:
+            if column_name in self.sparse_max:
+                # raise ValueError(
+                #     f"Did not convert {column_name} to sparse due to missing sparse_max entry"
+                # )
+                X[column_name] = self._to_sparse_tensor(X[column_name], column_name)
 
         # TODO: use dict for labels as well?
         # would require output layers to match naming
-        if len(self.label_names) > 1:
-            labels = self._tensor_split(labels, len(self.label_names), axis=1)
+        # labels should not exist separately they should be a regular column
+        labels = None
+        if len(self.label_names) > 0:
+            labels = X.pop(self.label_names[0])
+
+        if self.transforms:
+            X = self.executor.transform(DictArray(X), [self.transforms])
+
         return X, labels
+
+    def _pack(self, gdf):
+        if isinstance(gdf, np.ndarray):
+            return gdf
+        # if self.device has value ('cpu') gdf should not be transferred to dlpack
+        elif hasattr(gdf, "to_dlpack") and callable(getattr(gdf, "to_dlpack")) and not self.device:
+            return gdf.to_dlpack()
+        elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
+            gdf = gdf.to_numpy()
+            if isinstance(gdf[0], list):
+                gdf = np.stack(gdf)
+            return gdf
+        return gdf.toDlpack()
+
+
+class ChunkQueue:
+    """This class takes partitions (parts) from an merlin.io.Dataset
+    and concatenates them into a cudf dataframe "chunk." This chunk
+    is subsequently transformed into its tensor representation using
+    the iterator's transform.
+
+    Parameters
+    ----------
+    qsize: int
+        Maximum number of elements to hold in the buffer at one time.
+    num_parts : int
+        Number of partitions from the iterator, a merlin.io.Dataset to
+        concatenate into a "chunk."
+    shuffle : bool
+        Enable or disable chunk-level shuffling.
+    put_wait: float
+        Specifies the timeout to wait for a full queue to open up before checking
+        for errors and trying again.
+    """
+
+    def __init__(self, dataloader, qsize, num_parts=1, shuffle=False, put_wait=1e-6, epochs=1):
+        self.num_parts = num_parts
+        self.shuffle = shuffle
+        self.put_wait = put_wait
+        self.q_out = queue.Queue(qsize)
+        self._stop_event = threading.Event()
+        self.itr = dataloader._data_iter(epochs)
+        self.dataloader = dataloader
+
+    def __len__(self):
+        return len(self.itr)
+
+    @property
+    def stopped(self):
+        return self._stop_event.is_set()
+
+    @property
+    def empty(self):
+        return self.q_out.empty()
+
+    def get(self):
+        return self.q_out.get()
+
+    def put(self, packet):
+        while True:
+            if self.stopped:
+                return True
+
+            try:
+                self.q_out.put(packet, timeout=self.put_wait)
+                return False
+            except queue.Full:
+                continue
+
+    @annotate("batch", color="darkgreen", domain="merlin_dataloader")
+    def batch(self, itr):
+        """Iterates through gpu_mem_frac size chunks of dataset
+        and concatenates every `num_parts` of them.
+        """
+        current = []
+        while True:
+            try:
+                value = next(itr)
+            except StopIteration:
+                if len(current) > 0:
+                    yield current
+                break
+
+            current.append(value)
+            if len(current) == self.num_parts:
+                yield current
+                current = []
+
+    @annotate("chunk_logic", color="darkgreen", domain="merlin_dataloader")
+    def chunk_logic(self, itr):
+        spill = None
+        for chunks in self.batch(itr):
+            if self.stopped:
+                return
+
+            if spill is not None and not spill.empty:
+                chunks.insert(0, spill)
+
+            chunks = concat(chunks)
+            chunks.reset_index(drop=True, inplace=True)
+            chunks, spill = self.get_batch_div_chunk(chunks, self.dataloader.batch_size)
+            if self.shuffle:
+                chunks = shuffle_df(chunks)
+
+            if len(chunks) > 0:
+                chunks = self.dataloader.make_tensors(chunks, self.dataloader._use_nnz)
+                # put returns True if buffer is stopped before
+                # packet can be put in queue. Keeps us from
+                # freezing on a put on a full queue
+                if self.put(chunks):
+                    return
+            chunks = None
+        # takes care final batch, which is less than batch size
+        if not self.dataloader.drop_last and spill is not None and not spill.empty:
+            spill = self.dataloader.make_tensors(spill, self.dataloader._use_nnz)
+            self.put(spill)
+
+    @annotate("load_chunks", color="darkgreen", domain="merlin_dataloader")
+    def load_chunks(self, dev):
+        try:
+            itr = iter(self.itr)
+            if self.dataloader.device != "cpu":
+                with self.dataloader._get_device_ctx(dev):
+                    self.chunk_logic(itr)
+            else:
+                self.chunk_logic(itr)
+        except Exception as e:  # pylint: disable=broad-except
+            self.put(e)
+
+    # For when an iterator is stopped before iteration is complete.
+    def stop(self):
+        self._stop_event.set()
+        # TODO: should we be clearing? I can imagine a world where
+        # you want the thread to stop but still want to grab
+        # data out of the buffer
+        self.q_out.queue.clear()
+
+    def start(self):
+        self._stop_event.clear()
+
+    def get_batch_div_chunk(self, chunks, batch_size):
+        # TODO: is there a way to do this using cupy?
+        spill_idx = int(chunks.shape[0] / batch_size) * batch_size
+        spill = make_df(chunks.iloc[spill_idx:])
+        chunks = make_df(chunks.iloc[:spill_idx])
+        if not chunks.empty:
+            chunks.reset_index(drop=True, inplace=True)
+        if not spill.empty:
+            spill.reset_index(drop=True, inplace=True)
+        return chunks, spill

@@ -13,17 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import contextlib
+import gc
 import glob
-import os
 import random
-import signal
-import subprocess
-import time
 
 import dask
 import numpy as np
 import pandas as pd
+from npy_append_array import NpyAppendArray
 
 try:
     import cudf
@@ -48,90 +45,37 @@ except ImportError:
             return np.testing.assert_allclose(a, b)
 
 
-import nvtabular
 import pytest
-from dask.distributed import Client, LocalCluster
 
-from merlin.dag.node import iter_nodes
-
-allcols_csv = ["timestamp", "id", "label", "name-string", "x", "y", "z"]
-mycols_csv = ["name-string", "id", "label", "x", "y"]
-mycols_pq = ["name-cat", "name-string", "id", "label", "x", "y"]
-mynames = [
-    "Alice",
-    "Bob",
-    "Charlie",
-    "Dan",
-    "Edith",
-    "Frank",
-    "Gary",
-    "Hannah",
-    "Ingrid",
-    "Jerry",
-    "Kevin",
-    "Laura",
-    "Michael",
-    "Norbert",
-    "Oliver",
-    "Patricia",
-    "Quinn",
-    "Ray",
-    "Sarah",
-    "Tim",
-    "Ursula",
-    "Victor",
-    "Wendy",
-    "Xavier",
-    "Yvonne",
-    "Zelda",
-]
-
-_CUDA_CLUSTER = None
-
-
-@pytest.fixture(scope="module")
-def client():
-    cluster = LocalCluster(n_workers=2)
-    client = Client(cluster)
-    yield client
-    client.close()
-    cluster.close()
-
-
-@contextlib.contextmanager
-def get_cuda_cluster():
-    from dask_cuda import LocalCUDACluster
-
-    CUDA_VISIBLE_DEVICES = os.environ.get("CUDA_VISIBLE_DEVICES", "0")
-    n_workers = min(2, len(CUDA_VISIBLE_DEVICES.split(",")))
-    cluster = LocalCUDACluster(n_workers=n_workers)
-    yield cluster
-    cluster.close()
+from merlin.core.dispatch import concat_columns, get_lib, make_df
+from merlin.io import Dataset
+from merlin.schema import Tags
 
 
 @pytest.fixture(scope="session")
-def datasets(tmpdir_factory):
-    _lib = cudf if cudf else pd
-    _datalib = cudf if cudf else dask
-    df = _datalib.datasets.timeseries(
-        start="2000-01-01",
-        end="2000-01-04",
-        freq="60s",
-        dtypes={
-            "name-cat": str,
-            "name-string": str,
-            "id": int,
-            "label": int,
-            "x": float,
-            "y": float,
-            "z": float,
-        },
-    ).reset_index()
+def df():
+    df = (
+        dask.datasets.timeseries(
+            start="2000-01-01",
+            end="2000-01-04",
+            freq="60s",
+            dtypes={
+                "name-cat": str,
+                "name-string": str,
+                "id": int,
+                "label": int,
+                "x": float,
+                "y": float,
+                "z": float,
+            },
+        )
+        .reset_index()
+        .compute()
+    )
 
-    if _datalib is dask:
-        df = df.compute()
-
-    df["name-string"] = _lib.Series(np.random.choice(mynames, df.shape[0])).astype("O")
+    # convert to a categorical
+    df["name-string"] = df["name-string"].astype("category").cat.codes.astype("int32")
+    df["name-cat"] = df["name-cat"].astype("category").cat.codes.astype("int32")
 
     # Add two random null values to each column
     imax = len(df) - 1
@@ -145,64 +89,27 @@ def datasets(tmpdir_factory):
                 rand_idx += 1
             df[col].iloc[rand_idx] = None
 
-    datadir = tmpdir_factory.mktemp("data_test")
-    datadir = {
-        "parquet": tmpdir_factory.mktemp("parquet"),
-        "csv": tmpdir_factory.mktemp("csv"),
-        "csv-no-header": tmpdir_factory.mktemp("csv-no-header"),
-        "cats": tmpdir_factory.mktemp("cats"),
-    }
+    df = df.drop("timestamp", axis=1)
+    return df
 
+
+@pytest.fixture(scope="session")
+def parquet_path(df, tmpdir_factory):
+    # we're writing out to parquet independently of the dataset here
+    # since the serialization is relatively expensive, and we can do at the 'session'
+    # scope - but the dataset fixture needs to be at the 'function' scope so that
+    # we can set options like 'part_mem_fraction' and 'cpu'
+    datadir = tmpdir_factory.mktemp("test_dataset")
     half = int(len(df) // 2)
 
     # Write Parquet Dataset
-    df.iloc[:half].to_parquet(str(datadir["parquet"].join("dataset-0.parquet")), chunk_size=1000)
-    df.iloc[half:].to_parquet(str(datadir["parquet"].join("dataset-1.parquet")), chunk_size=1000)
-
-    # Write CSV Dataset (Leave out categorical column)
-    df.iloc[:half].drop(columns=["name-cat"]).to_csv(
-        str(datadir["csv"].join("dataset-0.csv")), index=False
-    )
-    df.iloc[half:].drop(columns=["name-cat"]).to_csv(
-        str(datadir["csv"].join("dataset-1.csv")), index=False
-    )
-    df.iloc[:half].drop(columns=["name-cat"]).to_csv(
-        str(datadir["csv-no-header"].join("dataset-0.csv")), header=False, index=False
-    )
-    df.iloc[half:].drop(columns=["name-cat"]).to_csv(
-        str(datadir["csv-no-header"].join("dataset-1.csv")), header=False, index=False
-    )
-
+    df.iloc[:half].to_parquet(str(datadir / "dataset-0.parquet"), chunk_size=1000)
+    df.iloc[half:].to_parquet(str(datadir / "dataset-1.parquet"), chunk_size=1000)
     return datadir
 
 
 @pytest.fixture(scope="function")
-def paths(engine, datasets):
-    return sorted(glob.glob(str(datasets[engine]) + "/*." + engine.split("-")[0]))
-
-
-@pytest.fixture(scope="function")
-def df(engine, paths):
-    _lib = cudf if cudf else pd
-    if engine == "parquet":
-        df1 = _lib.read_parquet(paths[0])[mycols_pq]
-        df2 = _lib.read_parquet(paths[1])[mycols_pq]
-    elif engine == "csv-no-header":
-        df1 = _lib.read_csv(paths[0], header=None, names=allcols_csv)[mycols_csv]
-        df2 = _lib.read_csv(paths[1], header=None, names=allcols_csv)[mycols_csv]
-    elif engine == "csv":
-        df1 = _lib.read_csv(paths[0], header=0)[mycols_csv]
-        df2 = _lib.read_csv(paths[1], header=0)[mycols_csv]
-    else:
-        raise ValueError("unknown engine:" + engine)
-
-    gdf = _lib.concat([df1, df2], axis=0)
-    gdf["id"] = gdf["id"].astype("int64")
-    return gdf
-
-
-@pytest.fixture(scope="function")
-def dataset(request, paths, engine):
+def dataset(request, tmpdir_factory, parquet_path):
     try:
         gpu_memory_frac = request.getfixturevalue("gpu_memory_frac")
     except Exception:  # pylint: disable=broad-except
@@ -213,96 +120,9 @@ def dataset(request, paths, engine):
     except Exception:  # pylint: disable=broad-except
         cpu = False
 
-    kwargs = {}
-    if engine == "csv-no-header":
-        kwargs["names"] = allcols_csv
-
-    return nvtabular.Dataset(paths, part_mem_fraction=gpu_memory_frac, cpu=cpu, **kwargs)
-
-
-def get_cats(workflow, col, stat_name="categories", cpu=False):
-    _lib = cudf if cudf and not cpu else pd
-    # figure out the categorify node from the workflow graph
-    cats = [
-        cg.op
-        for cg in iter_nodes([workflow.output_node])
-        if isinstance(cg.op, nvtabular.ops.Categorify)
-    ]
-    if len(cats) != 1:
-        raise RuntimeError(f"Found {len(cats)} categorical ops, expected 1")
-    filename = cats[0].categories[col]
-    df = _lib.read_parquet(filename)
-    df.reset_index(drop=True, inplace=True)
-    if cudf and not cpu:
-        return df[col].values_host
-    else:
-        return df[col]
-
-
-@contextlib.contextmanager
-def run_triton_server(
-    modelpath,
-    model_name,
-    triton_server_path,
-    device_id="0",
-    backend="tensorflow",
-    ps_path=None,
-):
-    import tritonclient
-    import tritonclient.grpc as grpcclient
-
-    if backend == "tensorflow":
-        backend_config = "tensorflow,version=2"
-    elif backend == "hugectr":
-        backend_config = "hugectr,ps=" + ps_path
-    else:
-        raise ValueError("unknown backend:" + backend)
-
-    cmdline = [
-        triton_server_path,
-        "--model-repository",
-        modelpath,
-        "--backend-config",
-        backend_config,
-    ]
-    env = os.environ.copy()
-    env["CUDA_VISIBLE_DEVICES"] = device_id
-    with subprocess.Popen(cmdline, env=env) as process:
-        try:
-            with grpcclient.InferenceServerClient("localhost:8001") as client:
-                # wait until server is ready
-                for _ in range(60):
-                    if process.poll() is not None:
-                        retcode = process.returncode
-                        raise RuntimeError(f"Tritonserver failed to start (ret={retcode})")
-
-                    try:
-                        ready = client.is_server_ready()
-                    except tritonclient.utils.InferenceServerException:
-                        ready = False
-
-                    if ready:
-                        yield client
-                        return
-
-                    time.sleep(1)
-
-                raise RuntimeError("Timed out waiting for tritonserver to become ready")
-        finally:
-            # signal triton to shutdown
-            process.send_signal(signal.SIGINT)
-
-
-def run_in_context(func, *args, context=None, **kwargs):
-    # Convenience utility to execute a function within
-    # a specific `context`.  For example, this can be
-    # used to test that a function raises a `UserWarning`
-    # by setting `context=pytest.warns(UserWarning)`
-    if context is None:
-        context = contextlib.suppress()
-    with context:
-        result = func(*args, **kwargs)
-    return result
+    dataset = Dataset(parquet_path, engine="parquet", part_mem_fraction=gpu_memory_frac, cpu=cpu)
+    dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
+    return dataset
 
 
 # Allow to pass devices as parameters
@@ -319,3 +139,106 @@ def devices(request):
 @pytest.fixture
 def report(request):
     return request.config.getoption("--report")
+
+
+@pytest.fixture
+def multihot_data():
+    return {
+        "Authors": [[0], [0, 5], [1, 2], [2]],
+        "Reviewers": [[0], [0, 5], [1, 2], [2]],
+        "Engaging User": [1, 1, 0, 4],
+        "Embedding": [
+            [0.1, 0.2, 0.3],
+            [0.3, 0.4, 0.5],
+            [0.6, 0.7, 0.8],
+            [0.8, 0.4, 0.2],
+        ],
+        "Post": [1, 2, 3, 4],
+    }
+
+
+@pytest.fixture
+def multihot_dataset(multihot_data):
+    ds = Dataset(make_df(multihot_data))
+    ds.schema["Post"] = ds.schema["Post"].with_tags(Tags.TARGET)
+    return ds
+
+
+@pytest.fixture(scope="session")
+def num_embedding_ids():
+    return 1
+
+
+@pytest.fixture(scope="session")
+def embeddings_part_size():
+    return 1e5
+
+
+@pytest.fixture(scope="session")
+def embedding_ids(num_embedding_ids, embeddings_part_size):
+    df = make_df({"id": np.arange(num_embedding_ids * embeddings_part_size).astype("int32")})
+    return df
+
+
+@pytest.fixture(scope="session")
+def rev_embedding_ids(embedding_ids, tmpdir_factory):
+    df_rev = embedding_ids["id"][::-1]
+    df_rev.reset_index(inplace=True, drop=True)
+    return make_df(df_rev)
+
+
+@pytest.fixture(scope="session")
+def embeddings_from_dataframe(embedding_ids, num_embedding_ids, tmpdir_factory):
+    embed_dir = tmpdir_factory.mktemp("embeds")
+    for idx, splt in enumerate(np.array_split(embedding_ids.to_numpy(), num_embedding_ids)):
+        vals = make_df(np.random.rand(splt.shape[0], 1024))
+        ids = make_df({"id": np.squeeze(splt)})
+        full = concat_columns([ids, vals])
+        full.columns = [str(col) for col in full.columns]
+        full.to_parquet(f"{embed_dir}/{idx}.parquet")
+    return embed_dir
+
+
+@pytest.fixture(scope="session")
+def rev_embeddings_from_dataframe(rev_embedding_ids, num_embedding_ids, tmpdir_factory):
+    embed_dir = tmpdir_factory.mktemp("rev_embeds")
+    for idx, splt in enumerate(np.array_split(rev_embedding_ids.to_numpy(), num_embedding_ids)):
+        vals = make_df(np.random.rand(splt.shape[0], 1024))
+        ids = make_df({"id": np.squeeze(splt)})
+        full = concat_columns([ids, vals])
+        full.columns = [str(col) for col in full.columns]
+        full.to_parquet(f"{embed_dir}/{idx}.parquet")
+    return embed_dir
+
+
+def build_embeddings_from_pq(
+    df_paths, embedding_filename="embeddings.npy", lookup_filename="lookup_ids"
+):
+    df_lib = get_lib()
+    with NpyAppendArray(embedding_filename) as nf:
+        with NpyAppendArray(lookup_filename) as lf:
+            for path in df_paths:
+                rows = df_lib.read_parquet(path)
+                numpy_rows = rows.to_numpy()
+                indices = np.ascontiguousarray(numpy_rows[:, 0])
+                vectors = np.ascontiguousarray(numpy_rows[:, 1:])
+                lf.append(indices)
+                nf.append(vectors)
+                del rows
+                del numpy_rows
+                del indices
+                del vectors
+                gc.collect()
+    return embedding_filename, lookup_filename
+
+
+@pytest.fixture(scope="session")
+def np_embeddings_from_pq(rev_embeddings_from_dataframe, tmpdir_factory):
+    paths = sorted(glob.glob(f"{rev_embeddings_from_dataframe}/*"))
+    embed_dir = tmpdir_factory.mktemp("np_embeds")
+    embeddings_file = f"{embed_dir}/embeddings.npy"
+    lookup_ids_file = f"{embed_dir}/ids_lookup.npy"
+    npy_filename, lookup_filename = build_embeddings_from_pq(
+        paths, embeddings_file, lookup_ids_file
+    )
+    return npy_filename, lookup_filename

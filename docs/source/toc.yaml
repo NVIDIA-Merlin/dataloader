@@ -1,0 +1,8 @@
+root: index
+subtrees:
+  - caption: Contents
+    entries:
+      - file: README.md
+        title: Introduction
+      - file: api
+        title: API Documentation

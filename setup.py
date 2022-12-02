@@ -42,9 +42,13 @@ requirements = {
     "base": read_requirements("requirements/base.txt"),
     "tensorflow": read_requirements("requirements/tensorflow.txt"),
     "pytorch": read_requirements("requirements/torch.txt"),
+    "torch": read_requirements("requirements/torch.txt"),
+    "jax": read_requirements("requirements/jax.txt"),
     "dev": read_requirements("requirements/dev.txt"),
 }
 
+with open("README.md", encoding="utf8") as readme:
+    long_description = readme.read()
 
 setup(
     name="merlin-dataloader",
@@ -54,10 +58,11 @@ setup(
     url="https://github.com/NVIDIA-Merlin/dataloader",
     author="NVIDIA Corporation",
     license="Apache 2.0",
-    long_description=open("README.md", encoding="utf8").read(),
+    long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=requirements["base"],
     test_suite="tests",
+    python_requires=">=3.8",
     extras_require={
         **requirements,
         "all": list(itertools.chain(*list(requirements.values()))),
@@ -66,6 +71,10 @@ setup(
     classifiers=[
         "Development Status :: 4 - Beta",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3 :: Only",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: Apache Software License",
         "Topic :: Software Development :: Libraries",

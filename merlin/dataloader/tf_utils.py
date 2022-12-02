@@ -26,6 +26,29 @@ from merlin.core.utils import device_mem_size
 
 
 def configure_tensorflow(memory_allocation=None, device=None):
+    """Control the GPU memory allocation that is performed when using TensorFlow.
+
+    Example usage::
+
+        # Allocate 20% of GPU memory to TensorFlow on the first
+        # GPU in the system.
+        configure_tensorflow(.2, 0)
+
+    Parameters
+    ----------
+    memory_allocation : float, optional
+        Value between 0 and 1 that represents the fraction of GPU memory to
+        allocate to TensorFlow.
+        This parameter overrides the ``TF_MEMORY_ALLOCATION`` environment
+        variable.
+        If you do not specify a value and the environment variable is not set,
+        50% of GPU memory is allocated to TensorFlow.
+        The default value is None.
+    device : Int, optional
+        Integer representing the index of the GPU to run on.
+        This parameter overrides the ``TF_VISIBLE_DEVICE`` environment variable.
+        The default value is None.
+    """
     total_gpu_mem_mb = device_mem_size(kind="total", cpu=(not HAS_GPU)) / (1024**2)
 
     if memory_allocation is None:
@@ -94,11 +117,19 @@ def _get_parents(column):
 
 
 def get_dataset_schema_from_feature_columns(feature_columns):
-    """
-    maps from a list of TensorFlow `feature_column`s to
-    lists giving the categorical and continuous feature
-    names for a dataset. Useful for constructing NVTabular
-    Workflows from feature columns
+    """Maps from a list of TensorFlow ``feature_column`` to
+    two lists.
+    The first list provides the categorical feature names and the second list
+    provides the continuous feature names for a dataset.
+    This function is useful for constructing NVTabular Workflows from feature
+    columns.
+
+    Returns
+    -------
+    list[str], list[str]
+        One sorted list of categorical feature names and one sorted list of
+        continuous feature names.
+        The lists can have zero length.
     """
     base_columns = set()
     for column in feature_columns:
