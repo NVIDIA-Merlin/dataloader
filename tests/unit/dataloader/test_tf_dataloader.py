@@ -52,7 +52,7 @@ def peek_and_restore(x):
 def test_peek_and_restore():
     df = make_df({"a": [1, 2, 3]})
     dataset = Dataset(df)
-    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    loader = tf_dataloader.Loader(dataset, batch_size=1, shuffle=False)
     xs = peek_and_restore(loader)
     assert len(list(xs)) == 3
 
@@ -60,7 +60,7 @@ def test_peek_and_restore():
 def test_peek():
     df = make_df({"a": [1, 2, 3]})
     dataset = Dataset(df)
-    with tf_dataloader.Loader(dataset, batch_size=1) as loader:
+    with tf_dataloader.Loader(dataset, batch_size=1, shuffle=False) as loader:
         first_batch = loader.peek()
         all_batches = list(loader)
     test_case = tf.test.TestCase()

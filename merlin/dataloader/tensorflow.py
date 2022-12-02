@@ -73,6 +73,10 @@ class Loader(LoaderBase):
     `feature_name: feature_tensor` and each element of the labels
     list is a tensor, and all tensors are of shape `(batch_size, 1)`.
 
+    We're implementing the keras Sequence interface because using the
+    loader as an iterator with keras has a limitation of only being able
+    to run for one epoch.
+
     Parameters
     -------------
     dataset: merlin.io.Dataset
@@ -127,6 +131,31 @@ class Loader(LoaderBase):
             device=device,
         )
         self._map_fns = []
+
+    def __len__(self):
+        """Number of batches in the Sequence.
+
+        Note: This also resets the loader state.
+              Required because of the calls to `__getitem__`
+              from keras prior to the start of the main loop
+              through the loader.
+        """
+        LoaderBase.stop(self)
+        return LoaderBase.__len__(self)
+
+    def __getitem__(self, index):
+        """Gets batch at position `index`.
+
+        Note: This returns the next batch in the iterator.
+              Not the batch at position `index`.
+              This is because the dataloader is implemented as an iterator and
+              don't currently support fetching a batch by index.
+        """
+        return LoaderBase.__next__(self)
+
+    def on_epoch_end(self):
+        "Method called at the end of every epoch."
+        self.stop()
 
     def map(self, fn):
         """
