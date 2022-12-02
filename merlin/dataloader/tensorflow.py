@@ -30,7 +30,7 @@ import tensorflow as tf  # noqa
 # pylint: disable=no-value-for-parameter,unexpected-keyword-arg,redundant-keyword-arg
 
 
-class Loader(LoaderBase):
+class Loader(tf.keras.utils.Sequence, LoaderBase):
     """
     Infinite generator used to asynchronously iterate through CSV or Parquet
     dataframes on GPU by leveraging an `merlin.io.Dataset`.
