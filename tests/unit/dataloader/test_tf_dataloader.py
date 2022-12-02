@@ -15,7 +15,6 @@
 #
 
 import importlib.util
-import itertools
 import os
 import subprocess
 import time
@@ -42,19 +41,6 @@ tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
 # tf_dataloader import needs to happen after this line
 tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
-
-
-def peek_and_restore(x):
-    peek = next(x)
-    return itertools.chain([peek], x)
-
-
-def test_peek_and_restore():
-    df = make_df({"a": [1, 2, 3]})
-    dataset = Dataset(df)
-    loader = tf_dataloader.Loader(dataset, batch_size=1, shuffle=False)
-    xs = peek_and_restore(loader)
-    assert len(list(xs)) == 3
 
 
 def test_peek():
