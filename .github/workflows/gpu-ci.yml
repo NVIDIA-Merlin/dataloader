@@ -20,11 +20,6 @@ jobs:
 
   build:
     runs-on: self-hosted
-    container: 
-      image: nvcr.io/nvstaging/merlin/merlin_ci_runner:latest
-      volumes:
-        - ${{ github.workspace }}:/dataloader
-      options: --gpus all --ipc=host --privileged
     steps:
     - name: Test 
       run: |
