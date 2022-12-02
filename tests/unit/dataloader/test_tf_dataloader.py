@@ -80,7 +80,9 @@ def test_simple_model():
     outputs = tf.keras.layers.Dense(1, activation="softmax")(outputs)
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
     model.compile(optimizer="sgd", loss="binary_crossentropy", metrics=["accuracy"])
-    model.fit(loader, epochs=2)
+    history_callback = model.fit(loader, epochs=2, shuffle=False)
+    assert len(history_callback.history["loss"]) == 2
+    assert all(loss > 0.0 for loss in history_callback.history["loss"])
 
     preds_model = model.predict({"a": tf.constant([0.1, 0.2, 0.3])})
     preds_loader = model.predict(loader)
