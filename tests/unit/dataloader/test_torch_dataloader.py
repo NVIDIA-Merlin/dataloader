@@ -317,13 +317,12 @@ def test_sparse_tensors(sparse_dense):
 @pytest.mark.parametrize("batch_size", [1000])
 @pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_schema(df, dataset, batch_size, cpu):
-    data_loader = torch_dataloader.Loader(
+    with torch_dataloader.Loader(
         dataset,
         batch_size=batch_size,
         shuffle=False,
-    )
-
-    X, y = next(data_loader)
+    ) as data_loader:
+        X, y = data_loader.peek()
     columns = set(dataset.schema.column_names) - {"label"}
     assert columns == set(X.keys())
 
