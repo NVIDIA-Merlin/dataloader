@@ -15,7 +15,6 @@
 #
 
 import importlib.util
-import itertools
 import os
 import subprocess
 import time
@@ -44,23 +43,10 @@ tf = pytest.importorskip("tensorflow")
 tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
 
 
-def peek_and_restore(x):
-    peek = next(x)
-    return itertools.chain([peek], x)
-
-
-def test_peek_and_restore():
-    df = make_df({"a": [1, 2, 3]})
-    dataset = Dataset(df)
-    loader = tf_dataloader.Loader(dataset, batch_size=1)
-    xs = peek_and_restore(loader)
-    assert len(list(xs)) == 3
-
-
 def test_peek():
     df = make_df({"a": [1, 2, 3]})
     dataset = Dataset(df)
-    with tf_dataloader.Loader(dataset, batch_size=1) as loader:
+    with tf_dataloader.Loader(dataset, batch_size=1, shuffle=False) as loader:
         first_batch = loader.peek()
         all_batches = list(loader)
     test_case = tf.test.TestCase()
@@ -80,7 +66,9 @@ def test_simple_model():
     outputs = tf.keras.layers.Dense(1, activation="softmax")(outputs)
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
     model.compile(optimizer="sgd", loss="binary_crossentropy", metrics=["accuracy"])
-    model.fit(loader, epochs=2)
+    history_callback = model.fit(loader, epochs=2, shuffle=False)
+    assert len(history_callback.history["loss"]) == 2
+    assert all(loss > 0.0 for loss in history_callback.history["loss"])
 
     preds_model = model.predict({"a": tf.constant([0.1, 0.2, 0.3])})
     preds_loader = model.predict(loader)
