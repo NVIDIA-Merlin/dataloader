@@ -620,12 +620,20 @@ class LoaderBase:
                 # )
                 X[column_name] = self._to_sparse_tensor(X[column_name], column_name)
 
-        # TODO: use dict for labels as well?
-        # would require output layers to match naming
-        # labels should not exist separately they should be a regular column
-        labels = None
-        if len(self.label_names) > 0:
+        # Return a tensor if we have only one label column, but return a
+        # dictionary of tensors if there are multiple label columns, since
+        # dictionary output is required in Merlin Models and Transformers4Rec.
+        # If a user is using a vanilla Keras model with multiple labels,
+        # they would need to provide matching column names in the output layer
+        # of the Keras model.
+        if len(self.label_names) == 0:
+            labels = None
+        elif len(self.label_names) == 1:
             labels = X.pop(self.label_names[0])
+        else:
+            labels = {}
+            for label in self.label_names:
+                labels[label] = X.pop(label)
 
         if self.transforms:
             X = self.executor.transform(DictArray(X), [self.transforms])
