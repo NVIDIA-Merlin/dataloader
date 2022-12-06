@@ -15,7 +15,6 @@
 #
 
 import importlib.util
-import itertools
 import os
 import subprocess
 import time
@@ -44,23 +43,10 @@ tf = pytest.importorskip("tensorflow")
 tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
 
 
-def peek_and_restore(x):
-    peek = next(x)
-    return itertools.chain([peek], x)
-
-
-def test_peek_and_restore():
-    df = make_df({"a": [1, 2, 3]})
-    dataset = Dataset(df)
-    loader = tf_dataloader.Loader(dataset, batch_size=1)
-    xs = peek_and_restore(loader)
-    assert len(list(xs)) == 3
-
-
 def test_peek():
     df = make_df({"a": [1, 2, 3]})
     dataset = Dataset(df)
-    with tf_dataloader.Loader(dataset, batch_size=1) as loader:
+    with tf_dataloader.Loader(dataset, batch_size=1, shuffle=False) as loader:
         first_batch = loader.peek()
         all_batches = list(loader)
     test_case = tf.test.TestCase()
@@ -80,7 +66,9 @@ def test_simple_model():
     outputs = tf.keras.layers.Dense(1, activation="softmax")(outputs)
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
     model.compile(optimizer="sgd", loss="binary_crossentropy", metrics=["accuracy"])
-    model.fit(loader, epochs=2)
+    history_callback = model.fit(loader, epochs=2, shuffle=False)
+    assert len(history_callback.history["loss"]) == 2
+    assert all(loss > 0.0 for loss in history_callback.history["loss"])
 
     preds_model = model.predict({"a": tf.constant([0.1, 0.2, 0.3])})
     preds_loader = model.predict(loader)
@@ -666,3 +654,31 @@ def test_lazy_dataset_map():
 
     assert map_function_called
     assert elapsed_time_seconds < 1
+
+
+def test_keras_model_with_multiple_label_columns():
+    df = make_df({"a": [0.1, 0.2, 0.3], "label1": [0, 1, 0], "label2": [1, 0, 0]})
+    dataset = Dataset(df)
+    dataset.schema["label1"] = dataset.schema["label1"].with_tags(Tags.TARGET)
+    dataset.schema["label2"] = dataset.schema["label2"].with_tags(Tags.TARGET)
+
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+
+    inputs = tf.keras.Input(name="a", dtype=tf.float32, shape=(1,))
+    outputs = tf.keras.layers.Dense(16, "relu")(inputs)
+    output_1 = tf.keras.layers.Dense(1, activation="softmax", name="label1")(outputs)
+    output_2 = tf.keras.layers.Dense(5, activation="softmax", name="label2")(outputs)
+    # If we are using a Keras model and dataloader returns multiple labels,
+    # `outputs` keys must match the multiple labels returned by the dataloader.
+    model = tf.keras.Model(inputs=inputs, outputs={"label1": output_1, "label2": output_2})
+    model.compile(optimizer="sgd", loss="binary_crossentropy", metrics=["accuracy"])
+    model.fit(loader, epochs=2)
+
+    preds_model = model.predict({"a": tf.constant([0.1, 0.2, 0.3])})
+    preds_loader = model.predict(loader)
+    assert preds_model["label1"].shape == preds_loader["label1"].shape
+    assert preds_model["label2"].shape == preds_loader["label2"].shape
+
+    metrics = model.evaluate(loader, return_dict=True)
+    assert "label1_accuracy" in metrics
+    assert "label2_accuracy" in metrics
