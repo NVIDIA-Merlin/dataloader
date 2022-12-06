@@ -693,12 +693,20 @@
                 <span class="c1"># )</span>
                 <span class="n">X</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_sparse_tensor</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">column_name</span><span class="p">],</span> <span class="n">column_name</span><span class="p">)</span>
 
-        <span class="c1"># TODO: use dict for labels as well?</span>
-        <span class="c1"># would require output layers to match naming</span>
-        <span class="c1"># labels should not exist separately they should be a regular column</span>
-        <span class="n">labels</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label_names</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># Return a tensor if we have only one label column, but return a</span>
+        <span class="c1"># dictionary of tensors if there are multiple label columns, since</span>
+        <span class="c1"># dictionary output is required in Merlin Models and Transformers4Rec.</span>
+        <span class="c1"># If a user is using a vanilla Keras model with multiple labels,</span>
+        <span class="c1"># they would need to provide matching column names in the output layer</span>
+        <span class="c1"># of the Keras model.</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label_names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">labels</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label_names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">labels</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">labels</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_names</span><span class="p">:</span>
+                <span class="n">labels</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">:</span>
             <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">executor</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">DictArray</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">])</span>
