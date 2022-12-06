@@ -626,9 +626,14 @@ class LoaderBase:
         # TODO: use dict for labels as well?
         # would require output layers to match naming
         # labels should not exist separately they should be a regular column
-        labels = None
-        if len(self.label_names) > 0:
+        if len(self.label_names) == 0:
+            labels = None
+        elif len(self.label_names) == 1:
             labels = X.pop(self.label_names[0])
+        else:
+            labels = {}
+            for label in self.label_names:
+                labels[label] = X.pop(label)
 
         if self.transforms:
             X = self.executor.transform(DictArray(X), [self.transforms])
