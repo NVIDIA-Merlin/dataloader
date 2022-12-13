@@ -22,14 +22,16 @@ from merlin.core.dispatch import HAS_GPU
 from merlin.io import Dataset
 from merlin.schema import Tags
 
+pytestmark = pytest.mark.tensorflow
+
 tf = pytest.importorskip("tensorflow")
 
-from merlin.loader.ops.embeddings.tf_embedding_op import (  # noqa
+from merlin.dataloader.ops.embeddings.tf_embedding_op import (  # noqa
     TF_MmapNumpyTorchEmbedding,
     TF_NumpyEmbeddingOperator,
     TFEmbeddingOperator,
 )
-from merlin.loader.tensorflow import Loader  # noqa
+from merlin.dataloader.tensorflow import Loader  # noqa
 
 
 @pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])

@@ -16,7 +16,7 @@
 
 import tensorflow as tf
 
-from merlin.loader.ops.embeddings.embedding_op import (
+from merlin.dataloader.ops.embeddings.embedding_op import (
     EmbeddingOperator,
     MmapNumpyTorchEmbedding,
     NumpyEmbeddingOperator,

@@ -22,7 +22,6 @@ disable=fixme,
     # we'll probably never enable these checks
     invalid-name,
     import-error,
-    no-self-use,
 
     # disable code-complexity checks for now
     # TODO: should we configure the thresholds for these rather than just disable?
@@ -36,7 +35,7 @@ disable=fixme,
     too-many-return-statements,
     too-many-lines,
     too-few-public-methods,
-    
+
     # many of these checks would be great to include at some point, but would
     # require some changes to our codebase
     useless-return,
@@ -54,7 +53,7 @@ disable=fixme,
     no-else-raise,
     no-member,
     super-with-arguments,
-    unsupported-assignment-operation, 
+    unsupported-assignment-operation,
     inconsistent-return-statements,
     duplicate-string-formatting-argument,
     len-as-condition,

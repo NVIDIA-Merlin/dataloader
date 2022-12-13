@@ -1,0 +1,13 @@
+name: release-drafter
+
+on:
+  push:
+    # trigger on tags only
+    tags:
+      - v*
+
+  workflow_dispatch:
+
+jobs:
+  update_release_draft:
+    uses: nvidia-merlin/.github/.github/workflows/release-drafter-common.yaml@main

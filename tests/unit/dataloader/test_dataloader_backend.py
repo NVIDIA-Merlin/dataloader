@@ -18,8 +18,8 @@ import pytest
 from conftest import assert_eq
 
 from merlin.core.dispatch import concat, generate_local_seed, get_random_state, make_df
+from merlin.dataloader.loader_base import LoaderBase
 from merlin.io import Dataset
-from merlin.loader.loader_base import LoaderBase
 
 
 @pytest.mark.parametrize("batch_size", [128])

@@ -27,10 +27,12 @@ from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
+pytestmark = pytest.mark.torch
+
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
 torch = pytest.importorskip("torch")
-import merlin.loader.torch as torch_dataloader  # noqa isort:skip
+import merlin.dataloader.torch as torch_dataloader  # noqa isort:skip
 
 
 def test_shuffling():
@@ -44,7 +46,7 @@ def test_shuffling():
 
     train_dataset = torch_dataloader.Loader(ds, batch_size=batch_size, shuffle=True)
 
-    batch = next(iter(train_dataset))
+    batch = next(train_dataset)
 
     first_batch = batch[0]["a"].cpu()
     in_order = torch.arange(0, batch_size)
@@ -174,6 +176,8 @@ def test_dataloader_break(dataset, batch_size, part_mem_fraction, cpu):
         if idx == 1:
             break
         del chunk
+
+    dataloader.stop()
 
     assert idx < len_dl
 
@@ -313,13 +317,12 @@ def test_sparse_tensors(sparse_dense):
 @pytest.mark.parametrize("batch_size", [1000])
 @pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_schema(df, dataset, batch_size, cpu):
-    data_loader = torch_dataloader.Loader(
+    with torch_dataloader.Loader(
         dataset,
         batch_size=batch_size,
         shuffle=False,
-    )
-
-    X, y = next(iter(data_loader))
+    ) as data_loader:
+        X, y = data_loader.peek()
     columns = set(dataset.schema.column_names) - {"label"}
     assert columns == set(X.keys())
 

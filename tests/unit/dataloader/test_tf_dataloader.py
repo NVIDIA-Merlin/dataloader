@@ -20,23 +20,61 @@ import subprocess
 import time
 import timeit
 
-from merlin.core.dispatch import HAS_GPU, make_df
-from merlin.io import Dataset
-from merlin.schema import Tags
-
-try:
-    import cupy
-except ImportError:
-    cupy = None
 import numpy as np
 import pandas as pd
 import pytest
 from sklearn.metrics import roc_auc_score
 
+from merlin.core.dispatch import HAS_GPU, make_df
+from merlin.io import Dataset
+from merlin.schema import Tags
+
+pytestmark = pytest.mark.tensorflow
+
+try:
+    import cupy
+except ImportError:
+    cupy = None
+
+
 tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
 # tf_dataloader import needs to happen after this line
-tf_dataloader = pytest.importorskip("merlin.loader.tensorflow")
+tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
+
+
+def test_peek():
+    df = make_df({"a": [1, 2, 3]})
+    dataset = Dataset(df)
+    with tf_dataloader.Loader(dataset, batch_size=1, shuffle=False) as loader:
+        first_batch = loader.peek()
+        all_batches = list(loader)
+    test_case = tf.test.TestCase()
+    test_case.assertAllEqual(first_batch, all_batches[0])
+    assert len(all_batches) == 3
+
+
+def test_simple_model():
+    df = make_df({"a": [0.1, 0.2, 0.3], "label": [0, 1, 0]})
+    dataset = Dataset(df)
+    dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
+
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+
+    inputs = tf.keras.Input(name="a", dtype=tf.float32, shape=(1,))
+    outputs = tf.keras.layers.Dense(16, "relu")(inputs)
+    outputs = tf.keras.layers.Dense(1, activation="softmax")(outputs)
+    model = tf.keras.Model(inputs=inputs, outputs=outputs)
+    model.compile(optimizer="sgd", loss="binary_crossentropy", metrics=["accuracy"])
+    history_callback = model.fit(loader, epochs=2, shuffle=False)
+    assert len(history_callback.history["loss"]) == 2
+    assert all(loss > 0.0 for loss in history_callback.history["loss"])
+
+    preds_model = model.predict({"a": tf.constant([0.1, 0.2, 0.3])})
+    preds_loader = model.predict(loader)
+    assert preds_model.shape == preds_loader.shape
+
+    _ = model.evaluate(loader)
 
 
 def test_nested_list():
@@ -62,7 +100,7 @@ def test_nested_list():
         shuffle=False,
     )
 
-    batch = next(iter(train_dataset))
+    batch = next(train_dataset)
     # [[1,2,3],[3,1],[...],[]]
     nested_data_col = tf.RaggedTensor.from_row_lengths(
         batch[0]["data"][0][:, 0], tf.cast(batch[0]["data"][1][:, 0], tf.int32)
@@ -96,7 +134,7 @@ def test_shuffling():
 
     train_dataset = tf_dataloader.Loader(ds, batch_size=batch_size, shuffle=True)
 
-    batch = next(iter(train_dataset))
+    batch = next(train_dataset)
 
     first_batch = tf.reshape(tf.cast(batch[0]["a"].cpu(), tf.int32), (batch_size,))
     in_order = tf.range(0, batch_size, dtype=tf.int32)
@@ -258,7 +296,7 @@ def test_tensorflow_dataloader(
                 rows += num_samples
                 continue
             else:
-                raise ValueError("Batch size too small at idx {}".format(idx))
+                raise ValueError(f"Batch size too small at idx {idx}")
 
         # check that all the features in X have the
         # appropriate length and that the set of
@@ -540,8 +578,8 @@ def test_horovod_multigpu(tmpdir):
     proc.save(target_path)
     curr_path = os.path.abspath(__file__)
     repo_root = os.path.relpath(os.path.normpath(os.path.join(curr_path, "../../../..")))
-    hvd_wrap_path = os.path.join(repo_root, "merlin/loader/utils/tf/hvd_wrapper.sh")
-    hvd_exam_path = os.path.join(repo_root, "merlin/loader/utils/tf/tf_trainer.py")
+    hvd_wrap_path = os.path.join(repo_root, "merlin/dataloader/utils/tf/hvd_wrapper.sh")
+    hvd_exam_path = os.path.join(repo_root, "merlin/dataloader/utils/tf/tf_trainer.py")
     with subprocess.Popen(
         [
             "horovodrun",
@@ -573,13 +611,13 @@ def test_horovod_multigpu(tmpdir):
 @pytest.mark.parametrize("batch_size", [1000])
 @pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_schema(tmpdir, dataset, batch_size, cpu):
-    data_loader = tf_dataloader.Loader(
+    with tf_dataloader.Loader(
         dataset,
         batch_size=batch_size,
         shuffle=False,
-    )
+    ) as data_loader:
 
-    batch = next(iter(data_loader))
+        batch = data_loader.peek()
 
     columns = set(dataset.schema.column_names) - {"label"}
     assert set(batch[0]) == columns
@@ -616,3 +654,31 @@ def test_lazy_dataset_map():
 
     assert map_function_called
     assert elapsed_time_seconds < 1
+
+
+def test_keras_model_with_multiple_label_columns():
+    df = make_df({"a": [0.1, 0.2, 0.3], "label1": [0, 1, 0], "label2": [1, 0, 0]})
+    dataset = Dataset(df)
+    dataset.schema["label1"] = dataset.schema["label1"].with_tags(Tags.TARGET)
+    dataset.schema["label2"] = dataset.schema["label2"].with_tags(Tags.TARGET)
+
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+
+    inputs = tf.keras.Input(name="a", dtype=tf.float32, shape=(1,))
+    outputs = tf.keras.layers.Dense(16, "relu")(inputs)
+    output_1 = tf.keras.layers.Dense(1, activation="softmax", name="label1")(outputs)
+    output_2 = tf.keras.layers.Dense(5, activation="softmax", name="label2")(outputs)
+    # If we are using a Keras model and dataloader returns multiple labels,
+    # `outputs` keys must match the multiple labels returned by the dataloader.
+    model = tf.keras.Model(inputs=inputs, outputs={"label1": output_1, "label2": output_2})
+    model.compile(optimizer="sgd", loss="binary_crossentropy", metrics=["accuracy"])
+    model.fit(loader, epochs=2)
+
+    preds_model = model.predict({"a": tf.constant([0.1, 0.2, 0.3])})
+    preds_loader = model.predict(loader)
+    assert preds_model["label1"].shape == preds_loader["label1"].shape
+    assert preds_model["label2"].shape == preds_loader["label2"].shape
+
+    metrics = model.evaluate(loader, return_dict=True)
+    assert "label1_accuracy" in metrics
+    assert "label2_accuracy" in metrics

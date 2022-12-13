@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import copy
+import itertools
 import math
 import queue
 import threading
@@ -157,6 +158,12 @@ class LoaderBase:
             self.transforms = None
             self.executor = None
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.stop()
+
     @property
     def _buff(self):
         if self.__buff is None:
@@ -241,7 +248,7 @@ class LoaderBase:
         start = self.global_rank * per_worker
         return self.indices[start : start + per_worker].tolist()
 
-    @annotate("_shuffle_indices", color="darkgreen", domain="merlin_loader")
+    @annotate("_shuffle_indices", color="darkgreen", domain="merlin_dataloader")
     def _shuffle_indices(self):
         generate_local_seed(self.global_rank, self.global_size)
         if self.seed_fn:
@@ -271,7 +278,12 @@ class LoaderBase:
         return self
 
     def __next__(self):
+        """Get the next batch."""
         return self._get_next_batch()
+
+    def peek(self):
+        """Get the next batch without advancing the iterator."""
+        return self._peek_next_batch()
 
     def _data_iter(self, epochs):
         indices = self._indices_for_process()
@@ -285,6 +297,36 @@ class LoaderBase:
             self.stop()
             raise chunks
         self._batch_itr = iter(chunks)
+
+    def _peek_next_batch(self):
+        """Return next batch without advancing the iterator."""
+        if self._workers is None:
+            LoaderBase.__iter__(self)
+
+        # get the first chunks
+        if self._batch_itr is None:
+            self._fetch_chunk()
+
+        # try to iterate through existing batches
+        try:
+            batch = next(self._batch_itr)
+            self._batch_itr = itertools.chain([batch], self._batch_itr)
+
+        except StopIteration:
+            # anticipate any more chunks getting created
+            # if not, raise the StopIteration
+            if not self._working and self._buff.empty:
+                self._workers = None
+                self._batch_itr = None
+                raise
+
+            # otherwise get the next chunks and return
+            # the first batch
+            self._fetch_chunk()
+            batch = next(self._batch_itr)
+            self._batch_itr = itertools.chain([batch], self._batch_itr)
+
+        return batch
 
     def _get_next_batch(self):
         """
@@ -328,7 +370,7 @@ class LoaderBase:
                 break
         return batch
 
-    @annotate("make_tensors", color="darkgreen", domain="merlin_loader")
+    @annotate("make_tensors", color="darkgreen", domain="merlin_dataloader")
     def make_tensors(self, gdf, use_nnz=False):
         """Turns a gdf into tensor representation by column
 
@@ -464,7 +506,7 @@ class LoaderBase:
             values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
         )
 
-    def _to_tensor(self, df):
+    def _to_tensor(self, gdf):
         """
         One of the mandatory functions a child class needs
         to implement. Maps from a cudf DataFrame to a
@@ -499,7 +541,7 @@ class LoaderBase:
                 scalars.append(col)
         return scalars, lists
 
-    @annotate("_create_tensors", color="darkgreen", domain="merlin_loader")
+    @annotate("_create_tensors", color="darkgreen", domain="merlin_dataloader")
     def _create_tensors(self, gdf):
         """
         Breaks a dataframe down into the relevant
@@ -551,7 +593,7 @@ class LoaderBase:
 
         return tensors, tensor_names
 
-    @annotate("_handle_tensors", color="darkgreen", domain="merlin_loader")
+    @annotate("_handle_tensors", color="darkgreen", domain="merlin_dataloader")
     def _handle_tensors(self, tensors, tensor_names):
         # tensors =  dictionary of all tensors
         X = {}
@@ -578,12 +620,20 @@ class LoaderBase:
                 # )
                 X[column_name] = self._to_sparse_tensor(X[column_name], column_name)
 
-        # TODO: use dict for labels as well?
-        # would require output layers to match naming
-        # labels should not exist separately they should be a regular column
-        labels = None
-        if len(self.label_names) > 0:
+        # Return a tensor if we have only one label column, but return a
+        # dictionary of tensors if there are multiple label columns, since
+        # dictionary output is required in Merlin Models and Transformers4Rec.
+        # If a user is using a vanilla Keras model with multiple labels,
+        # they would need to provide matching column names in the output layer
+        # of the Keras model.
+        if len(self.label_names) == 0:
+            labels = None
+        elif len(self.label_names) == 1:
             labels = X.pop(self.label_names[0])
+        else:
+            labels = {}
+            for label in self.label_names:
+                labels[label] = X.pop(label)
 
         if self.transforms:
             X = self.executor.transform(DictArray(X), [self.transforms])
@@ -658,7 +708,7 @@ class ChunkQueue:
             except queue.Full:
                 continue
 
-    @annotate("batch", color="darkgreen", domain="merlin_loader")
+    @annotate("batch", color="darkgreen", domain="merlin_dataloader")
     def batch(self, itr):
         """Iterates through gpu_mem_frac size chunks of dataset
         and concatenates every `num_parts` of them.
@@ -677,7 +727,7 @@ class ChunkQueue:
                 yield current
                 current = []
 
-    @annotate("chunk_logic", color="darkgreen", domain="merlin_loader")
+    @annotate("chunk_logic", color="darkgreen", domain="merlin_dataloader")
     def chunk_logic(self, itr):
         spill = None
         for chunks in self.batch(itr):
@@ -706,7 +756,7 @@ class ChunkQueue:
             spill = self.dataloader.make_tensors(spill, self.dataloader._use_nnz)
             self.put(spill)
 
-    @annotate("load_chunks", color="darkgreen", domain="merlin_loader")
+    @annotate("load_chunks", color="darkgreen", domain="merlin_dataloader")
     def load_chunks(self, dev):
         try:
             itr = iter(self.itr)
