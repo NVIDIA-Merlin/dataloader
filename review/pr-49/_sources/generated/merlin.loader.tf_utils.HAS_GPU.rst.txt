@@ -1,6 +1,0 @@
-﻿merlin.loader.tf\_utils.HAS\_GPU
-================================
-
-.. currentmodule:: merlin.loader.tf_utils
-
-.. autodata:: HAS_GPU

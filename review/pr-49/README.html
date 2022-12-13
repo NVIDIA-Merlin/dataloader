@@ -81,7 +81,7 @@
 <a class="reference external" href="https://pypi.python.org/pypi/merlin-dataloader/"><img alt="PyPI version shields.io" src="https://img.shields.io/pypi/v/merlin-dataloader.svg" /></a>
 <img alt="GitHub License" src="https://img.shields.io/github/license/NVIDIA-Merlin/dataloader" />
 <a class="reference external" href="https://nvidia-merlin.github.io/dataloader/main/README.html"><img alt="Documentation" src="https://img.shields.io/badge/documentation-blue.svg" /></a></p>
-<p>The merlin-dataloader lets you quickly train recommender models for TensorFlow and PyTorch. It eliminates the biggest bottleneck in training recommender models, by providing GPU optimized dataloaders that read data directly into the GPU, and then do a 0-copy transfer to TensorFlow and PyTorch using <a class="reference external" href="https://github.com/dmlc/dlpack">dlpack</a>.</p>
+<p>The merlin-dataloader lets you quickly train recommender models for TensorFlow, PyTorch and JAX. It eliminates the biggest bottleneck in training recommender models, by providing GPU optimized dataloaders that read data directly into the GPU, and then do a 0-copy transfer to TensorFlow and PyTorch using <a class="reference external" href="https://github.com/dmlc/dlpack">dlpack</a>.</p>
 <p>The benefits of the Merlin Dataloader include:</p>
 <ul class="simple">
 <li><p>Over 10x speedup over native framework dataloaders</p></li>
@@ -93,7 +93,7 @@
 <h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline"></a></h2>
 <p>Merlin-dataloader requires Python version 3.7+. Additionally, GPU support requires CUDA 11.0+.</p>
 <p>To install using Conda:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">install</span> <span class="o">-</span><span class="n">c</span> <span class="n">nvidia</span> <span class="o">-</span><span class="n">c</span> <span class="n">rapidsai</span> <span class="o">-</span><span class="n">c</span> <span class="n">numba</span> <span class="o">-</span><span class="n">c</span> <span class="n">conda</span><span class="o">-</span><span class="n">forge</span> <span class="n">merlin</span><span class="o">-</span><span class="n">loader</span> <span class="n">python</span><span class="o">=</span><span class="mf">3.7</span> <span class="n">cudatoolkit</span><span class="o">=</span><span class="mf">11.2</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">install</span> <span class="o">-</span><span class="n">c</span> <span class="n">nvidia</span> <span class="o">-</span><span class="n">c</span> <span class="n">rapidsai</span> <span class="o">-</span><span class="n">c</span> <span class="n">numba</span> <span class="o">-</span><span class="n">c</span> <span class="n">conda</span><span class="o">-</span><span class="n">forge</span> <span class="n">merlin</span><span class="o">-</span><span class="n">dataloader</span> <span class="n">python</span><span class="o">=</span><span class="mf">3.7</span> <span class="n">cudatoolkit</span><span class="o">=</span><span class="mf">11.2</span>
 </pre></div>
 </div>
 <p>To install from PyPi:</p>
@@ -110,7 +110,7 @@
 
 <span class="c1"># Create a Tensorflow dataloader from the dataset, loading 65K items</span>
 <span class="c1"># per batch</span>
-<span class="kn">from</span> <span class="nn">merlin.loader.tensorflow</span> <span class="kn">import</span> <span class="n">Loader</span>
+<span class="kn">from</span> <span class="nn">merlin.dataloader.tensorflow</span> <span class="kn">import</span> <span class="n">Loader</span>
 <span class="n">loader</span> <span class="o">=</span> <span class="n">Loader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">65536</span><span class="p">)</span>
 
 <span class="c1"># Get a single batch of data. Inputs will be a dictionary of columnname</span>

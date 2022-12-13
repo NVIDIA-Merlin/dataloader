@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>merlin.loader.tf_utils &mdash; Merlin Dataloader  documentation</title><link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <title>merlin.dataloader.tf_utils &mdash; Merlin Dataloader  documentation</title><link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../../../_static/togglebutton.css" type="text/css" />
       <link rel="stylesheet" href="../../../_static/mystnb.css" type="text/css" />
-    <link rel="canonical" href="https://nvidia-merlin.github.io/dataloader/main/_modules/merlin/loader/tf_utils.html" />
+    <link rel="canonical" href="https://nvidia-merlin.github.io/dataloader/main/_modules/merlin/dataloader/tf_utils.html" />
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -61,7 +61,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../../index.html">Module code</a> &raquo;</li>
-      <li>merlin.loader.tf_utils</li>
+      <li>merlin.dataloader.tf_utils</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -70,7 +70,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for merlin.loader.tf_utils</h1><div class="highlight"><pre>
+  <h1>Source code for merlin.dataloader.tf_utils</h1><div class="highlight"><pre>
 <span></span><span class="c1">#</span>
 <span class="c1"># Copyright (c) 2021, NVIDIA CORPORATION.</span>
 <span class="c1">#</span>
@@ -98,7 +98,7 @@
 <span class="kn">from</span> <span class="nn">merlin.core.utils</span> <span class="kn">import</span> <span class="n">device_mem_size</span>
 
 
-<div class="viewcode-block" id="configure_tensorflow"><a class="viewcode-back" href="../../../generated/merlin.loader.tf_utils.configure_tensorflow.html#merlin.loader.tf_utils.configure_tensorflow">[docs]</a><span class="k">def</span> <span class="nf">configure_tensorflow</span><span class="p">(</span><span class="n">memory_allocation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="configure_tensorflow"><a class="viewcode-back" href="../../../generated/merlin.dataloader.tf_utils.configure_tensorflow.html#merlin.dataloader.tf_utils.configure_tensorflow">[docs]</a><span class="k">def</span> <span class="nf">configure_tensorflow</span><span class="p">(</span><span class="n">memory_allocation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Control the GPU memory allocation that is performed when using TensorFlow.</span>
 
 <span class="sd">    Example usage::</span>
@@ -189,7 +189,7 @@
     <span class="k">return</span> <span class="n">parents</span>
 
 
-<div class="viewcode-block" id="get_dataset_schema_from_feature_columns"><a class="viewcode-back" href="../../../generated/merlin.loader.tf_utils.get_dataset_schema_from_feature_columns.html#merlin.loader.tf_utils.get_dataset_schema_from_feature_columns">[docs]</a><span class="k">def</span> <span class="nf">get_dataset_schema_from_feature_columns</span><span class="p">(</span><span class="n">feature_columns</span><span class="p">):</span>
+<div class="viewcode-block" id="get_dataset_schema_from_feature_columns"><a class="viewcode-back" href="../../../generated/merlin.dataloader.tf_utils.get_dataset_schema_from_feature_columns.html#merlin.dataloader.tf_utils.get_dataset_schema_from_feature_columns">[docs]</a><span class="k">def</span> <span class="nf">get_dataset_schema_from_feature_columns</span><span class="p">(</span><span class="n">feature_columns</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Maps from a list of TensorFlow ``feature_column`` to</span>
 <span class="sd">    two lists.</span>
 <span class="sd">    The first list provides the categorical feature names and the second list</span>

@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>merlin.loader.loader_base &mdash; Merlin Dataloader  documentation</title><link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <title>merlin.dataloader.loader_base &mdash; Merlin Dataloader  documentation</title><link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../../../_static/togglebutton.css" type="text/css" />
       <link rel="stylesheet" href="../../../_static/mystnb.css" type="text/css" />
-    <link rel="canonical" href="https://nvidia-merlin.github.io/dataloader/main/_modules/merlin/loader/loader_base.html" />
+    <link rel="canonical" href="https://nvidia-merlin.github.io/dataloader/main/_modules/merlin/dataloader/loader_base.html" />
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -61,7 +61,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../../index.html">Module code</a> &raquo;</li>
-      <li>merlin.loader.loader_base</li>
+      <li>merlin.dataloader.loader_base</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -70,7 +70,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for merlin.loader.loader_base</h1><div class="highlight"><pre>
+  <h1>Source code for merlin.dataloader.loader_base</h1><div class="highlight"><pre>
 <span></span><span class="c1">#</span>
 <span class="c1"># Copyright (c) 2021, NVIDIA CORPORATION.</span>
 <span class="c1">#</span>
@@ -87,6 +87,7 @@
 <span class="c1"># limitations under the License.</span>
 <span class="c1">#</span>
 <span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">queue</span>
 <span class="kn">import</span> <span class="nn">threading</span>
@@ -120,12 +121,12 @@
     <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">num_samples</span> <span class="o">/</span> <span class="n">step_size</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="LoaderBase"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.LoaderBase.html#merlin.loader.loader_base.LoaderBase">[docs]</a><span class="k">class</span> <span class="nc">LoaderBase</span><span class="p">:</span>
+<div class="viewcode-block" id="LoaderBase"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase">[docs]</a><span class="k">class</span> <span class="nc">LoaderBase</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Base class containing common functionality between the PyTorch and TensorFlow dataloaders.&quot;&quot;&quot;</span>
 
     <span class="n">_use_nnz</span> <span class="o">=</span> <span class="kc">False</span>
 
-<div class="viewcode-block" id="LoaderBase.__init__"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.LoaderBase.html#merlin.loader.loader_base.LoaderBase.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<div class="viewcode-block" id="LoaderBase.__init__"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">dataset</span><span class="p">,</span>
         <span class="n">batch_size</span><span class="p">,</span>
@@ -230,6 +231,12 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="kc">None</span></div>
 
+    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">_buff</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__buff</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -250,7 +257,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">__buff_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_buff</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__buff_len</span>
 
-<div class="viewcode-block" id="LoaderBase.epochs"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.LoaderBase.html#merlin.loader.loader_base.LoaderBase.epochs">[docs]</a>    <span class="k">def</span> <span class="nf">epochs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<div class="viewcode-block" id="LoaderBase.epochs"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.epochs">[docs]</a>    <span class="k">def</span> <span class="nf">epochs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Create a dataloader that will efficiently run for more than one epoch.</span>
 
 <span class="sd">        Parameters</span>
@@ -287,7 +294,7 @@
             <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">is_alive</span><span class="p">()</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workers</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">False</span>
 
-<div class="viewcode-block" id="LoaderBase.stop"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.LoaderBase.html#merlin.loader.loader_base.LoaderBase.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="LoaderBase.stop"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Halts and resets the initialization parameters of the dataloader.&quot;&quot;&quot;</span>
         <span class="c1"># TODO: raise warning or even error if condition</span>
         <span class="c1"># isn&#39;t met?</span>
@@ -314,7 +321,7 @@
         <span class="n">start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_rank</span> <span class="o">*</span> <span class="n">per_worker</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">[</span><span class="n">start</span> <span class="p">:</span> <span class="n">start</span> <span class="o">+</span> <span class="n">per_worker</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 
-    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;_shuffle_indices&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_loader&quot;</span><span class="p">)</span>
+    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;_shuffle_indices&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_shuffle_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">generate_local_seed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_rank</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_size</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">seed_fn</span><span class="p">:</span>
@@ -344,7 +351,12 @@
         <span class="k">return</span> <span class="bp">self</span>
 
     <span class="k">def</span> <span class="fm">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the next batch.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_next_batch</span><span class="p">()</span>
+
+<div class="viewcode-block" id="LoaderBase.peek"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.peek">[docs]</a>    <span class="k">def</span> <span class="nf">peek</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the next batch without advancing the iterator.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_peek_next_batch</span><span class="p">()</span></div>
 
     <span class="k">def</span> <span class="nf">_data_iter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epochs</span><span class="p">):</span>
         <span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_indices_for_process</span><span class="p">()</span>
@@ -358,6 +370,36 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
             <span class="k">raise</span> <span class="n">chunks</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_peek_next_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return next batch without advancing the iterator.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">LoaderBase</span><span class="o">.</span><span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c1"># get the first chunks</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_chunk</span><span class="p">()</span>
+
+        <span class="c1"># try to iterate through existing batches</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">batch</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">([</span><span class="n">batch</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="c1"># anticipate any more chunks getting created</span>
+            <span class="c1"># if not, raise the StopIteration</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_working</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buff</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_workers</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">raise</span>
+
+            <span class="c1"># otherwise get the next chunks and return</span>
+            <span class="c1"># the first batch</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_chunk</span><span class="p">()</span>
+            <span class="n">batch</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">([</span><span class="n">batch</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">batch</span>
 
     <span class="k">def</span> <span class="nf">_get_next_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -401,7 +443,7 @@
                 <span class="k">break</span>
         <span class="k">return</span> <span class="n">batch</span>
 
-<div class="viewcode-block" id="LoaderBase.make_tensors"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.LoaderBase.html#merlin.loader.loader_base.LoaderBase.make_tensors">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;make_tensors&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_loader&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="LoaderBase.make_tensors"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.make_tensors">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;make_tensors&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">make_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">,</span> <span class="n">use_nnz</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Turns a gdf into tensor representation by column</span>
 
@@ -537,7 +579,7 @@
             <span class="n">values</span><span class="p">,</span> <span class="n">offsets</span><span class="p">,</span> <span class="n">diff_offsets</span><span class="p">,</span> <span class="n">num_rows</span><span class="p">,</span> <span class="n">seq_limit</span><span class="p">,</span> <span class="n">sparse_as_dense</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_to_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_to_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        One of the mandatory functions a child class needs</span>
 <span class="sd">        to implement. Maps from a cudf DataFrame to a</span>
@@ -572,7 +614,7 @@
                 <span class="n">scalars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">scalars</span><span class="p">,</span> <span class="n">lists</span>
 
-    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;_create_tensors&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_loader&quot;</span><span class="p">)</span>
+    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;_create_tensors&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_create_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Breaks a dataframe down into the relevant</span>
@@ -624,7 +666,7 @@
 
         <span class="k">return</span> <span class="n">tensors</span><span class="p">,</span> <span class="n">tensor_names</span>
 
-    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;_handle_tensors&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_loader&quot;</span><span class="p">)</span>
+    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;_handle_tensors&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_handle_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensors</span><span class="p">,</span> <span class="n">tensor_names</span><span class="p">):</span>
         <span class="c1"># tensors =  dictionary of all tensors</span>
         <span class="n">X</span> <span class="o">=</span> <span class="p">{}</span>
@@ -651,12 +693,20 @@
                 <span class="c1"># )</span>
                 <span class="n">X</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_sparse_tensor</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">column_name</span><span class="p">],</span> <span class="n">column_name</span><span class="p">)</span>
 
-        <span class="c1"># TODO: use dict for labels as well?</span>
-        <span class="c1"># would require output layers to match naming</span>
-        <span class="c1"># labels should not exist separately they should be a regular column</span>
-        <span class="n">labels</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label_names</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># Return a tensor if we have only one label column, but return a</span>
+        <span class="c1"># dictionary of tensors if there are multiple label columns, since</span>
+        <span class="c1"># dictionary output is required in Merlin Models and Transformers4Rec.</span>
+        <span class="c1"># If a user is using a vanilla Keras model with multiple labels,</span>
+        <span class="c1"># they would need to provide matching column names in the output layer</span>
+        <span class="c1"># of the Keras model.</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label_names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">labels</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label_names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">labels</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">labels</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_names</span><span class="p">:</span>
+                <span class="n">labels</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">:</span>
             <span class="n">X</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">executor</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">DictArray</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">])</span>
@@ -677,7 +727,7 @@
         <span class="k">return</span> <span class="n">gdf</span><span class="o">.</span><span class="n">toDlpack</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="ChunkQueue"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.ChunkQueue.html#merlin.loader.loader_base.ChunkQueue">[docs]</a><span class="k">class</span> <span class="nc">ChunkQueue</span><span class="p">:</span>
+<div class="viewcode-block" id="ChunkQueue"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue">[docs]</a><span class="k">class</span> <span class="nc">ChunkQueue</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;This class takes partitions (parts) from an merlin.io.Dataset</span>
 <span class="sd">    and concatenates them into a cudf dataframe &quot;chunk.&quot; This chunk</span>
 <span class="sd">    is subsequently transformed into its tensor representation using</span>
@@ -697,7 +747,7 @@
 <span class="sd">        for errors and trying again.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="ChunkQueue.__init__"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.ChunkQueue.html#merlin.loader.loader_base.ChunkQueue.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataloader</span><span class="p">,</span> <span class="n">qsize</span><span class="p">,</span> <span class="n">num_parts</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">put_wait</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<div class="viewcode-block" id="ChunkQueue.__init__"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataloader</span><span class="p">,</span> <span class="n">qsize</span><span class="p">,</span> <span class="n">num_parts</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">put_wait</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_parts</span> <span class="o">=</span> <span class="n">num_parts</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">shuffle</span> <span class="o">=</span> <span class="n">shuffle</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">put_wait</span> <span class="o">=</span> <span class="n">put_wait</span>
@@ -717,10 +767,10 @@
     <span class="k">def</span> <span class="nf">empty</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_out</span><span class="o">.</span><span class="n">empty</span><span class="p">()</span>
 
-<div class="viewcode-block" id="ChunkQueue.get"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.ChunkQueue.html#merlin.loader.loader_base.ChunkQueue.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="ChunkQueue.get"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_out</span><span class="o">.</span><span class="n">get</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ChunkQueue.put"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.ChunkQueue.html#merlin.loader.loader_base.ChunkQueue.put">[docs]</a>    <span class="k">def</span> <span class="nf">put</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet</span><span class="p">):</span>
+<div class="viewcode-block" id="ChunkQueue.put"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue.put">[docs]</a>    <span class="k">def</span> <span class="nf">put</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet</span><span class="p">):</span>
         <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stopped</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">True</span>
@@ -731,7 +781,7 @@
             <span class="k">except</span> <span class="n">queue</span><span class="o">.</span><span class="n">Full</span><span class="p">:</span>
                 <span class="k">continue</span></div>
 
-<div class="viewcode-block" id="ChunkQueue.batch"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.ChunkQueue.html#merlin.loader.loader_base.ChunkQueue.batch">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;batch&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_loader&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="ChunkQueue.batch"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue.batch">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;batch&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">itr</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Iterates through gpu_mem_frac size chunks of dataset</span>
 <span class="sd">        and concatenates every `num_parts` of them.</span>
@@ -750,7 +800,7 @@
                 <span class="k">yield</span> <span class="n">current</span>
                 <span class="n">current</span> <span class="o">=</span> <span class="p">[]</span></div>
 
-<div class="viewcode-block" id="ChunkQueue.chunk_logic"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.ChunkQueue.html#merlin.loader.loader_base.ChunkQueue.chunk_logic">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;chunk_logic&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_loader&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="ChunkQueue.chunk_logic"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue.chunk_logic">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;chunk_logic&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">chunk_logic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">itr</span><span class="p">):</span>
         <span class="n">spill</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">for</span> <span class="n">chunks</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">itr</span><span class="p">):</span>
@@ -779,7 +829,7 @@
             <span class="n">spill</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="o">.</span><span class="n">make_tensors</span><span class="p">(</span><span class="n">spill</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="o">.</span><span class="n">_use_nnz</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">spill</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="ChunkQueue.load_chunks"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.ChunkQueue.html#merlin.loader.loader_base.ChunkQueue.load_chunks">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;load_chunks&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_loader&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="ChunkQueue.load_chunks"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue.load_chunks">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;load_chunks&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">load_chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dev</span><span class="p">):</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">itr</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">itr</span><span class="p">)</span>
@@ -792,17 +842,17 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">e</span><span class="p">)</span></div>
 
     <span class="c1"># For when an iterator is stopped before iteration is complete.</span>
-<div class="viewcode-block" id="ChunkQueue.stop"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.ChunkQueue.html#merlin.loader.loader_base.ChunkQueue.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="ChunkQueue.stop"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
         <span class="c1"># TODO: should we be clearing? I can imagine a world where</span>
         <span class="c1"># you want the thread to stop but still want to grab</span>
         <span class="c1"># data out of the buffer</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">q_out</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ChunkQueue.start"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.ChunkQueue.html#merlin.loader.loader_base.ChunkQueue.start">[docs]</a>    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="ChunkQueue.start"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue.start">[docs]</a>    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ChunkQueue.get_batch_div_chunk"><a class="viewcode-back" href="../../../generated/merlin.loader.loader_base.ChunkQueue.html#merlin.loader.loader_base.ChunkQueue.get_batch_div_chunk">[docs]</a>    <span class="k">def</span> <span class="nf">get_batch_div_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunks</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">):</span>
+<div class="viewcode-block" id="ChunkQueue.get_batch_div_chunk"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue.get_batch_div_chunk">[docs]</a>    <span class="k">def</span> <span class="nf">get_batch_div_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunks</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">):</span>
         <span class="c1"># TODO: is there a way to do this using cupy?</span>
         <span class="n">spill_idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">chunks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">batch_size</span><span class="p">)</span> <span class="o">*</span> <span class="n">batch_size</span>
         <span class="n">spill</span> <span class="o">=</span> <span class="n">make_df</span><span class="p">(</span><span class="n">chunks</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">spill_idx</span><span class="p">:])</span>
