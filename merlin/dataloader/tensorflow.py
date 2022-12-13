@@ -22,6 +22,11 @@ from merlin.dataloader.tf_utils import configure_tensorflow
 from_dlpack = configure_tensorflow()
 LOG = logging.getLogger("dataloader")
 
+try:
+    import cudf
+except ImportError:
+    cudf = None
+
 # tf import must happen after config to restrict memory use
 import tensorflow as tf  # noqa
 
@@ -210,14 +215,23 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         if gdf.empty:
             return
 
+        values = None
         # checks necessary because of this bug
         # https://github.com/tensorflow/tensorflow/issues/42660
         if len(gdf.shape) == 1 or gdf.shape[1] == 1:
-            dlpack = self._pack(gdf)
+            if cudf and isinstance(gdf, cudf.Series) and isinstance(gdf.dtype, cudf.ListDtype):
+                first_list_len = gdf.list.len()[0]
+                is_fixed_length = (gdf.list.len() == first_list_len).all()
+                if is_fixed_length:
+                    values = gdf.list.leaves.values.reshape(-1, first_list_len)
+            if values is None:
+                values = gdf
         elif gdf.shape[0] == 1:
-            dlpack = self._pack(gdf.values[0])
+            values = gdf.values[0]
         else:
-            dlpack = self._pack(gdf.values.T)
+            values = gdf.values.T
+
+        dlpack = self._pack(values)
 
         # catch error caused by tf eager context
         # not being initialized
@@ -230,11 +244,12 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         if gdf.shape[0] == 1 and not tf.rank(x) == 2:
             # batch size 1 so got squashed to a vector
             x = tf.expand_dims(x, 0)
-        elif len(gdf.shape) == 1 or len(x.shape) == 1:
-            # sort of a generic check for any other
-            # len(shape)==1 case, could probably
-            # be more specific
-            x = tf.expand_dims(x, -1)
+        elif len(gdf.shape) == 1:
+            if len(x.shape) == 1:
+                # sort of a generic check for any other
+                # len(shape)==1 case, could probably
+                # be more specific
+                x = tf.expand_dims(x, -1)
         elif gdf.shape[1] > 1:
             # matrix which means we had to transpose
             # for the bug above, so untranspose

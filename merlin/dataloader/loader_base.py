@@ -29,6 +29,11 @@ try:
 except ImportError:
     cp = np
 
+try:
+    import cudf
+except ImportError:
+    cudf = None
+
 from merlin.core.dispatch import (
     HAS_GPU,
     annotate,
@@ -356,37 +361,39 @@ class LoaderBase:
         split_idx = self._get_segment_lengths(len(gdf))
         # map from big chunk to framework-specific tensors
         chunks, names = self._create_tensors(gdf)
+        offsets = chunks[-1]
+        chunks = chunks[:-1]
 
         # if we have any offsets, calculate nnzs up front
         # will need to get offsets if list columns detected in schema
-
-        # if len(chunks) == 4:
-        lists_list = [
-            col_name
-            for col_name, col_schema in self.input_schema.column_schemas.items()
-            if col_schema.is_list
-        ]
-        if len(lists_list) > 0:
-            offsets = chunks[-1]
+        if offsets is not None:
             if use_nnz:
                 nnzs = offsets[1:] - offsets[:-1]
-            chunks = chunks[:-1]
 
         # split them into batches and map to the framework-specific output format
         batches = [[] for _ in range(len(split_idx))]
         offset_idx = 0
         for chunk in chunks:
-            lists = None
+            ragged_lists = None
             if isinstance(chunk, tuple):
-                chunk, lists = chunk
+                scalars, fixed_lists, ragged_lists = chunk
 
-            if len(split_idx) > 1 and chunk is not None:
-                chunk = self._split_fn(chunk, split_idx)
+            fixed_lists_chunks = {}
+            if fixed_lists:
+                for k, v in fixed_lists.items():
+                    fixed_lists[k] = self._split_fn(v, split_idx)
+                for i, _ in enumerate(split_idx):
+                    fixed_lists_chunks[i] = {}
+                    for k in fixed_lists:
+                        fixed_lists_chunks[i][k] = fixed_lists[k][i]
+
+            if len(split_idx) > 1 and scalars is not None:
+                chunk = self._split_fn(scalars, split_idx)
             else:
-                chunk = [chunk for _ in split_idx]
+                chunk = [scalars for _ in split_idx]
 
-            if lists is not None:
-                num_list_columns = len(lists)
+            if ragged_lists is not None:
+                num_list_columns = len(ragged_lists)
 
                 # grab the set of offsets and nnzs corresponding to
                 # the list columns from this chunk
@@ -411,6 +418,7 @@ class LoaderBase:
                 chunk = zip(chunk, batch_offsets[:-1], batch_offsets[1:], batch_nnzs)
 
             for n, c in enumerate(chunk):
+                batch_ragged_lists = {}
                 if isinstance(c, tuple):
                     c, off0s, off1s, _nnzs = c
                     offsets_split_idx = [1 for _ in range(num_list_columns)]
@@ -420,11 +428,10 @@ class LoaderBase:
                         _nnzs = self._split_fn(_nnzs, offsets_split_idx, axis=1)
 
                     # TODO: does this need to be ordereddict?
-                    batch_lists = {}
-                    for k, (column_name, values) in enumerate(lists.items()):
-                        off0, off1 = off0s[k], off1s[k]
+                    for i, (column_name, values) in enumerate(ragged_lists.items()):
+                        off0, off1 = off0s[i], off1s[i]
                         if use_nnz:
-                            nnz = _nnzs[k]
+                            nnz = _nnzs[i]
 
                         # need to grab scalars for TF case
                         if len(off0.shape) == 1:
@@ -436,10 +443,13 @@ class LoaderBase:
                             raise ValueError
                         value = values[int(start) : int(stop)]
                         index = off0 - start if not use_nnz else nnz
-                        batch_lists[column_name] = (value, index)
-                    c = (c, batch_lists)
+                        batch_ragged_lists[column_name] = (value, index)
 
-                batches[n].append(c)
+                batch_fixed_lists = fixed_lists_chunks.get(n, {})
+                batch_scalars = c
+                batch = (batch_scalars, batch_fixed_lists, batch_ragged_lists)
+                batches[n].append(batch)
+
         return (self._handle_tensors(batch, names) for batch in batches)
 
     def _get_segment_lengths(self, num_samples):
@@ -528,16 +538,28 @@ class LoaderBase:
 
             scalars, lists = self._separate_list_columns(gdf_i)
 
-            x = None
             if scalars:
                 # split out cols and change all scalars
                 # should always return dict column_name: values, offsets (optional)
-                x = self._to_tensor(gdf_i[scalars])
+                scalars = self._to_tensor(gdf_i[scalars])
+            else:
+                scalars = None
+
+            fixed_list_tensors = None
+            ragged_list_tensors = None
             if lists:
                 # split out lists
-                list_tensors = OrderedDict()
+                fixed_list_tensors = OrderedDict()
+                ragged_list_tensors = OrderedDict()
                 for column_name in lists:
                     column = gdf_i.pop(column_name)
+
+                    if cudf and isinstance(column, cudf.Series):
+                        is_fixed_length = (column.list.len() == column.list.len()[0]).all()
+                        if is_fixed_length:
+                            fixed_list_tensors[column_name] = self._to_tensor(column)
+                            continue
+
                     leaves, col_offsets = pull_apart_list(column, device=self.device)
 
                     if isinstance(leaves[0], list):
@@ -545,16 +567,23 @@ class LoaderBase:
                         col_offsets = nest_offsets.iloc[col_offsets[:]]
 
                     offsets[column_name] = col_offsets.reset_index(drop=True)
-                    list_tensors[column_name] = self._to_tensor(leaves)
-                x = x, list_tensors
-            tensors.append(x)
+                    ragged_list_tensors[column_name] = self._to_tensor(leaves)
+
+                if not fixed_list_tensors:
+                    fixed_list_tensors = None
+                if not ragged_list_tensors:
+                    ragged_list_tensors = None
+
+            tensor_tuple = (scalars, fixed_list_tensors, ragged_list_tensors)
+            tensors.append(tensor_tuple)
             tensor_names.append(column_names)
 
+        offsets_tensor = None
         if not offsets.empty:
             offsets_tensor = self._to_tensor(offsets)
             if len(offsets_tensor.shape) == 1:
                 offsets_tensor = offsets_tensor[:, None]
-            tensors.append(offsets_tensor)
+        tensors.append(offsets_tensor)
         del gdf, offsets
 
         return tensors, tensor_names
@@ -566,21 +595,22 @@ class LoaderBase:
         for idx, (tensor, names) in enumerate(zip(tensors, tensor_names)):
             lists = {}
             if isinstance(tensor, tuple):
-                tensor, lists = tensor
+                tensor, fixed_lists, ragged_lists = tensor
+                lists = {**fixed_lists, **ragged_lists}
 
-            names = [i for i in names if i not in lists]
+            scalar_names = [name for name in names if name not in lists]
 
             # now add in any scalar tensors
-            if len(names) > 1:
-                tensors = self._tensor_split(tensor, len(names), axis=1)
+            if len(scalar_names) > 1:
+                tensors = self._tensor_split(tensor, len(scalar_names), axis=1)
                 # pull out label tensor from here
-                lists.update(zip(names, tensors))
-            elif len(names) == 1:
-                lists[names[0]] = tensor
+                lists.update(zip(scalar_names, tensors))
+            elif len(scalar_names) == 1:
+                lists[scalar_names[0]] = tensor
             X.update(lists)
 
         for column_name in self.sparse_names:
-            if column_name in self.sparse_max:
+            if column_name in self.sparse_max and isinstance(X[column_name], tuple):
                 # raise ValueError(
                 #     f"Did not convert {column_name} to sparse due to missing sparse_max entry"
                 # )
