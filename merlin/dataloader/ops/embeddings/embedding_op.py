@@ -185,6 +185,7 @@ class NumpyEmbeddingOperator(BaseOperator):
         col_schemas = []
         for _, col_schema in input_schema.column_schemas.items():
             col_schemas.append(col_schema)
+        embedding_dim = self.embeddings.shape[1]
         col_schemas.append(
             ColumnSchema(
                 name=self.embedding_name,
@@ -192,6 +193,7 @@ class NumpyEmbeddingOperator(BaseOperator):
                 dtype=self.embeddings.dtype,
                 is_list=True,
                 is_ragged=False,
+                properties={"value_count": {"min": embedding_dim, "max": embedding_dim}},
             )
         )
 

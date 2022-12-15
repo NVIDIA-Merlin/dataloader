@@ -20,7 +20,7 @@ import queue
 import threading
 import warnings
 from collections import OrderedDict
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
@@ -88,11 +88,7 @@ class LoaderBase:
             )
             dataset.schema = dataset.infer_schema()
 
-        schema = dataset.schema
-        self.schema = schema
-
         self._epochs = 1
-
         self.num_rows_processed = 0
 
         self.__buff = None
@@ -100,8 +96,10 @@ class LoaderBase:
         self._batch_itr = None
         self._workers = None
 
-        if transforms is not None:
+        self._transforms = None
+        self._transform_graph = None
 
+        if transforms is not None:
             if isinstance(transforms, List):
                 carry_node = Node(ColumnSelector("*"))
                 for transform in transforms:
@@ -115,12 +113,18 @@ class LoaderBase:
                 transform_graph = Graph(carry_node)
             elif type(transforms, Graph):
                 transform_graph = transforms
-            self.transforms = transform_graph.construct_schema(self.schema).output_node
-            self.schema = self.transforms.output_schema
+            self._transform_graph = transform_graph
             self.executor = LocalExecutor()
         else:
             self.transforms = None
             self.executor = None
+
+        schema = dataset.schema
+        self.input_schema = schema
+
+    @property
+    def transforms(self) -> Optional[Node]:
+        return self._transforms
 
     def __enter__(self):
         return self
@@ -618,17 +622,27 @@ class LoaderBase:
         return gdf.toDlpack()
 
     @property
-    def schema(self):
+    def input_schema(self) -> Schema:
         """Get schema of data to be loaded
         Returns
         -------
         ~merlin.schema.Schema
             Schema corresponding to the data
         """
-        return self._schema
+        return self._input_schema
 
-    @schema.setter
-    def schema(self, value):
+    @property
+    def output_schema(self) -> Schema:
+        """Get schema of data to be loaded
+        Returns
+        -------
+        ~merlin.schema.Schema
+            Schema corresponding to the data
+        """
+        return self._output_schema
+
+    @input_schema.setter
+    def input_schema(self, value):
         """Set schema property
         Parameters
         ----------
@@ -644,7 +658,8 @@ class LoaderBase:
                 "schema value on loader must be of type merlin.io.Schema. "
                 f"provided: {type(value)}"
             )
-        self._schema = value
+        self._input_schema = value
+
         self.cat_names = (
             value.select_by_tag(Tags.CATEGORICAL).excluding_by_tag(Tags.TARGET).column_names
         )
@@ -658,7 +673,7 @@ class LoaderBase:
         self.sparse_as_dense = set()
         self.dtype_reverse_map = {}
 
-        for col_name, col_spec in self._schema.column_schemas.items():
+        for col_name, col_spec in self._input_schema.column_schemas.items():
             if col_spec.dtype not in self.dtype_reverse_map:
                 self.dtype_reverse_map[col_spec.dtype] = [col_name]
             else:
@@ -679,6 +694,14 @@ class LoaderBase:
                             f"Dense column {col_name} doesn't have the max value_count defined"
                             " in the schema"
                         )
+
+        if self._transform_graph is not None:
+            self._transforms = self._transform_graph.construct_schema(
+                self._input_schema
+            ).output_node
+            self._output_schema = self._transforms.output_schema
+        else:
+            self._output_schema = self._input_schema
 
         if len(list(self.dtype_reverse_map.keys())) == 0:
             raise ValueError(
