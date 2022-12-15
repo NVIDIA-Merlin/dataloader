@@ -41,7 +41,7 @@ from merlin.core.dispatch import (
 from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node
 from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
-from merlin.schema import Tags
+from merlin.schema import Schema, Tags
 
 
 def _num_steps(num_samples, step_size):
@@ -88,46 +88,10 @@ class LoaderBase:
             )
             dataset.schema = dataset.infer_schema()
 
-        self.schema = dataset.schema
-        self.sparse_names = []
-        self.sparse_max = {}
-        self.sparse_as_dense = set()
-        self.dtype_reverse_map = {}
-
-        for col_name, col_spec in dataset.schema.column_schemas.items():
-            if col_spec.dtype not in self.dtype_reverse_map:
-                self.dtype_reverse_map[col_spec.dtype] = [col_name]
-            else:
-                self.dtype_reverse_map[col_spec.dtype].append(col_name)
-            if col_spec.is_list:
-                self.sparse_names.append(col_name)
-
-                value_count = col_spec.value_count
-                if value_count and value_count.max:
-                    self.sparse_max[col_name] = value_count.max
-
-                if not col_spec.is_ragged:
-                    self.sparse_as_dense.add(col_name)
-
-                    if not value_count:
-                        # TODO: error message linking to docs
-                        raise ValueError(
-                            f"Dense column {col_name} doesn't have the max value_count defined"
-                            " in the schema"
-                        )
+        schema = dataset.schema
+        self.schema = schema
 
         self._epochs = 1
-
-        self.cat_names = dataset.schema.select_by_tag(Tags.CATEGORICAL).column_names
-        self.cont_names = dataset.schema.select_by_tag(Tags.CONTINUOUS).column_names
-        self.label_names = dataset.schema.select_by_tag(Tags.TARGET).column_names
-
-        if len(list(self.dtype_reverse_map.keys())) == 0:
-            raise ValueError(
-                "Neither Categorical or Continuous columns were found by the dataloader. "
-                "You must either specify the cat_names, cont_names and "
-                "label_names properties or supply a schema.pbtxt file in dataset directory."
-            )
 
         self.num_rows_processed = 0
 
@@ -652,6 +616,76 @@ class LoaderBase:
                 gdf = np.stack(gdf)
             return gdf
         return gdf.toDlpack()
+
+    @property
+    def schema(self):
+        """Get schema of data to be loaded
+        Returns
+        -------
+        ~merlin.schema.Schema
+            Schema corresponding to the data
+        """
+        return self._schema
+
+    @schema.setter
+    def schema(self, value):
+        """Set schema property
+        Parameters
+        ----------
+        value : ~merlin.schema.Schema
+            The schema corresponding to data to be loaded.
+        Raises
+        ------
+        ValueError
+            When value provided doesn't match expected type
+        """
+        if not isinstance(value, Schema):
+            raise ValueError(
+                "schema value on loader must be of type merlin.io.Schema. "
+                f"provided: {type(value)}"
+            )
+        self._schema = value
+        self.cat_names = (
+            value.select_by_tag(Tags.CATEGORICAL).excluding_by_tag(Tags.TARGET).column_names
+        )
+        self.cont_names = (
+            value.select_by_tag(Tags.CONTINUOUS).excluding_by_tag(Tags.TARGET).column_names
+        )
+        self.label_names = value.select_by_tag(Tags.TARGET).column_names
+
+        self.sparse_names = []
+        self.sparse_max = {}
+        self.sparse_as_dense = set()
+        self.dtype_reverse_map = {}
+
+        for col_name, col_spec in self._schema.column_schemas.items():
+            if col_spec.dtype not in self.dtype_reverse_map:
+                self.dtype_reverse_map[col_spec.dtype] = [col_name]
+            else:
+                self.dtype_reverse_map[col_spec.dtype].append(col_name)
+            if col_spec.is_list:
+                self.sparse_names.append(col_name)
+
+                value_count = col_spec.value_count
+                if value_count and value_count.max:
+                    self.sparse_max[col_name] = value_count.max
+
+                if not col_spec.is_ragged:
+                    self.sparse_as_dense.add(col_name)
+
+                    if not value_count:
+                        # TODO: error message linking to docs
+                        raise ValueError(
+                            f"Dense column {col_name} doesn't have the max value_count defined"
+                            " in the schema"
+                        )
+
+        if len(list(self.dtype_reverse_map.keys())) == 0:
+            raise ValueError(
+                "Neither Categorical or Continuous columns were found by the dataloader. "
+                "You must either specify the cat_names, cont_names and "
+                "label_names properties or supply a schema.pbtxt file in dataset directory."
+            )
 
 
 class ChunkQueue:

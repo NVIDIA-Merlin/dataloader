@@ -54,10 +54,10 @@ def test_peek():
     assert len(all_batches) == 3
 
 
-def test_set_input_schema():
+def test_set_change_schema():
     df = make_df({"a": [1, 2, 3], "b": [4, 5, 6]})
     dataset = Dataset(df)
-    loader = tf_dataloader.Loader(dataset)
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
     loader.schema = dataset.schema.excluding_by_name(["b"])
     x, y = loader.peek()
     assert set(x.keys()) == {"a"}
