@@ -97,6 +97,7 @@ class LoaderBase:
         self._workers = None
 
         self._transforms = None
+        self.executor = None
         self._transform_graph = None
 
         if transforms is not None:
@@ -115,9 +116,6 @@ class LoaderBase:
                 transform_graph = transforms
             self._transform_graph = transform_graph
             self.executor = LocalExecutor()
-        else:
-            self.transforms = None
-            self.executor = None
 
         schema = dataset.schema
         self.input_schema = schema
