@@ -620,8 +620,9 @@ class LoaderBase:
         return gdf.toDlpack()
 
     @property
-    def input_schema(self) -> Schema:
-        """Get schema of data to be loaded
+    def schema(self) -> Schema:
+        """Get input schema of data to be loaded
+
         Returns
         -------
         ~merlin.schema.Schema
@@ -630,12 +631,31 @@ class LoaderBase:
         return self._input_schema
 
     @property
-    def output_schema(self) -> Schema:
-        """Get schema of data to be loaded
+    def input_schema(self) -> Schema:
+        """Get input schema of data to be loaded.
+
+        If there are no transforms then this will be the same as the output schema.
+
         Returns
         -------
         ~merlin.schema.Schema
-            Schema corresponding to the data
+            Schema corresponding to the data that will be loaded  prior to any transforms.
+        """
+        return self._input_schema
+
+    @property
+    def output_schema(self) -> Schema:
+        """Get output schema of data being loaded.
+
+        When there are transforms defined that change the features being loaded,
+        This output schema is intended to account for this and should match
+        the features returned by the loader. If there are no transforms then this
+        will be the same as the input schema.
+
+        Returns
+        -------
+        ~merlin.schema.Schema
+            Schema corresponding to the data that will be output by the loader
         """
         return self._output_schema
 
