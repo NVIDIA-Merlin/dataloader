@@ -693,8 +693,9 @@
         <span class="k">return</span> <span class="n">gdf</span><span class="o">.</span><span class="n">toDlpack</span><span class="p">()</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">input_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Schema</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Get schema of data to be loaded</span>
+    <span class="k">def</span> <span class="nf">schema</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Schema</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get input schema of data to be loaded</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        ~merlin.schema.Schema</span>
@@ -703,12 +704,31 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_schema</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">output_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Schema</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Get schema of data to be loaded</span>
+    <span class="k">def</span> <span class="nf">input_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Schema</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get input schema of data to be loaded.</span>
+
+<span class="sd">        If there are no transforms then this will be the same as the output schema.</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        ~merlin.schema.Schema</span>
-<span class="sd">            Schema corresponding to the data</span>
+<span class="sd">            Schema corresponding to the data that will be loaded  prior to any transforms.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_schema</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">output_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Schema</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get output schema of data being loaded.</span>
+
+<span class="sd">        When there are transforms defined that change the features being loaded,</span>
+<span class="sd">        This output schema is intended to account for this and should match</span>
+<span class="sd">        the features returned by the loader. If there are no transforms then this</span>
+<span class="sd">        will be the same as the input schema.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ~merlin.schema.Schema</span>
+<span class="sd">            Schema corresponding to the data that will be output by the loader</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_schema</span>
 

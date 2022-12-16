@@ -127,12 +127,15 @@
 </colgroup>
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.input_schema" title="merlin.dataloader.loader_base.LoaderBase.input_schema"><code class="xref py py-obj docutils literal notranslate"><span class="pre">input_schema</span></code></a></p></td>
-<td><p>Get schema of data to be loaded :returns: Schema corresponding to the data :rtype: ~merlin.schema.Schema</p></td>
+<td><p>Get input schema of data to be loaded.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.output_schema" title="merlin.dataloader.loader_base.LoaderBase.output_schema"><code class="xref py py-obj docutils literal notranslate"><span class="pre">output_schema</span></code></a></p></td>
-<td><p>Get schema of data to be loaded :returns: Schema corresponding to the data :rtype: ~merlin.schema.Schema</p></td>
+<td><p>Get output schema of data being loaded.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.transforms" title="merlin.dataloader.loader_base.LoaderBase.transforms"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transforms</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.schema" title="merlin.dataloader.loader_base.LoaderBase.schema"><code class="xref py py-obj docutils literal notranslate"><span class="pre">schema</span></code></a></p></td>
+<td><p>Get input schema of data to be loaded</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.transforms" title="merlin.dataloader.loader_base.LoaderBase.transforms"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transforms</span></code></a></p></td>
 <td><p></p></td>
 </tr>
 </tbody>
@@ -192,19 +195,50 @@
 </dd></dl>
 
 <dl class="py method">
+<dt id="merlin.dataloader.loader_base.LoaderBase.schema">
+<em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">schema</span></code><a class="headerlink" href="#merlin.dataloader.loader_base.LoaderBase.schema" title="Permalink to this definition"></a></dt>
+<dd><p>Get input schema of data to be loaded</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Schema corresponding to the data</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference external" href="https://nvidia-merlin.github.io/core/main/api/merlin.schema.html#merlin.schema.Schema" title="(in Merlin Core)">Schema</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt id="merlin.dataloader.loader_base.LoaderBase.output_schema">
 <em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">output_schema</span></code><a class="headerlink" href="#merlin.dataloader.loader_base.LoaderBase.output_schema" title="Permalink to this definition"></a></dt>
-<dd><p>Get schema of data to be loaded
-:returns: Schema corresponding to the data
-:rtype: ~merlin.schema.Schema</p>
+<dd><p>Get output schema of data being loaded.</p>
+<p>When there are transforms defined that change the features being loaded,
+This output schema is intended to account for this and should match
+the features returned by the loader. If there are no transforms then this
+will be the same as the input schema.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Schema corresponding to the data that will be output by the loader</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference external" href="https://nvidia-merlin.github.io/core/main/api/merlin.schema.html#merlin.schema.Schema" title="(in Merlin Core)">Schema</a></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="merlin.dataloader.loader_base.LoaderBase.input_schema">
 <em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">input_schema</span></code><a class="headerlink" href="#merlin.dataloader.loader_base.LoaderBase.input_schema" title="Permalink to this definition"></a></dt>
-<dd><p>Get schema of data to be loaded
-:returns: Schema corresponding to the data
-:rtype: ~merlin.schema.Schema</p>
+<dd><p>Get input schema of data to be loaded.</p>
+<p>If there are no transforms then this will be the same as the output schema.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Schema corresponding to the data that will be loaded  prior to any transforms.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference external" href="https://nvidia-merlin.github.io/core/main/api/merlin.schema.html#merlin.schema.Schema" title="(in Merlin Core)">Schema</a></p>
+</dd>
+</dl>
 </dd></dl>
 
 </dd></dl>
