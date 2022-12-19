@@ -671,6 +671,12 @@ class LoaderBase:
         ValueError
             When value provided doesn't match expected type
         """
+        if self._working:
+            raise RuntimeError(
+                "Setting the input_schema after the dataloader has started is not supported. "
+                "If you would like to change the input_schema "
+                "please change before reading the first batch. "
+            )
         if not isinstance(value, Schema):
             raise ValueError(
                 "schema value on loader must be of type merlin.io.Schema. "

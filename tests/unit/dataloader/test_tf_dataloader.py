@@ -54,13 +54,25 @@ def test_peek():
     assert len(all_batches) == 3
 
 
-def test_set_change_input_schema():
+def test_set_input_schema():
     df = make_df({"a": [1, 2, 3], "b": [4, 5, 6]})
     dataset = Dataset(df)
     loader = tf_dataloader.Loader(dataset, batch_size=1)
     loader.input_schema = dataset.schema.excluding_by_name(["b"])
     x, y = loader.peek()
     assert set(x.keys()) == {"a"}
+
+
+def test_set_input_schema_after_start():
+    df = make_df({"a": [1, 2, 3], "b": [4, 5, 6]})
+    dataset = Dataset(df)
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    with pytest.raises(RuntimeError) as exc_info:
+        x, y = loader.peek()
+        loader.input_schema = dataset.schema.excluding_by_name(["b"])
+    assert "Setting the input_schema after the dataloader has started is not supported" in str(
+        exc_info.value
+    )
 
 
 def test_simple_model():
