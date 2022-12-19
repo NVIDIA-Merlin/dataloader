@@ -68,7 +68,7 @@ def test_set_input_schema_after_start():
     dataset = Dataset(df)
     loader = tf_dataloader.Loader(dataset, batch_size=1)
     with pytest.raises(RuntimeError) as exc_info:
-        x, y = loader.peek()
+        _ = next(loader)
         loader.input_schema = dataset.schema.excluding_by_name(["b"])
     assert "Setting the input_schema after the dataloader has started is not supported" in str(
         exc_info.value

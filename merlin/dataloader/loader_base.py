@@ -671,7 +671,7 @@ class LoaderBase:
         ValueError
             When value provided doesn't match expected type
         """
-        if self._working:
+        if self._batch_itr is not None:
             raise RuntimeError(
                 "Setting the input_schema after the dataloader has started is not supported. "
                 "If you would like to change the input_schema "
