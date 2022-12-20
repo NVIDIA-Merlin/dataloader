@@ -55,7 +55,7 @@ def test_peek():
 
 
 def test_set_input_schema():
-    df = make_df({"a": [1, 2, 3], "b": [4, 5, 6]})
+    df = make_df({"a": [1, 2, 3], "b": [[4], [5, 6], [7]]})
     dataset = Dataset(df)
     loader = tf_dataloader.Loader(dataset, batch_size=1)
     loader.input_schema = dataset.schema.excluding_by_name(["b"])

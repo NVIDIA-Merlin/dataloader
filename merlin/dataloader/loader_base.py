@@ -363,7 +363,7 @@ class LoaderBase:
         # if len(chunks) == 4:
         lists_list = [
             col_name
-            for col_name, col_schema in self.dataset.schema.column_schemas.items()
+            for col_name, col_schema in self.input_schema.column_schemas.items()
             if col_schema.is_list
         ]
         if len(lists_list) > 0:
