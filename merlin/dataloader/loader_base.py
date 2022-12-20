@@ -628,6 +628,10 @@ class LoaderBase:
         ~merlin.schema.Schema
             Schema corresponding to the data
         """
+        warnings.warn(
+            "This `schema` property is deprecated and will be removed in a future version. "
+            "Please use either the `input_schema` or `output_schema` property instead."
+        )
         return self._input_schema
 
     @property
