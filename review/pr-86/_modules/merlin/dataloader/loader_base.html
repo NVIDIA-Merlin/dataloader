@@ -701,6 +701,10 @@
 <span class="sd">        ~merlin.schema.Schema</span>
 <span class="sd">            Schema corresponding to the data</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;This `schema` property is deprecated and will be removed in a future version. &quot;</span>
+            <span class="s2">&quot;Please use either the `input_schema` or `output_schema` property instead.&quot;</span>
+        <span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_schema</span>
 
     <span class="nd">@property</span>
