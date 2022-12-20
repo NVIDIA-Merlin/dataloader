@@ -20,7 +20,7 @@ import queue
 import threading
 import warnings
 from collections import OrderedDict
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
@@ -41,7 +41,7 @@ from merlin.core.dispatch import (
 from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node
 from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
-from merlin.schema import Tags
+from merlin.schema import Schema, Tags
 
 
 def _num_steps(num_samples, step_size):
@@ -88,47 +88,7 @@ class LoaderBase:
             )
             dataset.schema = dataset.infer_schema()
 
-        self.schema = dataset.schema
-        self.sparse_names = []
-        self.sparse_max = {}
-        self.sparse_as_dense = set()
-        self.dtype_reverse_map = {}
-
-        for col_name, col_spec in dataset.schema.column_schemas.items():
-            if col_spec.dtype not in self.dtype_reverse_map:
-                self.dtype_reverse_map[col_spec.dtype] = [col_name]
-            else:
-                self.dtype_reverse_map[col_spec.dtype].append(col_name)
-            if col_spec.is_list:
-                self.sparse_names.append(col_name)
-
-                value_count = col_spec.value_count
-                if value_count and value_count.max:
-                    self.sparse_max[col_name] = value_count.max
-
-                if not col_spec.is_ragged:
-                    self.sparse_as_dense.add(col_name)
-
-                    if not value_count:
-                        # TODO: error message linking to docs
-                        raise ValueError(
-                            f"Dense column {col_name} doesn't have the max value_count defined"
-                            " in the schema"
-                        )
-
         self._epochs = 1
-
-        self.cat_names = dataset.schema.select_by_tag(Tags.CATEGORICAL).column_names
-        self.cont_names = dataset.schema.select_by_tag(Tags.CONTINUOUS).column_names
-        self.label_names = dataset.schema.select_by_tag(Tags.TARGET).column_names
-
-        if len(list(self.dtype_reverse_map.keys())) == 0:
-            raise ValueError(
-                "Neither Categorical or Continuous columns were found by the dataloader. "
-                "You must either specify the cat_names, cont_names and "
-                "label_names properties or supply a schema.pbtxt file in dataset directory."
-            )
-
         self.num_rows_processed = 0
 
         self.__buff = None
@@ -136,8 +96,11 @@ class LoaderBase:
         self._batch_itr = None
         self._workers = None
 
-        if transforms is not None:
+        self._transforms = None
+        self.executor = None
+        self._transform_graph = None
 
+        if transforms is not None:
             if isinstance(transforms, List):
                 carry_node = Node(ColumnSelector("*"))
                 for transform in transforms:
@@ -151,12 +114,15 @@ class LoaderBase:
                 transform_graph = Graph(carry_node)
             elif type(transforms, Graph):
                 transform_graph = transforms
-            self.transforms = transform_graph.construct_schema(self.schema).output_node
-            self.schema = self.transforms.output_schema
+            self._transform_graph = transform_graph
             self.executor = LocalExecutor()
-        else:
-            self.transforms = None
-            self.executor = None
+
+        schema = dataset.schema
+        self.input_schema = schema
+
+    @property
+    def transforms(self) -> Optional[Node]:
+        return self._transforms
 
     def __enter__(self):
         return self
@@ -652,6 +618,125 @@ class LoaderBase:
                 gdf = np.stack(gdf)
             return gdf
         return gdf.toDlpack()
+
+    @property
+    def schema(self) -> Schema:
+        """Get input schema of data to be loaded
+
+        Returns
+        -------
+        ~merlin.schema.Schema
+            Schema corresponding to the data
+        """
+        warnings.warn(
+            "This `schema` property is deprecated and will be removed in a future version. "
+            "Please use either the `input_schema` or `output_schema` property instead."
+        )
+        return self._input_schema
+
+    @property
+    def input_schema(self) -> Schema:
+        """Get input schema of data to be loaded.
+
+        If there are no transforms then this will be the same as the output schema.
+
+        Returns
+        -------
+        ~merlin.schema.Schema
+            Schema corresponding to the data that will be loaded  prior to any transforms.
+        """
+        return self._input_schema
+
+    @property
+    def output_schema(self) -> Schema:
+        """Get output schema of data being loaded.
+
+        When there are transforms defined that change the features being loaded,
+        This output schema is intended to account for this and should match
+        the features returned by the loader. If there are no transforms then this
+        will be the same as the input schema.
+
+        Returns
+        -------
+        ~merlin.schema.Schema
+            Schema corresponding to the data that will be output by the loader
+        """
+        return self._output_schema
+
+    @input_schema.setter
+    def input_schema(self, value):
+        """Set schema property
+        Parameters
+        ----------
+        value : ~merlin.schema.Schema
+            The schema corresponding to data to be loaded.
+        Raises
+        ------
+        ValueError
+            When value provided doesn't match expected type
+        """
+        if self._batch_itr is not None:
+            raise RuntimeError(
+                "Setting the input_schema after the dataloader has started is not supported. "
+                "If you would like to change the input_schema "
+                "please change before reading the first batch. "
+            )
+        if not isinstance(value, Schema):
+            raise ValueError(
+                "schema value on loader must be of type merlin.io.Schema. "
+                f"provided: {type(value)}"
+            )
+        self._input_schema = value
+
+        self.cat_names = (
+            value.select_by_tag(Tags.CATEGORICAL).excluding_by_tag(Tags.TARGET).column_names
+        )
+        self.cont_names = (
+            value.select_by_tag(Tags.CONTINUOUS).excluding_by_tag(Tags.TARGET).column_names
+        )
+        self.label_names = value.select_by_tag(Tags.TARGET).column_names
+
+        self.sparse_names = []
+        self.sparse_max = {}
+        self.sparse_as_dense = set()
+        self.dtype_reverse_map = {}
+
+        for col_name, col_spec in self._input_schema.column_schemas.items():
+            if col_spec.dtype not in self.dtype_reverse_map:
+                self.dtype_reverse_map[col_spec.dtype] = [col_name]
+            else:
+                self.dtype_reverse_map[col_spec.dtype].append(col_name)
+            if col_spec.is_list:
+                self.sparse_names.append(col_name)
+
+                value_count = col_spec.value_count
+                if value_count and value_count.max:
+                    self.sparse_max[col_name] = value_count.max
+
+                if not col_spec.is_ragged:
+                    self.sparse_as_dense.add(col_name)
+
+                    if not value_count:
+                        # TODO: error message linking to docs
+                        raise ValueError(
+                            f"Dense column {col_name} doesn't have the max value_count defined"
+                            " in the schema"
+                        )
+
+        if self._transform_graph is not None:
+            self._transforms = self._transform_graph.construct_schema(
+                self._input_schema
+            ).output_node
+            self._output_schema = self._transforms.output_schema
+        else:
+            self._output_schema = self._input_schema
+
+        if len(list(self.dtype_reverse_map.keys())) == 0:
+            raise ValueError(
+                "Neither Categorical or Continuous columns were found by the dataloader. "
+                "You must either specify the cat_names, cont_names and "
+                "label_names properties or supply a schema.pbtxt file in dataset directory."
+            )
 
 
 class ChunkQueue:
