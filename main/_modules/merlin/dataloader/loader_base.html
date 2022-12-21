@@ -93,7 +93,7 @@
 <span class="kn">import</span> <span class="nn">threading</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
@@ -114,7 +114,7 @@
 <span class="kn">from</span> <span class="nn">merlin.dag</span> <span class="kn">import</span> <span class="n">BaseOperator</span><span class="p">,</span> <span class="n">ColumnSelector</span><span class="p">,</span> <span class="n">DictArray</span><span class="p">,</span> <span class="n">Graph</span><span class="p">,</span> <span class="n">Node</span>
 <span class="kn">from</span> <span class="nn">merlin.dag.executors</span> <span class="kn">import</span> <span class="n">LocalExecutor</span>
 <span class="kn">from</span> <span class="nn">merlin.io</span> <span class="kn">import</span> <span class="n">shuffle_df</span>
-<span class="kn">from</span> <span class="nn">merlin.schema</span> <span class="kn">import</span> <span class="n">Tags</span>
+<span class="kn">from</span> <span class="nn">merlin.schema</span> <span class="kn">import</span> <span class="n">Schema</span><span class="p">,</span> <span class="n">Tags</span>
 
 
 <span class="k">def</span> <span class="nf">_num_steps</span><span class="p">(</span><span class="n">num_samples</span><span class="p">,</span> <span class="n">step_size</span><span class="p">):</span>
@@ -161,47 +161,7 @@
             <span class="p">)</span>
             <span class="n">dataset</span><span class="o">.</span><span class="n">schema</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">infer_schema</span><span class="p">()</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">schema</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">schema</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sparse_names</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sparse_max</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sparse_as_dense</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span> <span class="o">=</span> <span class="p">{}</span>
-
-        <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">col_spec</span> <span class="ow">in</span> <span class="n">dataset</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">column_schemas</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">dtype</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span><span class="p">[</span><span class="n">col_spec</span><span class="o">.</span><span class="n">dtype</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">col_name</span><span class="p">]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span><span class="p">[</span><span class="n">col_spec</span><span class="o">.</span><span class="n">dtype</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">is_list</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">sparse_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>
-
-                <span class="n">value_count</span> <span class="o">=</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">value_count</span>
-                <span class="k">if</span> <span class="n">value_count</span> <span class="ow">and</span> <span class="n">value_count</span><span class="o">.</span><span class="n">max</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">sparse_max</span><span class="p">[</span><span class="n">col_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value_count</span><span class="o">.</span><span class="n">max</span>
-
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">is_ragged</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">sparse_as_dense</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>
-
-                    <span class="k">if</span> <span class="ow">not</span> <span class="n">value_count</span><span class="p">:</span>
-                        <span class="c1"># TODO: error message linking to docs</span>
-                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                            <span class="sa">f</span><span class="s2">&quot;Dense column </span><span class="si">{</span><span class="n">col_name</span><span class="si">}</span><span class="s2"> doesn&#39;t have the max value_count defined&quot;</span>
-                            <span class="s2">&quot; in the schema&quot;</span>
-                        <span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">_epochs</span> <span class="o">=</span> <span class="mi">1</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">cat_names</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">select_by_tag</span><span class="p">(</span><span class="n">Tags</span><span class="o">.</span><span class="n">CATEGORICAL</span><span class="p">)</span><span class="o">.</span><span class="n">column_names</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">cont_names</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">select_by_tag</span><span class="p">(</span><span class="n">Tags</span><span class="o">.</span><span class="n">CONTINUOUS</span><span class="p">)</span><span class="o">.</span><span class="n">column_names</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">label_names</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">select_by_tag</span><span class="p">(</span><span class="n">Tags</span><span class="o">.</span><span class="n">TARGET</span><span class="p">)</span><span class="o">.</span><span class="n">column_names</span>
-
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;Neither Categorical or Continuous columns were found by the dataloader. &quot;</span>
-                <span class="s2">&quot;You must either specify the cat_names, cont_names and &quot;</span>
-                <span class="s2">&quot;label_names properties or supply a schema.pbtxt file in dataset directory.&quot;</span>
-            <span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">num_rows_processed</span> <span class="o">=</span> <span class="mi">0</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">__buff</span> <span class="o">=</span> <span class="kc">None</span>
@@ -209,8 +169,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_workers</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="k">if</span> <span class="n">transforms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transforms</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transform_graph</span> <span class="o">=</span> <span class="kc">None</span>
 
+        <span class="k">if</span> <span class="n">transforms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transforms</span><span class="p">,</span> <span class="n">List</span><span class="p">):</span>
                 <span class="n">carry_node</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="n">ColumnSelector</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">))</span>
                 <span class="k">for</span> <span class="n">transform</span> <span class="ow">in</span> <span class="n">transforms</span><span class="p">:</span>
@@ -224,12 +187,15 @@
                 <span class="n">transform_graph</span> <span class="o">=</span> <span class="n">Graph</span><span class="p">(</span><span class="n">carry_node</span><span class="p">)</span>
             <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">transforms</span><span class="p">,</span> <span class="n">Graph</span><span class="p">):</span>
                 <span class="n">transform_graph</span> <span class="o">=</span> <span class="n">transforms</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="o">=</span> <span class="n">transform_graph</span><span class="o">.</span><span class="n">construct_schema</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="p">)</span><span class="o">.</span><span class="n">output_node</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">schema</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">output_schema</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transform_graph</span> <span class="o">=</span> <span class="n">transform_graph</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="n">LocalExecutor</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+        <span class="n">schema</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">schema</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_schema</span> <span class="o">=</span> <span class="n">schema</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">transforms</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Node</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transforms</span>
 
     <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span>
@@ -470,7 +436,7 @@
         <span class="c1"># if len(chunks) == 4:</span>
         <span class="n">lists_list</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">col_name</span>
-            <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">col_schema</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">column_schemas</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">col_schema</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_schema</span><span class="o">.</span><span class="n">column_schemas</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">col_schema</span><span class="o">.</span><span class="n">is_list</span>
         <span class="p">]</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lists_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -724,7 +690,126 @@
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gdf</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
                 <span class="n">gdf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">gdf</span>
-        <span class="k">return</span> <span class="n">gdf</span><span class="o">.</span><span class="n">toDlpack</span><span class="p">()</span></div>
+        <span class="k">return</span> <span class="n">gdf</span><span class="o">.</span><span class="n">toDlpack</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">schema</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Schema</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get input schema of data to be loaded</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ~merlin.schema.Schema</span>
+<span class="sd">            Schema corresponding to the data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;This `schema` property is deprecated and will be removed in a future version. &quot;</span>
+            <span class="s2">&quot;Please use either the `input_schema` or `output_schema` property instead.&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_schema</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">input_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Schema</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get input schema of data to be loaded.</span>
+
+<span class="sd">        If there are no transforms then this will be the same as the output schema.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ~merlin.schema.Schema</span>
+<span class="sd">            Schema corresponding to the data that will be loaded  prior to any transforms.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_schema</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">output_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Schema</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get output schema of data being loaded.</span>
+
+<span class="sd">        When there are transforms defined that change the features being loaded,</span>
+<span class="sd">        This output schema is intended to account for this and should match</span>
+<span class="sd">        the features returned by the loader. If there are no transforms then this</span>
+<span class="sd">        will be the same as the input schema.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ~merlin.schema.Schema</span>
+<span class="sd">            Schema corresponding to the data that will be output by the loader</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_schema</span>
+
+    <span class="nd">@input_schema</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">input_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set schema property</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        value : ~merlin.schema.Schema</span>
+<span class="sd">            The schema corresponding to data to be loaded.</span>
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            When value provided doesn&#39;t match expected type</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;Setting the input_schema after the dataloader has started is not supported. &quot;</span>
+                <span class="s2">&quot;If you would like to change the input_schema &quot;</span>
+                <span class="s2">&quot;please change before reading the first batch. &quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Schema</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;schema value on loader must be of type merlin.io.Schema. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;provided: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_input_schema</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cat_names</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">value</span><span class="o">.</span><span class="n">select_by_tag</span><span class="p">(</span><span class="n">Tags</span><span class="o">.</span><span class="n">CATEGORICAL</span><span class="p">)</span><span class="o">.</span><span class="n">excluding_by_tag</span><span class="p">(</span><span class="n">Tags</span><span class="o">.</span><span class="n">TARGET</span><span class="p">)</span><span class="o">.</span><span class="n">column_names</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cont_names</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">value</span><span class="o">.</span><span class="n">select_by_tag</span><span class="p">(</span><span class="n">Tags</span><span class="o">.</span><span class="n">CONTINUOUS</span><span class="p">)</span><span class="o">.</span><span class="n">excluding_by_tag</span><span class="p">(</span><span class="n">Tags</span><span class="o">.</span><span class="n">TARGET</span><span class="p">)</span><span class="o">.</span><span class="n">column_names</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label_names</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">select_by_tag</span><span class="p">(</span><span class="n">Tags</span><span class="o">.</span><span class="n">TARGET</span><span class="p">)</span><span class="o">.</span><span class="n">column_names</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sparse_names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sparse_max</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sparse_as_dense</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">col_spec</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_schema</span><span class="o">.</span><span class="n">column_schemas</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">dtype</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span><span class="p">[</span><span class="n">col_spec</span><span class="o">.</span><span class="n">dtype</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">col_name</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span><span class="p">[</span><span class="n">col_spec</span><span class="o">.</span><span class="n">dtype</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">is_list</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sparse_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>
+
+                <span class="n">value_count</span> <span class="o">=</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">value_count</span>
+                <span class="k">if</span> <span class="n">value_count</span> <span class="ow">and</span> <span class="n">value_count</span><span class="o">.</span><span class="n">max</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sparse_max</span><span class="p">[</span><span class="n">col_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value_count</span><span class="o">.</span><span class="n">max</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">is_ragged</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sparse_as_dense</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>
+
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">value_count</span><span class="p">:</span>
+                        <span class="c1"># TODO: error message linking to docs</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;Dense column </span><span class="si">{</span><span class="n">col_name</span><span class="si">}</span><span class="s2"> doesn&#39;t have the max value_count defined&quot;</span>
+                            <span class="s2">&quot; in the schema&quot;</span>
+                        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_graph</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_graph</span><span class="o">.</span><span class="n">construct_schema</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_input_schema</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">output_node</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_output_schema</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transforms</span><span class="o">.</span><span class="n">output_schema</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_output_schema</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_schema</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Neither Categorical or Continuous columns were found by the dataloader. &quot;</span>
+                <span class="s2">&quot;You must either specify the cat_names, cont_names and &quot;</span>
+                <span class="s2">&quot;label_names properties or supply a schema.pbtxt file in dataset directory.&quot;</span>
+            <span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="ChunkQueue"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue">[docs]</a><span class="k">class</span> <span class="nc">ChunkQueue</span><span class="p">:</span>
