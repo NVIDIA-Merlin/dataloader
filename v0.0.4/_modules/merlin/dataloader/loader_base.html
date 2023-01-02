@@ -122,7 +122,7 @@
 
 
 <div class="viewcode-block" id="LoaderBase"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase">[docs]</a><span class="k">class</span> <span class="nc">LoaderBase</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Base class containing common functionality between the PyTorch and TensorFlow dataloaders.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class containing common functionality between the PyTorch and TensorFlow dataloaders.&quot;&quot;&quot;</span>
 
     <span class="n">_use_nnz</span> <span class="o">=</span> <span class="kc">False</span>
 
@@ -258,7 +258,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__buff_len</span>
 
 <div class="viewcode-block" id="LoaderBase.epochs"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.epochs">[docs]</a>    <span class="k">def</span> <span class="nf">epochs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Create a dataloader that will efficiently run for more than one epoch.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a dataloader that will efficiently run for more than one epoch.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -295,7 +295,7 @@
         <span class="k">return</span> <span class="kc">False</span>
 
 <div class="viewcode-block" id="LoaderBase.stop"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Halts and resets the initialization parameters of the dataloader.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Halts and resets the initialization parameters of the dataloader.&quot;&quot;&quot;</span>
         <span class="c1"># TODO: raise warning or even error if condition</span>
         <span class="c1"># isn&#39;t met?</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -351,11 +351,11 @@
         <span class="k">return</span> <span class="bp">self</span>
 
     <span class="k">def</span> <span class="fm">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get the next batch.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the next batch.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_next_batch</span><span class="p">()</span>
 
 <div class="viewcode-block" id="LoaderBase.peek"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.peek">[docs]</a>    <span class="k">def</span> <span class="nf">peek</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get the next batch without advancing the iterator.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the next batch without advancing the iterator.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_peek_next_batch</span><span class="p">()</span></div>
 
     <span class="k">def</span> <span class="nf">_data_iter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epochs</span><span class="p">):</span>
@@ -372,7 +372,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_batch_itr</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_peek_next_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return next batch without advancing the iterator.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return next batch without advancing the iterator.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">LoaderBase</span><span class="o">.</span><span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
@@ -402,7 +402,7 @@
         <span class="k">return</span> <span class="n">batch</span>
 
     <span class="k">def</span> <span class="nf">_get_next_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        adding this cheap shim so that we can call this</span>
 <span class="sd">        step without it getting overridden by the</span>
 <span class="sd">        framework-specific parent class&#39;s `__next__` method.</span>
@@ -445,7 +445,7 @@
 
 <div class="viewcode-block" id="LoaderBase.make_tensors"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.make_tensors">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;make_tensors&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">make_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">,</span> <span class="n">use_nnz</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Turns a gdf into tensor representation by column</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Turns a gdf into tensor representation by column</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -550,7 +550,7 @@
         <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handle_tensors</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span> <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batches</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_get_segment_lengths</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_samples</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Helper function to build indices to pass</span>
 <span class="sd">        to &lt;torch|tf&gt;.split functions for breaking</span>
 <span class="sd">        up into batches</span>
@@ -561,7 +561,7 @@
         <span class="k">return</span> <span class="n">idx</span>
 
     <span class="k">def</span> <span class="nf">_to_sparse_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values_offset</span><span class="p">,</span> <span class="n">column_name</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create a sparse representation of the input tensor.</span>
 <span class="sd">        values_offset is either a tensor or a tuple of tensor, offset.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -580,7 +580,7 @@
         <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_to_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        One of the mandatory functions a child class needs</span>
 <span class="sd">        to implement. Maps from a cudf DataFrame to a</span>
 <span class="sd">        tensor in the appropriate library, with an optional</span>
@@ -589,7 +589,7 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="k">def</span> <span class="nf">_get_device_ctx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dev</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        One of the mandatory functions a child class needs</span>
 <span class="sd">        to implement. Maps from a GPU index to a framework</span>
 <span class="sd">        context object for placing tensors on specific GPUs</span>
@@ -597,7 +597,7 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="k">def</span> <span class="nf">_cast_to_numpy_dtype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the numpy dtype from the framework dtype.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
@@ -616,7 +616,7 @@
 
     <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;_create_tensors&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_create_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Breaks a dataframe down into the relevant</span>
 <span class="sd">        categorical, continuous, and label tensors.</span>
 <span class="sd">        Can be overrideen</span>
@@ -728,7 +728,7 @@
 
 
 <div class="viewcode-block" id="ChunkQueue"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue">[docs]</a><span class="k">class</span> <span class="nc">ChunkQueue</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;This class takes partitions (parts) from an merlin.io.Dataset</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;This class takes partitions (parts) from an merlin.io.Dataset</span>
 <span class="sd">    and concatenates them into a cudf dataframe &quot;chunk.&quot; This chunk</span>
 <span class="sd">    is subsequently transformed into its tensor representation using</span>
 <span class="sd">    the iterator&#39;s transform.</span>
@@ -783,7 +783,7 @@
 
 <div class="viewcode-block" id="ChunkQueue.batch"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue.batch">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;batch&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">itr</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Iterates through gpu_mem_frac size chunks of dataset</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterates through gpu_mem_frac size chunks of dataset</span>
 <span class="sd">        and concatenates every `num_parts` of them.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">current</span> <span class="o">=</span> <span class="p">[]</span>

@@ -106,7 +106,7 @@
 
 
 <div class="viewcode-block" id="Loader"><a class="viewcode-back" href="../../../generated/merlin.loader.tensorflow.Loader.html#merlin.loader.tensorflow.Loader">[docs]</a><span class="k">class</span> <span class="nc">Loader</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">Sequence</span><span class="p">,</span> <span class="n">LoaderBase</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Infinite generator used to asynchronously iterate through CSV or Parquet</span>
 <span class="sd">    dataframes on GPU by leveraging an `merlin.io.Dataset`.</span>
 
@@ -200,7 +200,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_map_fns</span> <span class="o">=</span> <span class="p">[]</span></div>
 
     <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Computes the number of items in the dataset</span>
 
 <span class="sd">        This is required for Keras compatibility</span>
@@ -209,7 +209,7 @@
         <span class="k">return</span> <span class="n">LoaderBase</span><span class="o">.</span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        implemented exclusively for consistency</span>
 <span class="sd">        with Keras model.fit. Does not leverage</span>
 <span class="sd">        passed idx in any way</span>
@@ -217,7 +217,7 @@
         <span class="k">return</span> <span class="n">LoaderBase</span><span class="o">.</span><span class="fm">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Loader.map"><a class="viewcode-back" href="../../../generated/merlin.loader.tensorflow.Loader.html#merlin.loader.tensorflow.Loader.map">[docs]</a>    <span class="k">def</span> <span class="nf">map</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Applying a function to each batch.</span>
 
 <span class="sd">        This can for instance be used to add `sample_weight` to the model.</span>
@@ -246,7 +246,7 @@
         <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_tensor_split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensor</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Same function as above but need this method</span>
 <span class="sd">        for api match.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -305,7 +305,7 @@
         <span class="k">return</span> <span class="n">x</span>
 
     <span class="k">def</span> <span class="nf">_pull_values_offsets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values_offset</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        values_offset is either a tuple (values, offsets) or just values.</span>
 <span class="sd">        Values is a tensor.</span>
 <span class="sd">        This method is used to turn a tensor into its sparse representation</span>
@@ -364,7 +364,7 @@
         <span class="k">return</span> <span class="n">to_return</span>
 
     <span class="k">def</span> <span class="nf">_cast_to_numpy_dtype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the numpy dtype from the framework dtype.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">dtype</span><span class="o">.</span><span class="n">as_numpy_dtype</span><span class="p">()</span></div>
@@ -379,7 +379,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span> <span class="o">=</span> <span class="n">dataloader</span></div>
 
 <div class="viewcode-block" id="KerasSequenceValidater.on_epoch_end"><a class="viewcode-back" href="../../../generated/merlin.loader.tensorflow.KerasSequenceValidater.html#merlin.loader.tensorflow.KerasSequenceValidater.on_epoch_end">[docs]</a>    <span class="k">def</span> <span class="nf">on_epoch_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">logs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Callback that runs at the end of an epoch.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Callback that runs at the end of an epoch.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
