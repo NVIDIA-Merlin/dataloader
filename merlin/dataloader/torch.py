@@ -93,6 +93,17 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             transforms=transforms,
             device=device,
         )
+        self._map_fns = []
+
+    def map(self, fn):
+        """
+        Applying a function to each batch.
+
+        This can for instance be used to add `sample_weight` to the model.
+        """
+        self._map_fns.append(fn)
+
+        return self
 
     def __iter__(self):
         return LoaderBase.__iter__(self)
@@ -164,6 +175,14 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         if sparse_as_dense:
             sparse_tensor = sparse_tensor.to_dense()
         return sparse_tensor
+
+    def _handle_tensors(self, tensors, tensor_names):
+        to_return = super()._handle_tensors(tensors, tensor_names)
+
+        for map_fn in self._map_fns:
+            to_return = map_fn(*to_return)
+
+        return to_return
 
     def _cast_to_numpy_dtype(self, dtype):
         """
