@@ -132,10 +132,13 @@ will usually contain fewer rows.</p></li>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_tensors</span></code>(gdf[, use_nnz])</p></td>
 <td><p>Turns a gdf into tensor representation by column</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">peek</span></code>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#merlin.dataloader.torch.Loader.map" title="merlin.dataloader.torch.Loader.map"><code class="xref py py-obj docutils literal notranslate"><span class="pre">map</span></code></a>(fn)</p></td>
+<td><p>Applying a function to each batch.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">peek</span></code>()</p></td>
 <td><p>Get the next batch without advancing the iterator.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">stop</span></code>()</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">stop</span></code>()</p></td>
 <td><p>Halts and resets the initialization parameters of the dataloader.</p></td>
 </tr>
 </tbody>
@@ -161,6 +164,13 @@ will usually contain fewer rows.</p></li>
 </tr>
 </tbody>
 </table>
+<dl class="py method">
+<dt id="merlin.dataloader.torch.Loader.map">
+<code class="sig-name descname"><span class="pre">map</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/merlin/dataloader/torch.html#Loader.map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#merlin.dataloader.torch.Loader.map" title="Permalink to this definition"></a></dt>
+<dd><p>Applying a function to each batch.</p>
+<p>This can for instance be used to add <cite>sample_weight</cite> to the model.</p>
+</dd></dl>
+
 </dd></dl>
 
 </div>

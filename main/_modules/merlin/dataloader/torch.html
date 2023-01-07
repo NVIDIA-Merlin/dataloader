@@ -165,7 +165,18 @@
             <span class="n">drop_last</span><span class="o">=</span><span class="n">drop_last</span><span class="p">,</span>
             <span class="n">transforms</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
             <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
-        <span class="p">)</span></div>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_map_fns</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="Loader.map"><a class="viewcode-back" href="../../../generated/merlin.dataloader.torch.Loader.html#merlin.dataloader.torch.Loader.map">[docs]</a>    <span class="k">def</span> <span class="nf">map</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Applying a function to each batch.</span>
+
+<span class="sd">        This can for instance be used to add `sample_weight` to the model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_map_fns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
 
     <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">LoaderBase</span><span class="o">.</span><span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
@@ -237,6 +248,14 @@
         <span class="k">if</span> <span class="n">sparse_as_dense</span><span class="p">:</span>
             <span class="n">sparse_tensor</span> <span class="o">=</span> <span class="n">sparse_tensor</span><span class="o">.</span><span class="n">to_dense</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">sparse_tensor</span>
+
+    <span class="k">def</span> <span class="nf">_handle_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensors</span><span class="p">,</span> <span class="n">tensor_names</span><span class="p">):</span>
+        <span class="n">to_return</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_handle_tensors</span><span class="p">(</span><span class="n">tensors</span><span class="p">,</span> <span class="n">tensor_names</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">map_fn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_map_fns</span><span class="p">:</span>
+            <span class="n">to_return</span> <span class="o">=</span> <span class="n">map_fn</span><span class="p">(</span><span class="o">*</span><span class="n">to_return</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">to_return</span>
 
     <span class="k">def</span> <span class="nf">_cast_to_numpy_dtype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
