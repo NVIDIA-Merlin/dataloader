@@ -108,8 +108,7 @@ class EmbeddingOperator(BaseOperator):
                 name=self.embedding_name,
                 tags=[Tags.CONTINUOUS],
                 dtype=self._get_dtype(self.embeddings),
-                is_list=True,
-                is_ragged=False,
+                properties={"is_list": True, "is_ragged": False},
             )
         )
 
@@ -191,9 +190,11 @@ class NumpyEmbeddingOperator(BaseOperator):
                 name=self.embedding_name,
                 tags=[Tags.CONTINUOUS],
                 dtype=self.embeddings.dtype,
-                is_list=True,
-                is_ragged=False,
-                properties={"value_count": {"min": embedding_dim, "max": embedding_dim}},
+                properties={
+                    "is_list": True,
+                    "is_ragged": False,
+                    "value_count": {"min": embedding_dim, "max": embedding_dim},
+                },
             )
         )
 
