@@ -59,6 +59,14 @@ def test_embedding_tf_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_
         shuffle=False,
         device=cpu,
     )
+
+    assert data_loader.input_schema.column_names == ["id"]
+    assert data_loader.output_schema.column_names == ["id", "embeddings"]
+
+    embeddings_dim = 1024
+    embeddings_value_count = data_loader.output_schema["embeddings"].value_count
+    assert embeddings_value_count.min == embeddings_value_count.max == embeddings_dim
+
     full_len = 0
     for idx, batch in enumerate(data_loader):
         assert "embeddings" in batch[0]

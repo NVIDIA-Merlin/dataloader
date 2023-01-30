@@ -1,13 +1,14 @@
+import os
 import pytest
 from testbook import testbook
 
-pytest.importorskip("torch")
+pytest.importorskip("tensorflow")
 
 pytestmark = pytest.mark.tensorflow
 
 
-@testbook("examples/01b-Getting-started-Pytorch.ipynb", execute=False)
-def test_getting_started_pytorch(tb):
+@testbook("examples/02-Multi-GPU-Tensorflow-with-Horovod.ipynb", execute=False)
+def test_getting_started_tensorflow(tb):
     tb.inject(
         """
         import pandas as pd
@@ -22,5 +23,6 @@ def test_getting_started_pytorch(tb):
         """
     )
     tb.cells[4].source = "DATA_PATH = '/tmp'"
-    tb.cells[5].source = ""
+    tb.cells[7].source.replace("GPU_COUNT = 2", "GPU_COUNT = 1")
     tb.execute()
+    os.system("horovodrun -np 1 python tf_trainer.py")
