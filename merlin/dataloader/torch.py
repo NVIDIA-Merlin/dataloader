@@ -136,6 +136,9 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
     def _tensor_split(self, tensor, idx, axis=0):
         return torch.tensor_split(tensor, idx, axis=axis)
 
+    def _tensor_reshape(self, tensor):
+        return torch.reshape(tensor, -1)
+
     def _pull_values_offsets(self, values_offset):
         # pull_values_offsets, return values offsets diff_offsets
         if isinstance(values_offset, tuple):

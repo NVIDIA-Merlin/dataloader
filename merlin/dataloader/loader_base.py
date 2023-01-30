@@ -601,6 +601,12 @@ class LoaderBase:
             for label in self.label_names:
                 labels[label] = X.pop(label)
 
+        for col_name, col_data in X.items():
+            if isinstance(col_data, tuple):
+                X[col_name] = (self._tensor_reshape(col_data[0]), self._tensor_reshape(col_data[1]))
+            else:
+                X[col_name] = self._tensor_reshape(col_data)
+
         if self.transforms:
             X = self.executor.transform(DictArray(X), [self.transforms])
 

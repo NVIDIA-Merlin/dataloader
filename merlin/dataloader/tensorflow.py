@@ -193,6 +193,9 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         """
         return tf.split(tensor, idx, axis=axis)
 
+    def _tensor_reshape(self, tensor):
+        return tf.reshape(tensor, -1)
+
     @property
     def _LONG_DTYPE(self):
         return tf.int64
