@@ -555,7 +555,7 @@ class LoaderBase:
                     column = gdf_i.pop(column_name)
 
                     if cudf and isinstance(column, cudf.Series):
-                        is_fixed_length = (column.list.len() == column.list.len()[0]).all()
+                        is_fixed_length = column_name in self.sparse_as_dense and (column.list.len() == column.list.len()[0]).all()
                         if is_fixed_length:
                             fixed_list_tensors[column_name] = self._to_tensor(column)
                             continue
