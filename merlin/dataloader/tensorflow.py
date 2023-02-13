@@ -102,7 +102,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         will usually contain fewer rows.
     """
 
-    _use_nnz = True
+    _use_row_lengths = True
 
     def __init__(
         self,
