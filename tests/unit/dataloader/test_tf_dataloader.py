@@ -382,7 +382,7 @@ def test_mh_support(tmpdir, multihot_data, multihot_dataset, batch_size):
         batch_size=batch_size,
         shuffle=False,
     )
-    nnzs = None
+    row_lengths = None
     idx = 0
 
     for X, y in data_itr:
@@ -391,18 +391,18 @@ def test_mh_support(tmpdir, multihot_data, multihot_dataset, batch_size):
 
         for mh_name in ["Authors", "Reviewers", "Embedding"]:
             # assert (mh_name) in X
-            array, nnzs = X[mh_name]
-            nnzs = nnzs.numpy()[:, 0]
+            array, row_lengths = X[mh_name]
+            row_lengths = row_lengths.numpy()[:, 0]
             array = array.numpy()[:, 0]
 
             if mh_name == "Embedding":
-                assert (nnzs == 3).all()
+                assert (row_lengths == 3).all()
             else:
                 lens = [
                     len(x)
                     for x in multihot_data[mh_name][idx * batch_size : idx * batch_size + n_samples]
                 ]
-                assert (nnzs == np.array(lens)).all()
+                assert (row_lengths == np.array(lens)).all()
 
             if mh_name == "Embedding":
                 assert len(array) == (n_samples * 3)
@@ -533,7 +533,7 @@ def test_sparse_tensors(tmpdir, sparse_dense):
     for batch in data_itr:
         feats, labs = batch
         for col in spa_lst:
-            # grab nnzs
+            # grab row lengths
             feature_tensor = feats[f"{col}"]
             if not sparse_dense:
                 assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
