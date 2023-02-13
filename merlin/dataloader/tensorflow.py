@@ -215,6 +215,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         if gdf.empty:
             return
 
+        transpose = False
         values = None
         # checks necessary because of this bug
         # https://github.com/tensorflow/tensorflow/issues/42660
@@ -229,6 +230,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         elif gdf.shape[0] == 1:
             values = gdf.values[0]
         else:
+            transpose = True
             values = gdf.values.T
 
         dlpack = self._pack(values)
@@ -240,6 +242,12 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         except AssertionError:
             tf.random.uniform((1,))
             x = self._unpack(dlpack)
+
+        if transpose:
+            # matrix which means we had to transpose
+            # for the bug above, so untranspose
+            x = tf.transpose(x)
+
         # if rank is already two it is  already in list format
         if gdf.shape[0] == 1 and not tf.rank(x) == 2:
             # batch size 1 so got squashed to a vector
@@ -250,10 +258,6 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
                 # len(shape)==1 case, could probably
                 # be more specific
                 x = tf.expand_dims(x, -1)
-        elif gdf.shape[1] > 1:
-            # matrix which means we had to transpose
-            # for the bug above, so untranspose
-            x = tf.transpose(x)
         return x
 
     def _pull_values_offsets(self, values_offset):
