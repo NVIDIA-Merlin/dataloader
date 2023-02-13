@@ -648,7 +648,6 @@ def test_dataloader_schema(tmpdir, dataset, batch_size, cpu):
         batch_size=batch_size,
         shuffle=False,
     ) as data_loader:
-
         batch = data_loader.peek()
 
     columns = set(dataset.schema.column_names) - {"label"}
