@@ -245,7 +245,14 @@ class LoaderBase:
 
     def __next__(self):
         """Get the next batch."""
-        return self._get_next_batch()
+        batch = self._get_next_batch()
+        if self.transforms:
+            variable_cols, labels = batch
+            variable_cols = self.executor.transform(
+                DictArray(variable_cols), [self.transforms], validate_dtypes=False
+            )
+            batch = variable_cols, labels
+        return batch
 
     def peek(self):
         """Get the next batch without advancing the iterator."""
@@ -600,9 +607,6 @@ class LoaderBase:
             labels = {}
             for label in self.label_names:
                 labels[label] = X.pop(label)
-
-        if self.transforms:
-            X = self.executor.transform(DictArray(X), [self.transforms])
 
         return X, labels
 
