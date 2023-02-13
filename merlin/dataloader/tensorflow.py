@@ -252,12 +252,12 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         if gdf.shape[0] == 1 and not tf.rank(x) == 2:
             # batch size 1 so got squashed to a vector
             x = tf.expand_dims(x, 0)
-        elif len(gdf.shape) == 1:
-            if len(x.shape) == 1:
-                # sort of a generic check for any other
-                # len(shape)==1 case, could probably
-                # be more specific
-                x = tf.expand_dims(x, -1)
+        elif len(x.shape) == 1:
+            # sort of a generic check for any other
+            # len(shape)==1 case, could probably
+            # be more specific
+            x = tf.expand_dims(x, -1)
+
         return x
 
     def _pull_values_offsets(self, values_offset):
