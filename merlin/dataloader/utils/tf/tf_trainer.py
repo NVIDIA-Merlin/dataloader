@@ -90,7 +90,7 @@ for col in CATEGORICAL_COLUMNS:
 for col in CATEGORICAL_MH_COLUMNS:
     inputs[col] = (
         tf.keras.Input(name=f"{col}__values", dtype=tf.int64, shape=(1,)),
-        tf.keras.Input(name=f"{col}__nnzs", dtype=tf.int64, shape=(1,)),
+        tf.keras.Input(name=f"{col}__lengths", dtype=tf.int64, shape=(1,)),
     )
 for col in CATEGORICAL_COLUMNS + CATEGORICAL_MH_COLUMNS:
     emb_layers.append(
