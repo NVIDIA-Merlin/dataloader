@@ -128,7 +128,7 @@
 <div class="viewcode-block" id="LoaderBase"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase">[docs]</a><span class="k">class</span> <span class="nc">LoaderBase</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class containing common functionality between the PyTorch and TensorFlow dataloaders.&quot;&quot;&quot;</span>
 
-    <span class="n">_use_nnz</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_use_row_lengths</span> <span class="o">=</span> <span class="kc">False</span>
 
 <div class="viewcode-block" id="LoaderBase.__init__"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -414,15 +414,15 @@
         <span class="k">return</span> <span class="n">batch</span>
 
 <div class="viewcode-block" id="LoaderBase.make_tensors"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.make_tensors">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;make_tensors&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">make_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">,</span> <span class="n">use_nnz</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">make_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">,</span> <span class="n">use_row_lengths</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Turns a gdf into tensor representation by column</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        gdf : DataFrame</span>
 <span class="sd">            A dataframe type object.</span>
-<span class="sd">        use_nnz : bool, optional</span>
-<span class="sd">            toggle nnzs or use offsets for list columns, by default False</span>
+<span class="sd">        use_row_lengths : bool, optional</span>
+<span class="sd">            Enable using row lengths instead of offsets for list columns, by default False</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -434,7 +434,7 @@
         <span class="c1"># map from big chunk to framework-specific tensors</span>
         <span class="n">chunks</span><span class="p">,</span> <span class="n">names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_tensors</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span>
 
-        <span class="c1"># if we have any offsets, calculate nnzs up front</span>
+        <span class="c1"># if we have any offsets, calculate row lengths up front</span>
         <span class="c1"># will need to get offsets if list columns detected in schema</span>
 
         <span class="c1"># if len(chunks) == 4:</span>
@@ -445,8 +445,8 @@
         <span class="p">]</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lists_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">offsets</span> <span class="o">=</span> <span class="n">chunks</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-            <span class="k">if</span> <span class="n">use_nnz</span><span class="p">:</span>
-                <span class="n">nnzs</span> <span class="o">=</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">offsets</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">use_row_lengths</span><span class="p">:</span>
+                <span class="n">row_lengths</span> <span class="o">=</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">offsets</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
             <span class="n">chunks</span> <span class="o">=</span> <span class="n">chunks</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 
         <span class="c1"># split them into batches and map to the framework-specific output format</span>
@@ -465,43 +465,43 @@
             <span class="k">if</span> <span class="n">lists</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">num_list_columns</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">lists</span><span class="p">)</span>
 
-                <span class="c1"># grab the set of offsets and nnzs corresponding to</span>
-                <span class="c1"># the list columns from this chunk</span>
+                <span class="c1"># grab the set of offsets and row lengths</span>
+                <span class="c1"># corresponding to the list columns from this chunk</span>
                 <span class="n">chunk_offsets</span> <span class="o">=</span> <span class="n">offsets</span><span class="p">[:,</span> <span class="n">offset_idx</span> <span class="p">:</span> <span class="n">offset_idx</span> <span class="o">+</span> <span class="n">num_list_columns</span><span class="p">]</span>
-                <span class="k">if</span> <span class="n">use_nnz</span><span class="p">:</span>
-                    <span class="n">chunk_nnzs</span> <span class="o">=</span> <span class="n">nnzs</span><span class="p">[:,</span> <span class="n">offset_idx</span> <span class="p">:</span> <span class="n">offset_idx</span> <span class="o">+</span> <span class="n">num_list_columns</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">use_row_lengths</span><span class="p">:</span>
+                    <span class="n">chunk_row_lengths</span> <span class="o">=</span> <span class="n">row_lengths</span><span class="p">[:,</span> <span class="n">offset_idx</span> <span class="p">:</span> <span class="n">offset_idx</span> <span class="o">+</span> <span class="n">num_list_columns</span><span class="p">]</span>
                 <span class="n">offset_idx</span> <span class="o">+=</span> <span class="n">num_list_columns</span>
 
                 <span class="c1"># split them into batches, including an extra 1 on the offsets</span>
                 <span class="c1"># so we know how long the very last element is</span>
                 <span class="n">batch_offsets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">chunk_offsets</span><span class="p">,</span> <span class="n">split_idx</span> <span class="o">+</span> <span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-                <span class="k">if</span> <span class="n">use_nnz</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                    <span class="n">batch_nnzs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">chunk_nnzs</span><span class="p">,</span> <span class="n">split_idx</span><span class="p">)</span>
-                <span class="k">elif</span> <span class="n">use_nnz</span><span class="p">:</span>
-                    <span class="n">batch_nnzs</span> <span class="o">=</span> <span class="p">[</span><span class="n">chunk_nnzs</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">use_row_lengths</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">batch_row_lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">chunk_row_lengths</span><span class="p">,</span> <span class="n">split_idx</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">use_row_lengths</span><span class="p">:</span>
+                    <span class="n">batch_row_lengths</span> <span class="o">=</span> <span class="p">[</span><span class="n">chunk_row_lengths</span><span class="p">]</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">batch_nnzs</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">batch_offsets</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="n">batch_row_lengths</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">batch_offsets</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
 
                 <span class="c1"># group all these indices together and iterate through</span>
                 <span class="c1"># them in batches to grab the proper elements from each</span>
                 <span class="c1"># values tensor</span>
-                <span class="n">chunk</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">batch_offsets</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">batch_offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">batch_nnzs</span><span class="p">)</span>
+                <span class="n">chunk</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">batch_offsets</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">batch_offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">batch_row_lengths</span><span class="p">)</span>
 
             <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chunk</span><span class="p">):</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-                    <span class="n">c</span><span class="p">,</span> <span class="n">off0s</span><span class="p">,</span> <span class="n">off1s</span><span class="p">,</span> <span class="n">_nnzs</span> <span class="o">=</span> <span class="n">c</span>
+                    <span class="n">c</span><span class="p">,</span> <span class="n">off0s</span><span class="p">,</span> <span class="n">off1s</span><span class="p">,</span> <span class="n">_row_lengths</span> <span class="o">=</span> <span class="n">c</span>
                     <span class="n">offsets_split_idx</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_list_columns</span><span class="p">)]</span>
                     <span class="n">off0s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">off0s</span><span class="p">,</span> <span class="n">offsets_split_idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
                     <span class="n">off1s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">off1s</span><span class="p">,</span> <span class="n">offsets_split_idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">use_nnz</span><span class="p">:</span>
-                        <span class="n">_nnzs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">_nnzs</span><span class="p">,</span> <span class="n">offsets_split_idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">use_row_lengths</span><span class="p">:</span>
+                        <span class="n">_row_lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">_row_lengths</span><span class="p">,</span> <span class="n">offsets_split_idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
                     <span class="c1"># TODO: does this need to be ordereddict?</span>
                     <span class="n">batch_lists</span> <span class="o">=</span> <span class="p">{}</span>
                     <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">column_name</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lists</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
                         <span class="n">off0</span><span class="p">,</span> <span class="n">off1</span> <span class="o">=</span> <span class="n">off0s</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">off1s</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-                        <span class="k">if</span> <span class="n">use_nnz</span><span class="p">:</span>
-                            <span class="n">nnz</span> <span class="o">=</span> <span class="n">_nnzs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">use_row_lengths</span><span class="p">:</span>
+                            <span class="n">row_length</span> <span class="o">=</span> <span class="n">_row_lengths</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
 
                         <span class="c1"># need to grab scalars for TF case</span>
                         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">off0</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -512,7 +512,7 @@
                             <span class="nb">print</span><span class="p">(</span><span class="n">off0</span><span class="p">,</span> <span class="n">off1</span><span class="p">)</span>
                             <span class="k">raise</span> <span class="ne">ValueError</span>
                         <span class="n">value</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">start</span><span class="p">)</span> <span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">stop</span><span class="p">)]</span>
-                        <span class="n">index</span> <span class="o">=</span> <span class="n">off0</span> <span class="o">-</span> <span class="n">start</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_nnz</span> <span class="k">else</span> <span class="n">nnz</span>
+                        <span class="n">index</span> <span class="o">=</span> <span class="n">off0</span> <span class="o">-</span> <span class="n">start</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_row_lengths</span> <span class="k">else</span> <span class="n">row_length</span>
                         <span class="n">batch_lists</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
                     <span class="n">c</span> <span class="o">=</span> <span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">batch_lists</span><span class="p">)</span>
 
@@ -906,7 +906,7 @@
                 <span class="n">chunks</span> <span class="o">=</span> <span class="n">shuffle_df</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">chunks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="o">.</span><span class="n">make_tensors</span><span class="p">(</span><span class="n">chunks</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="o">.</span><span class="n">_use_nnz</span><span class="p">)</span>
+                <span class="n">chunks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="o">.</span><span class="n">make_tensors</span><span class="p">(</span><span class="n">chunks</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="o">.</span><span class="n">_use_row_lengths</span><span class="p">)</span>
                 <span class="c1"># put returns True if buffer is stopped before</span>
                 <span class="c1"># packet can be put in queue. Keeps us from</span>
                 <span class="c1"># freezing on a put on a full queue</span>
@@ -915,7 +915,7 @@
             <span class="n">chunks</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="c1"># takes care final batch, which is less than batch size</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="o">.</span><span class="n">drop_last</span> <span class="ow">and</span> <span class="n">spill</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">spill</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-            <span class="n">spill</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="o">.</span><span class="n">make_tensors</span><span class="p">(</span><span class="n">spill</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="o">.</span><span class="n">_use_nnz</span><span class="p">)</span>
+            <span class="n">spill</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="o">.</span><span class="n">make_tensors</span><span class="p">(</span><span class="n">spill</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="o">.</span><span class="n">_use_row_lengths</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">spill</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="ChunkQueue.load_chunks"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.ChunkQueue.html#merlin.dataloader.loader_base.ChunkQueue.load_chunks">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;load_chunks&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>

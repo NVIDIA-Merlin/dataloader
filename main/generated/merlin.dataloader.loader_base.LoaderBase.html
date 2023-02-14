@@ -112,7 +112,7 @@
 <tr class="row-even"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.epochs" title="merlin.dataloader.loader_base.LoaderBase.epochs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">epochs</span></code></a>([epochs])</p></td>
 <td><p>Create a dataloader that will efficiently run for more than one epoch.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.make_tensors" title="merlin.dataloader.loader_base.LoaderBase.make_tensors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_tensors</span></code></a>(gdf[, use_nnz])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.make_tensors" title="merlin.dataloader.loader_base.LoaderBase.make_tensors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_tensors</span></code></a>(gdf[, use_row_lengths])</p></td>
 <td><p>Turns a gdf into tensor representation by column</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.peek" title="merlin.dataloader.loader_base.LoaderBase.peek"><code class="xref py py-obj docutils literal notranslate"><span class="pre">peek</span></code></a>()</p></td>
@@ -180,13 +180,13 @@
 
 <dl class="py method">
 <dt id="merlin.dataloader.loader_base.LoaderBase.make_tensors">
-<code class="sig-name descname"><span class="pre">make_tensors</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gdf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_nnz</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/merlin/dataloader/loader_base.html#LoaderBase.make_tensors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#merlin.dataloader.loader_base.LoaderBase.make_tensors" title="Permalink to this definition"></a></dt>
+<code class="sig-name descname"><span class="pre">make_tensors</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gdf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_row_lengths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/merlin/dataloader/loader_base.html#LoaderBase.make_tensors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#merlin.dataloader.loader_base.LoaderBase.make_tensors" title="Permalink to this definition"></a></dt>
 <dd><p>Turns a gdf into tensor representation by column</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>gdf</strong> (<em>DataFrame</em>) – A dataframe type object.</p></li>
-<li><p><strong>use_nnz</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – toggle nnzs or use offsets for list columns, by default False</p></li>
+<li><p><strong>use_row_lengths</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a><em>, </em><em>optional</em>) – Enable using row lengths instead of offsets for list columns, by default False</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
