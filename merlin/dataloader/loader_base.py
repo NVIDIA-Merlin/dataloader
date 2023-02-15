@@ -56,7 +56,7 @@ def _num_steps(num_samples, step_size):
 class LoaderBase:
     """Base class containing common functionality between the PyTorch and TensorFlow dataloaders."""
 
-    _use_nnz = False
+    _use_row_lengths = False
 
     def __init__(
         self,
@@ -342,15 +342,15 @@ class LoaderBase:
         return batch
 
     @annotate("make_tensors", color="darkgreen", domain="merlin_dataloader")
-    def make_tensors(self, gdf, use_nnz=False):
+    def make_tensors(self, gdf, use_row_lengths=False):
         """Turns a gdf into tensor representation by column
 
         Parameters
         ----------
         gdf : DataFrame
             A dataframe type object.
-        use_nnz : bool, optional
-            toggle nnzs or use offsets for list columns, by default False
+        use_row_lengths : bool, optional
+            Enable using row lengths instead of offsets for list columns, by default False
 
         Returns
         -------
@@ -364,11 +364,11 @@ class LoaderBase:
         offsets = chunks[-1]
         chunks = chunks[:-1]
 
-        # if we have any offsets, calculate nnzs up front
+        # if we have any offsets, calculate row lengths up front
         # will need to get offsets if list columns detected in schema
         if offsets is not None:
-            if use_nnz:
-                nnzs = offsets[1:] - offsets[:-1]
+            if use_row_lengths:
+                row_lengths = offsets[1:] - offsets[:-1]
 
         # split them into batches and map to the framework-specific output format
         batches = [[] for _ in range(len(split_idx))]
@@ -395,43 +395,43 @@ class LoaderBase:
             if ragged_lists is not None:
                 num_list_columns = len(ragged_lists)
 
-                # grab the set of offsets and nnzs corresponding to
-                # the list columns from this chunk
+                # grab the set of offsets and row lengths
+                # corresponding to the list columns from this chunk
                 chunk_offsets = offsets[:, offset_idx : offset_idx + num_list_columns]
-                if use_nnz:
-                    chunk_nnzs = nnzs[:, offset_idx : offset_idx + num_list_columns]
+                if use_row_lengths:
+                    chunk_row_lengths = row_lengths[:, offset_idx : offset_idx + num_list_columns]
                 offset_idx += num_list_columns
 
                 # split them into batches, including an extra 1 on the offsets
                 # so we know how long the very last element is
                 batch_offsets = self._split_fn(chunk_offsets, split_idx + [1])
-                if use_nnz and len(split_idx) > 1:
-                    batch_nnzs = self._split_fn(chunk_nnzs, split_idx)
-                elif use_nnz:
-                    batch_nnzs = [chunk_nnzs]
+                if use_row_lengths and len(split_idx) > 1:
+                    batch_row_lengths = self._split_fn(chunk_row_lengths, split_idx)
+                elif use_row_lengths:
+                    batch_row_lengths = [chunk_row_lengths]
                 else:
-                    batch_nnzs = [None] * (len(batch_offsets) - 1)
+                    batch_row_lengths = [None] * (len(batch_offsets) - 1)
 
                 # group all these indices together and iterate through
                 # them in batches to grab the proper elements from each
                 # values tensor
-                chunk = zip(chunk, batch_offsets[:-1], batch_offsets[1:], batch_nnzs)
+                chunk = zip(chunk, batch_offsets[:-1], batch_offsets[1:], batch_row_lengths)
 
             for n, c in enumerate(chunk):
                 batch_ragged_lists = {}
                 if isinstance(c, tuple):
-                    c, off0s, off1s, _nnzs = c
+                    c, off0s, off1s, _row_lengths = c
                     offsets_split_idx = [1 for _ in range(num_list_columns)]
                     off0s = self._split_fn(off0s, offsets_split_idx, axis=1)
                     off1s = self._split_fn(off1s, offsets_split_idx, axis=1)
-                    if use_nnz:
-                        _nnzs = self._split_fn(_nnzs, offsets_split_idx, axis=1)
+                    if use_row_lengths:
+                        _row_lengths = self._split_fn(_row_lengths, offsets_split_idx, axis=1)
 
                     # TODO: does this need to be ordereddict?
                     for i, (column_name, values) in enumerate(ragged_lists.items()):
                         off0, off1 = off0s[i], off1s[i]
-                        if use_nnz:
-                            nnz = _nnzs[i]
+                        if use_row_lengths:
+                            row_length = _row_lengths[i]
 
                         # need to grab scalars for TF case
                         if len(off0.shape) == 1:
@@ -442,7 +442,7 @@ class LoaderBase:
                             print(off0, off1)
                             raise ValueError
                         value = values[int(start) : int(stop)]
-                        index = off0 - start if not use_nnz else nnz
+                        index = off0 - start if not use_row_lengths else row_length
                         batch_ragged_lists[column_name] = (value, index)
 
                 batch_fixed_lists = fixed_lists_chunks.get(n, {})
@@ -859,7 +859,7 @@ class ChunkQueue:
                 chunks = shuffle_df(chunks)
 
             if len(chunks) > 0:
-                chunks = self.dataloader.make_tensors(chunks, self.dataloader._use_nnz)
+                chunks = self.dataloader.make_tensors(chunks, self.dataloader._use_row_lengths)
                 # put returns True if buffer is stopped before
                 # packet can be put in queue. Keeps us from
                 # freezing on a put on a full queue
@@ -868,7 +868,7 @@ class ChunkQueue:
             chunks = None
         # takes care final batch, which is less than batch size
         if not self.dataloader.drop_last and spill is not None and not spill.empty:
-            spill = self.dataloader.make_tensors(spill, self.dataloader._use_nnz)
+            spill = self.dataloader.make_tensors(spill, self.dataloader._use_row_lengths)
             self.put(spill)
 
     @annotate("load_chunks", color="darkgreen", domain="merlin_dataloader")
