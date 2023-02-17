@@ -258,23 +258,29 @@ def test_kill_dl(dataset, part_mem_fraction):
             stop - start,
         )
 
-
-def test_mh_support(multihot_dataset):
+@pytest.mark.parametrize("lists_as_tuple", [True, False])
+def test_mh_support(multihot_dataset, lists_as_tuple):
     idx = 0
-    for batch in torch_dataloader.Loader(multihot_dataset):
+    for batch in torch_dataloader.Loader(multihot_dataset, lists_as_tuple=lists_as_tuple):
         idx = idx + 1
         cats_conts, labels = batch
-        assert "Reviewers" in cats_conts
-        # check it is multihot
-        assert isinstance(cats_conts["Reviewers"], tuple)
-        # mh is a tuple of dictionaries {Column name: (values, offsets)}
-        assert "Authors" in cats_conts
-        assert isinstance(cats_conts["Authors"], tuple)
+        if lists_as_tuple:
+            assert "Reviewers" in cats_conts
+            # check it is multihot
+            assert isinstance(cats_conts["Reviewers"], tuple)
+            # mh is a tuple of dictionaries {Column name: (values, offsets)}
+            assert "Authors" in cats_conts
+            assert isinstance(cats_conts["Authors"], tuple)
+        else:
+            assert "Reviewers__values" in cats_conts
+            assert "Reviewers__offsets" in cats_conts
+            assert "Authors__values" in cats_conts
+            assert "Authors__offsets" in cats_conts
     assert idx > 0
 
-
+@pytest.mark.parametrize("lists_as_tuple", [True, False])
 @pytest.mark.parametrize("sparse_dense", [False, True])
-def test_sparse_tensors(sparse_dense):
+def test_sparse_tensors(sparse_dense, lists_as_tuple):
     # create small dataset, add values to sparse_list
     df = make_df(
         {
@@ -298,11 +304,17 @@ def test_sparse_tensors(sparse_dense):
     dataloader = torch_dataloader.Loader(
         ds,
         batch_size=batch_size,
+        lists_as_tuple=lists_as_tuple
     )
     for batch in dataloader:
         feats, labs = batch
         for col in spa_lst:
-            feature_tensor = feats[col]
+            if not lists_as_tuple and sparse_dense:
+                assert col + "__values" in feats
+                assert col + "__offsets" in feats
+                feature_tensor = feats[col + "__values"]
+            else:
+                feature_tensor = feats[col]
             if not sparse_dense:
                 assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
                 assert feature_tensor.is_sparse
@@ -366,3 +378,43 @@ def test_torch_map(tmpdir):
         assert list(X["cont2"].cpu().numpy()) == [2.0] * 10
 
         assert list(sample_weight.cpu().numpy()) == [1.0] * 10
+
+
+@pytest.mark.parametrize("lists_as_tuple", [True, False])
+@pytest.mark.parametrize("tensors_as_1d", [True, False])
+def test_1d_tensors(tensors_as_1d, lists_as_tuple):
+    # create small dataset, add values to sparse_list
+    df = make_df(
+        {
+            "cat1": [1] * 4,
+            "cat2": [2] * 4,
+            "cat3": [3] * 4,
+            "cont2": [2.0] * 4,
+            "spar1": [[1, 2, 3, 4], [4, 2, 4, 4], [1, 3, 4, 3], [1, 1, 3, 3]],
+            "spar2": [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14], [15, 16]],
+        }
+    )
+    spa_lst = ["spar1", "spar2"]
+    batch_size = 2
+
+    ds = Dataset(df)
+    dataloader = torch_dataloader.Loader(
+        ds,
+        batch_size=batch_size,
+        lists_as_tuple=lists_as_tuple,
+        tensors_as_1d=tensors_as_1d
+    )
+    for batch in dataloader:
+        feats, labs = batch
+        for col in feats.keys():
+            if lists_as_tuple and col in spa_lst:
+                feature_tensor = feats[col][0]
+            else:
+                feature_tensor = feats[col]
+            print(col)
+            print(feature_tensor)
+            if tensors_as_1d or "__values" in col or "__offsets" in col or col in spa_lst:
+                assert len(list(feature_tensor.shape)) == 1
+            else:
+                assert len(list(feature_tensor.shape)) == 2
+            

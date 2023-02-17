@@ -65,6 +65,8 @@ class LoaderBase:
         drop_last=False,
         transforms=None,
         device=None,
+        tensors_as_1d = True,
+        lists_as_tuple = False
     ):
         self.dataset = dataset
         self.batch_size = batch_size
@@ -74,6 +76,8 @@ class LoaderBase:
         self.global_size = global_size or 1
         self.global_rank = global_rank or 0
         self.drop_last = drop_last
+        self.tensors_as_1d = tensors_as_1d
+        self.lists_as_tuple = lists_as_tuple
 
         self.indices = cp.arange(self.dataset.npartitions)
         if device:
@@ -404,12 +408,12 @@ class LoaderBase:
                     batch_row_lengths = [chunk_row_lengths]
                 else:
                     batch_row_lengths = [None] * (len(batch_offsets) - 1)
-
+                
                 # group all these indices together and iterate through
                 # them in batches to grab the proper elements from each
                 # values tensor
                 chunk = zip(chunk, batch_offsets[:-1], batch_offsets[1:], batch_row_lengths)
-
+            import torch
             for n, c in enumerate(chunk):
                 if isinstance(c, tuple):
                     c, off0s, off1s, _row_lengths = c
@@ -436,7 +440,12 @@ class LoaderBase:
                             raise ValueError
                         value = values[int(start) : int(stop)]
                         index = off0 - start if not use_row_lengths else row_length
-                        batch_lists[column_name] = (value, index)
+                        if not use_row_lengths:
+                            index = self._add_last_offset(index, value)
+                        batch_lists[column_name] = (
+                            value, 
+                            index
+                        )
                     c = (c, batch_lists)
 
                 batches[n].append(c)
@@ -544,7 +553,7 @@ class LoaderBase:
                         leaves, nest_offsets = pull_apart_list(leaves, device=self.device)
                         col_offsets = nest_offsets.iloc[col_offsets[:]]
 
-                    offsets[column_name] = col_offsets.reset_index(drop=True)
+                    offsets[column_name] = col_offsets
                     list_tensors[column_name] = self._to_tensor(leaves)
                 x = x, list_tensors
             tensors.append(x)
@@ -569,6 +578,12 @@ class LoaderBase:
                 tensor, lists = tensor
 
             names = [i for i in names if i not in lists]
+            if not self.lists_as_tuple:
+                names_list = list(lists.keys())
+                for col in names_list:
+                    tup = lists.pop(col)
+                    X.update({f"{col}__values": tup[0]})
+                    X.update({f"{col}__offsets": tup[1]})
 
             # now add in any scalar tensors
             if len(names) > 1:
@@ -576,7 +591,7 @@ class LoaderBase:
                 # pull out label tensor from here
                 lists.update(zip(names, tensors))
             elif len(names) == 1:
-                lists[names[0]] = tensor
+                lists[names[0]] = self._reshape_dim(tensor)
             X.update(lists)
 
         for column_name in self.sparse_names:
@@ -584,7 +599,13 @@ class LoaderBase:
                 # raise ValueError(
                 #     f"Did not convert {column_name} to sparse due to missing sparse_max entry"
                 # )
-                X[column_name] = self._to_sparse_tensor(X[column_name], column_name)
+                if self.lists_as_tuple:
+                    tensor = (X[column_name][0], X[column_name][1][:-1])
+                else:
+                    tensor = (X[f"{column_name}__values"], X[f"{column_name}__offsets"][:-1])
+                    X.pop(f"{column_name}__values")
+                    X.pop(f"{column_name}__offsets")
+                X[column_name] = self._to_sparse_tensor(tensor, column_name)
 
         # Return a tensor if we have only one label column, but return a
         # dictionary of tensors if there are multiple label columns, since

@@ -79,6 +79,8 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         drop_last=False,
         transforms=None,
         device=None,
+        tensors_as_1d = True,
+        lists_as_tuple = False
     ):
         LoaderBase.__init__(
             self,
@@ -92,6 +94,8 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             drop_last=drop_last,
             transforms=transforms,
             device=device,
+            tensors_as_1d=tensors_as_1d,
+            lists_as_tuple=lists_as_tuple
         )
         self._map_fns = []
 
@@ -134,7 +138,16 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         return torch.split(tensor, idx, dim=axis)
 
     def _tensor_split(self, tensor, idx, axis=0):
-        return torch.tensor_split(tensor, idx, axis=axis)
+        # [x for x in torch.tensor_split(tensor, idx, axis=axis)] seems to be slower 50x
+        # Using view instead of .squeeze for the case of single batch
+        return [self._reshape_dim(x) for x in torch.tensor_split(tensor, idx, axis=axis)]
+        
+    def _reshape_dim(self, tensor):
+        if self.tensors_as_1d:
+            return tensor.view(-1)
+        else:
+            return tensor.view(-1, 1)
+            
 
     def _pull_values_offsets(self, values_offset):
         # pull_values_offsets, return values offsets diff_offsets
@@ -189,6 +202,20 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         Get the numpy dtype from the framework dtype.
         """
         return torch_to_numpy_dtype_dict[dtype]
+    
+    def _add_last_offset(self, index, value):
+        """
+        Add last length of value as last offset to index
+        """
+        dtype = index.dtype
+        device = index.device
+        return torch.concat([index.view(-1), 
+            torch.tensor(
+                [value.shape[0]],
+                dtype=dtype, 
+                device=device
+            )])
+        
 
 
 class DLDataLoader(torch.utils.data.DataLoader):
