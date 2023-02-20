@@ -355,7 +355,7 @@ class LoaderBase:
         split_idx = self._get_segment_lengths(len(gdf))
 
         # map from big chunk to framework-specific tensors
-        tensors_by_name = self._create_tensors(gdf)
+        tensors_by_name = self._process_dataframe(gdf)
 
         # split them into batches and map to the framework-specific output format
         tensor_batches = {}
@@ -453,12 +453,12 @@ class LoaderBase:
                 scalars.append(col)
         return scalars, lists
 
-    @annotate("_create_tensors", color="darkgreen", domain="merlin_dataloader")
-    def _create_tensors(self, gdf):
-        """
-        Breaks a dataframe down into the relevant
-        categorical, continuous, and label tensors.
-        Can be overrideen
+    @annotate("_process_dataframe", color="darkgreen", domain="merlin_dataloader")
+    def _process_dataframe(self, gdf):
+        """Convert a dataframe into framework tensors.
+        Returns dictionary of tensors by feature name.
+        Where scalar features are grouped under the same key (tuple of column names)
+        when they share the same dtype.
         """
         tensors_by_name = {}
         for column_names in self.dtype_reverse_map.values():
