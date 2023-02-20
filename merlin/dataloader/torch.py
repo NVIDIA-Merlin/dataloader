@@ -179,8 +179,8 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             sparse_tensor = sparse_tensor.to_dense()
         return sparse_tensor
 
-    def _handle_tensors(self, tensors):
-        to_return = super()._handle_tensors(tensors)
+    def _process_batch(self, tensors):
+        to_return = super()._process_batch(tensors)
 
         for map_fn in self._map_fns:
             to_return = map_fn(*to_return)

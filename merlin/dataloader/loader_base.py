@@ -386,7 +386,7 @@ class LoaderBase:
                 else:
                     batch[tensor_key] = tensor_value[batch_idx]
 
-            yield self._handle_tensors(batch)
+            yield self._process_batch(batch)
 
     def _get_segment_lengths(self, num_samples):
         """
@@ -485,8 +485,8 @@ class LoaderBase:
 
         return tensors_by_name
 
-    @annotate("_handle_tensors", color="darkgreen", domain="merlin_dataloader")
-    def _handle_tensors(self, tensors):
+    @annotate("_process_batch", color="darkgreen", domain="merlin_dataloader")
+    def _process_batch(self, tensors):
         X = {}
         for k, v in tensors.items():
             if isinstance(k, tuple):
