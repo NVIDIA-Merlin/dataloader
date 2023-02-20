@@ -367,7 +367,10 @@ class LoaderBase:
                 batch_row_lengths = self._split_fn(row_lengths, split_idx)
                 values_split_idx = [self._sum(row_lengths) for row_lengths in batch_row_lengths]
                 batch_values = self._split_fn(values, values_split_idx)
-                tensor_batches[tensor_key] = (batch_values, batch_row_lengths)
+                tensor_batches[tensor_key] = {
+                    "values": batch_values,
+                    "row_lengths": batch_row_lengths,
+                }
             else:
                 tensor_batches[tensor_key] = self._split_fn(tensor_value, split_idx)
 
@@ -375,9 +378,10 @@ class LoaderBase:
             batch = {}
             for tensor_key in tensors_by_name:
                 tensor_value = tensor_batches[tensor_key]
-                if isinstance(tensor_value, tuple):
-                    batch[tensor_key] = tuple(
-                        tuple_value[batch_idx] for tuple_value in tensor_value
+                if isinstance(tensor_value, dict):
+                    batch[tensor_key] = (
+                        tensor_value["values"][batch_idx],
+                        tensor_value["row_lengths"][batch_idx],
                     )
                 else:
                     batch[tensor_key] = tensor_value[batch_idx]
