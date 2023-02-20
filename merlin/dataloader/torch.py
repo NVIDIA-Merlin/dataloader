@@ -165,6 +165,9 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         indices = torch.cat([row_ids_repeated.unsqueeze(-1), col_ids.unsqueeze(-1)], axis=1)
         return indices
 
+    def _sum(self, tensor):
+        return tensor.sum()
+
     def _build_sparse_tensor(
         self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
     ):
@@ -176,8 +179,8 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             sparse_tensor = sparse_tensor.to_dense()
         return sparse_tensor
 
-    def _handle_tensors(self, tensors, tensor_names):
-        to_return = super()._handle_tensors(tensors, tensor_names)
+    def _handle_tensors(self, tensors):
+        to_return = super()._handle_tensors(tensors)
 
         for map_fn in self._map_fns:
             to_return = map_fn(*to_return)
