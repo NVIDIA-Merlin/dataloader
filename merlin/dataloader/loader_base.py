@@ -413,7 +413,7 @@ class LoaderBase:
                 # them in batches to grab the proper elements from each
                 # values tensor
                 chunk = zip(chunk, batch_offsets[:-1], batch_offsets[1:], batch_row_lengths)
-            import torch
+            
             for n, c in enumerate(chunk):
                 if isinstance(c, tuple):
                     c, off0s, off1s, _row_lengths = c
@@ -442,6 +442,9 @@ class LoaderBase:
                         index = off0 - start if not use_row_lengths else row_length
                         if not use_row_lengths:
                             index = self._add_last_offset(index, value)
+                        if self.tensors_as_1d:
+                            value = self._reshape_dim(value)
+                            index = self._reshape_dim(index)
                         batch_lists[column_name] = (
                             value, 
                             index

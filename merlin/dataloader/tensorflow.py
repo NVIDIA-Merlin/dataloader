@@ -116,6 +116,9 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         drop_last=False,
         transforms=None,
         device=None,
+        use_row_lengths=False,
+        tensors_as_1d = True,
+        lists_as_tuple = False
     ):
         LoaderBase.__init__(
             self,
@@ -129,7 +132,10 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             drop_last=drop_last,
             transforms=transforms,
             device=device,
+            tensors_as_1d=tensors_as_1d,
+            lists_as_tuple=lists_as_tuple
         )
+        self._use_row_lengths = use_row_lengths
         self._map_fns = []
 
     def __len__(self):
@@ -191,7 +197,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         Same function as above but need this method
         for api match.
         """
-        return tf.split(tensor, idx, axis=axis)
+        return [self._reshape_dim(x) for x in tf.split(tensor, idx, axis=axis)]
 
     @property
     def _LONG_DTYPE(self):
@@ -305,6 +311,35 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         Get the numpy dtype from the framework dtype.
         """
         return dtype.as_numpy_dtype()
+    
+    def _reshape_dim(self, tensor):
+        if self.tensors_as_1d:
+            return tf.reshape(tensor, shape=[-1])
+        else:
+            return tf.reshape(tensor, shape=[-1, 1])
+    
+    def _add_last_offset(self, index, value):
+        """
+        Add last length of value as last offset to index
+        """
+        dtype = index.dtype
+        #device = index.device
+        if len(index.shape)==2:
+            shape = [1,-1]
+        elif len(index.shape)==1:
+            shape = [-1]
+        else:
+            print(index.shape)
+            raise ValueError
+        return tf.concat([
+            index,
+            tf.reshape(
+                tf.convert_to_tensor(
+                    [value.shape[0]],
+                    dtype=dtype
+                ),
+                shape=shape)
+        ], axis=0)
 
 
 class KerasSequenceValidater(tf.keras.callbacks.Callback):
