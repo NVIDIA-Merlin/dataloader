@@ -155,26 +155,14 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
     def _get_max_seq_len(self, diff_offsets):
         return int(diff_offsets.max())
 
-    # Building the indices to reconstruct the sparse tensors
-
     def _get_indices(self, offsets, diff_offsets):
+        # Building the indices to reconstruct the ragged tensors
         row_ids = torch.arange(len(offsets) - 1, device=self.device)
         row_ids_repeated = torch.repeat_interleave(row_ids, diff_offsets)
         row_offset_repeated = torch.repeat_interleave(offsets[:-1], diff_offsets)
         col_ids = torch.arange(len(row_offset_repeated), device=self.device) - row_offset_repeated
         indices = torch.cat([row_ids_repeated.unsqueeze(-1), col_ids.unsqueeze(-1)], axis=1)
         return indices
-
-    def _build_sparse_tensor(
-        self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
-    ):
-        indices = self._get_indices(offsets, diff_offsets)
-        sparse_tensor = torch.sparse_coo_tensor(
-            indices.T, values, torch.Size([num_rows, seq_limit]), device=self.device
-        )
-        if sparse_as_dense:
-            sparse_tensor = sparse_tensor.to_dense()
-        return sparse_tensor
 
     def _handle_tensors(self, tensors, tensor_names):
         to_return = super()._handle_tensors(tensors, tensor_names)

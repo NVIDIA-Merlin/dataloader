@@ -245,7 +245,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         """
         values_offset is either a tuple (values, offsets) or just values.
         Values is a tensor.
-        This method is used to turn a tensor into its sparse representation
+        This method is used to turn a tensor into its ragged representation
         """
         # pull_values_offsets, return values offsets diff_offsets
         diff_offsets = None
@@ -265,7 +265,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         return int(tf.math.reduce_max(diff_offsets))
 
     def _get_indices(self, offsets, diff_offsets):
-        # Building the indices to reconstruct the sparse tensors
+        # Building the indices to reconstruct the ragged tensors
         row_ids = tf.range(len(offsets), dtype=tf.int64)
 
         row_ids_repeated = tf.repeat(row_ids, diff_offsets)
@@ -276,21 +276,6 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             axis=1,
         )
         return indices
-
-    def _get_sparse_tensor(self, values, indices, num_rows, seq_limit):
-        sparse_tensor = tf.sparse.SparseTensor(
-            indices=indices, values=values, dense_shape=[num_rows, seq_limit]
-        )
-        return sparse_tensor
-
-    def _build_sparse_tensor(
-        self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
-    ):
-        ragged = tf.RaggedTensor.from_row_lengths(values=values, row_lengths=diff_offsets)
-        tensor = tf.RaggedTensor.from_tensor(ragged.to_tensor(shape=[None, seq_limit])).to_sparse()
-        if sparse_as_dense:
-            tensor = tf.sparse.to_dense(tensor)
-        return tensor
 
     def _handle_tensors(self, tensors, tensor_names):
         to_return = super()._handle_tensors(tensors, tensor_names)

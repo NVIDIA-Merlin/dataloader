@@ -273,47 +273,6 @@ def test_mh_support(multihot_dataset):
     assert idx > 0
 
 
-@pytest.mark.parametrize("sparse_dense", [False, True])
-def test_sparse_tensors(sparse_dense):
-    # create small dataset, add values to sparse_list
-    df = make_df(
-        {
-            "spar1": [[1, 2, 3, 4], [4, 2, 4, 4], [1, 3, 4, 3], [1, 1, 3, 3]],
-            "spar2": [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14], [15, 16]],
-        }
-    )
-    spa_lst = ["spar1", "spar2"]
-    spa_mx = {"spar1": 5, "spar2": 6}
-    batch_size = 2
-
-    ds = Dataset(df)
-    schema = ds.schema
-    for col_name in spa_lst:
-        if not sparse_dense:
-            schema[col_name] = schema[col_name].with_properties(
-                {"value_count": {"max": spa_mx[col_name]}}
-            )
-    ds.schema = schema
-
-    dataloader = torch_dataloader.Loader(
-        ds,
-        batch_size=batch_size,
-    )
-    for batch in dataloader:
-        feats, labs = batch
-        for col in spa_lst:
-            feature_tensor = feats[col]
-            if not sparse_dense:
-                assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
-                assert feature_tensor.is_sparse
-            else:
-                assert not feature_tensor[0].is_sparse
-
-    # add dict sparse_max entry for each target
-    # iterate dataloader grab sparse columns
-    # ensure they are correct structurally
-
-
 @pytest.mark.parametrize("batch_size", [1000])
 @pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_schema(df, dataset, batch_size, cpu):

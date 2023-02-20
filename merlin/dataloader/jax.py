@@ -115,6 +115,3 @@ class Loader(LoaderBase):
     def _cast_to_numpy_dtype(self, dtype):
         # jax uses numpy dtypes, so this is kinda easy
         return dtype
-
-    def _to_sparse_tensor(self, values_offset, column_name):
-        raise NotImplementedError("Sparse support isn't implemented yet for the Jax dataloader")
