@@ -337,7 +337,7 @@ class LoaderBase:
 
     @annotate("make_tensors", color="darkgreen", domain="merlin_dataloader")
     def make_tensors(self, gdf, use_row_lengths=False):
-        """Turns a gdf into tensor representation by column
+        """Yields batches of tensors from a dataframe
 
         Parameters
         ----------
@@ -354,7 +354,7 @@ class LoaderBase:
         """
         split_idx = self._get_segment_lengths(len(gdf))
 
-        # map from big chunk to framework-specific tensors
+        # convert dataframe to framework-specific tensors
         tensors_by_name = self._process_dataframe(gdf)
 
         # split them into batches and map to the framework-specific output format
