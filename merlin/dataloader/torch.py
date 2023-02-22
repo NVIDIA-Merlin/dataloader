@@ -78,9 +78,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         global_rank=None,
         drop_last=False,
         transforms=None,
-        device=None,
-        tensors_as_1d = True,
-        lists_as_tuple = False
+        device=None
     ):
         LoaderBase.__init__(
             self,
@@ -93,9 +91,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             global_rank=global_rank,
             drop_last=drop_last,
             transforms=transforms,
-            device=device,
-            tensors_as_1d=tensors_as_1d,
-            lists_as_tuple=lists_as_tuple
+            device=device
         )
         self._map_fns = []
 
@@ -143,11 +139,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         return [self._reshape_dim(x) for x in torch.tensor_split(tensor, idx, axis=axis)]
         
     def _reshape_dim(self, tensor):
-        if self.tensors_as_1d:
-            return tensor.view(-1)
-        else:
-            return tensor.view(-1, 1)
-            
+        return tensor.view(-1)            
 
     def _pull_values_offsets(self, values_offset):
         # pull_values_offsets, return values offsets diff_offsets

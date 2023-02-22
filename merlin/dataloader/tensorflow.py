@@ -116,9 +116,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         drop_last=False,
         transforms=None,
         device=None,
-        use_row_lengths=False,
-        tensors_as_1d = True,
-        lists_as_tuple = False
+        use_row_lengths=False
     ):
         LoaderBase.__init__(
             self,
@@ -131,9 +129,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             global_rank=global_rank,
             drop_last=drop_last,
             transforms=transforms,
-            device=device,
-            tensors_as_1d=tensors_as_1d,
-            lists_as_tuple=lists_as_tuple
+            device=device
         )
         self._use_row_lengths = use_row_lengths
         self._map_fns = []
@@ -313,10 +309,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         return dtype.as_numpy_dtype()
     
     def _reshape_dim(self, tensor):
-        if self.tensors_as_1d:
-            return tf.reshape(tensor, shape=[-1])
-        else:
-            return tf.reshape(tensor, shape=[-1, 1])
+        return tf.reshape(tensor, shape=[-1])
     
     def _add_last_offset(self, index, value):
         """

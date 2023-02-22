@@ -38,7 +38,7 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
-from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node
+from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node, ungroup_values_offsets 
 from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
 from merlin.schema import Schema, Tags
@@ -64,9 +64,7 @@ class LoaderBase:
         global_rank=None,
         drop_last=False,
         transforms=None,
-        device=None,
-        tensors_as_1d = True,
-        lists_as_tuple = False
+        device=None
     ):
         self.dataset = dataset
         self.batch_size = batch_size
@@ -76,8 +74,6 @@ class LoaderBase:
         self.global_size = global_size or 1
         self.global_rank = global_rank or 0
         self.drop_last = drop_last
-        self.tensors_as_1d = tensors_as_1d
-        self.lists_as_tuple = lists_as_tuple
 
         self.indices = cp.arange(self.dataset.npartitions)
         if device:
@@ -442,9 +438,8 @@ class LoaderBase:
                         index = off0 - start if not use_row_lengths else row_length
                         if not use_row_lengths:
                             index = self._add_last_offset(index, value)
-                        if self.tensors_as_1d:
-                            value = self._reshape_dim(value)
-                            index = self._reshape_dim(index)
+                        value = self._reshape_dim(value)
+                        index = self._reshape_dim(index)
                         batch_lists[column_name] = (
                             value, 
                             index
@@ -581,13 +576,6 @@ class LoaderBase:
                 tensor, lists = tensor
 
             names = [i for i in names if i not in lists]
-            if not self.lists_as_tuple:
-                names_list = list(lists.keys())
-                for col in names_list:
-                    tup = lists.pop(col)
-                    X.update({f"{col}__values": tup[0]})
-                    X.update({f"{col}__offsets": tup[1]})
-
             # now add in any scalar tensors
             if len(names) > 1:
                 tensors = self._tensor_split(tensor, len(names), axis=1)
@@ -596,18 +584,16 @@ class LoaderBase:
             elif len(names) == 1:
                 lists[names[0]] = self._reshape_dim(tensor)
             X.update(lists)
-
+        
+        X = ungroup_values_offsets(X)
         for column_name in self.sparse_names:
             if column_name in self.sparse_max:
                 # raise ValueError(
                 #     f"Did not convert {column_name} to sparse due to missing sparse_max entry"
                 # )
-                if self.lists_as_tuple:
-                    tensor = (X[column_name][0], X[column_name][1][:-1])
-                else:
-                    tensor = (X[f"{column_name}__values"], X[f"{column_name}__offsets"][:-1])
-                    X.pop(f"{column_name}__values")
-                    X.pop(f"{column_name}__offsets")
+                tensor = (X[f"{column_name}__values"], X[f"{column_name}__offsets"][:-1])
+                X.pop(f"{column_name}__values")
+                X.pop(f"{column_name}__offsets")
                 X[column_name] = self._to_sparse_tensor(tensor, column_name)
 
         # Return a tensor if we have only one label column, but return a
