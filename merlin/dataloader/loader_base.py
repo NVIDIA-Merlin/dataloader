@@ -466,8 +466,11 @@ class LoaderBase:
         values_offset is either a tensor or a tuple of tensor, offset.
         """
         seq_limit = self.sparse_max[column_name]
+        print(values_offset)
         values, offsets, diff_offsets, num_rows = self._pull_values_offsets(values_offset)
+        print(values, offsets, diff_offsets, num_rows)
         max_seq_len = self._get_max_seq_len(diff_offsets)
+        print(max_seq_len)
         if max_seq_len > seq_limit:
             raise ValueError(
                 "The default sequence length has been configured "

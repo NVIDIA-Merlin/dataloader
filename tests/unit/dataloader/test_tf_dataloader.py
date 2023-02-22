@@ -382,32 +382,26 @@ def test_mh_support(tmpdir, multihot_data, multihot_dataset, batch_size):
         batch_size=batch_size,
         shuffle=False,
     )
-    row_lengths = None
+    offsets = None
     idx = 0
-
     for X, y in data_itr:
-        assert len(X) == 4
+        assert len(X) == 7
         n_samples = y.shape[0]
 
         for mh_name in ["Authors", "Reviewers", "Embedding"]:
             # assert (mh_name) in X
-            array, row_lengths = X[mh_name]
-            row_lengths = row_lengths.numpy()[:, 0]
-            array = array.numpy()[:, 0]
+            array, offsets = X[f"{mh_name}__values"], X[f"{mh_name}__offsets"]
+            offsets = offsets.numpy()
+            array = array.numpy()
+            lens = [0]
+            cur = 0
+            for x in multihot_data[mh_name][idx * batch_size : idx * batch_size + n_samples]:
+                cur += len(x)
+                lens.append(cur)
+            assert (offsets == np.array(lens)).all()
+            assert len(array) == max(lens)
 
-            if mh_name == "Embedding":
-                assert (row_lengths == 3).all()
-            else:
-                lens = [
-                    len(x)
-                    for x in multihot_data[mh_name][idx * batch_size : idx * batch_size + n_samples]
-                ]
-                assert (row_lengths == np.array(lens)).all()
-
-            if mh_name == "Embedding":
-                assert len(array) == (n_samples * 3)
-            else:
-                assert len(array) == sum(lens)
+                
         idx += 1
     assert idx == (3 // batch_size + 1)
 
@@ -440,16 +434,20 @@ def test_validater(tmpdir, batch_size):
     predictions, labels = [], []
     for X, y_true in dataloader:
         y_pred = model(X)
-        labels.extend(y_true.numpy()[:, 0])
+        labels.extend(y_true.numpy())
         predictions.extend(y_pred.numpy()[:, 0])
     predictions = np.array(predictions)
+    print(labels)
     labels = np.array(labels)
+    print(labels)
+    print(predictions)
 
     logs = {}
     validater.on_epoch_end(0, logs)
     auc_key = [i for i in logs if i.startswith("val_auc")][0]
 
     true_accuracy = (labels == (predictions > 0.5)).mean()
+    print(true_accuracy)
     estimated_accuracy = logs["val_accuracy"]
     assert np.isclose(true_accuracy, estimated_accuracy, rtol=1e-6)
 
@@ -534,12 +532,13 @@ def test_sparse_tensors(tmpdir, sparse_dense):
         feats, labs = batch
         for col in spa_lst:
             # grab row lengths
-            feature_tensor = feats[f"{col}"]
             if not sparse_dense:
+                feature_tensor = feats[f"{col}"]
                 assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
                 assert isinstance(feature_tensor, tf.sparse.SparseTensor)
             else:
-                assert feature_tensor[1].shape[0] == batch_size
+                feature_tensor = feats[f"{col}__offsets"]
+                assert feature_tensor.shape[0] == batch_size+1
                 assert not isinstance(feature_tensor, tf.sparse.SparseTensor)
 
 
