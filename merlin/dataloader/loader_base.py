@@ -24,9 +24,9 @@ from typing import List, Optional
 import numpy as np
 
 try:
-    import cupy as cp
+    import cupy
 except ImportError:
-    cp = np
+    cupy = None
 
 from merlin.core.dispatch import (
     HAS_GPU,
@@ -74,11 +74,17 @@ class LoaderBase:
         self.global_rank = global_rank or 0
         self.drop_last = drop_last
 
-        self.indices = cp.arange(self.dataset.npartitions)
         if device:
             self.device = device
         else:
             self.device = "cpu" if not HAS_GPU or dataset.cpu else 0
+
+        if self.device == "cpu":
+            self._array_lib = np
+        else:
+            self._array_lib = cupy
+
+        self.indices = self._array_lib.arange(self.dataset.npartitions)
 
         if not dataset.schema:
             warnings.warn(
@@ -218,8 +224,8 @@ class LoaderBase:
         generate_local_seed(self.global_rank, self.global_size)
         if self.seed_fn:
             new_seed = self.seed_fn()
-            cp.random.seed(new_seed)
-        cp.random.shuffle(self.indices)
+            self._array_lib.random.seed(new_seed)
+        self._array_lib.random.shuffle(self.indices)
         generate_local_seed(self.global_rank, self.global_size)
 
     def __iter__(self):
