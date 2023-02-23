@@ -102,7 +102,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         will usually contain fewer rows.
     """
 
-    _use_row_lengths = True
+    _use_row_lengths = False
 
     def __init__(
         self,
@@ -116,7 +116,6 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         drop_last=False,
         transforms=None,
         device=None,
-        use_row_lengths=False
     ):
         LoaderBase.__init__(
             self,
@@ -129,9 +128,8 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             global_rank=global_rank,
             drop_last=drop_last,
             transforms=transforms,
-            device=device
+            device=device,
         )
-        self._use_row_lengths = use_row_lengths
         self._map_fns = []
 
     def __len__(self):
@@ -253,13 +251,12 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         diff_offsets = None
         if isinstance(values_offset, tuple):
             values = tf.reshape(values_offset[0], [-1])
-            diff_offsets = tf.cast(tf.reshape(values_offset[1], [-1]), dtype=tf.int64)
-            offsets = tf.math.cumsum(diff_offsets)
+            offsets = tf.reshape(values_offset[1], [-1])
         else:
             values = tf.reshape(values_offset, [-1])
             offsets = tf.arange(tf.shape(values)[0], dtype=tf.int64)
-            diff_offsets = offsets[1:] - offsets[:-1]
         num_rows = len(offsets)
+        diff_offsets = offsets[1:] - offsets[:-1]
         return values, offsets, diff_offsets, num_rows
 
     def _get_max_seq_len(self, diff_offsets):
@@ -307,32 +304,27 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         Get the numpy dtype from the framework dtype.
         """
         return dtype.as_numpy_dtype()
-    
+
     def _reshape_dim(self, tensor):
         return tf.reshape(tensor, shape=[-1])
-    
+
     def _add_last_offset(self, index, value):
         """
         Add last length of value as last offset to index
         """
         dtype = index.dtype
-        #device = index.device
-        if len(index.shape)==2:
-            shape = [1,-1]
-        elif len(index.shape)==1:
+        # device = index.device
+        if len(index.shape) == 2:
+            shape = [1, -1]
+        elif len(index.shape) == 1:
             shape = [-1]
         else:
             print(index.shape)
             raise ValueError
-        return tf.concat([
-            index,
-            tf.reshape(
-                tf.convert_to_tensor(
-                    [value.shape[0]],
-                    dtype=dtype
-                ),
-                shape=shape)
-        ], axis=0)
+        return tf.concat(
+            [index, tf.reshape(tf.convert_to_tensor([value.shape[0]], dtype=dtype), shape=shape)],
+            axis=0,
+        )
 
 
 class KerasSequenceValidater(tf.keras.callbacks.Callback):

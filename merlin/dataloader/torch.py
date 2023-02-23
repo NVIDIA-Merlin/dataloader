@@ -17,7 +17,6 @@ import numpy as np
 import torch
 from torch.utils.dlpack import from_dlpack
 
-from merlin.core.dispatch import HAS_GPU
 from merlin.dataloader.loader_base import LoaderBase
 
 numpy_to_torch_dtype_dict = {
@@ -78,7 +77,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         global_rank=None,
         drop_last=False,
         transforms=None,
-        device=None
+        device=None,
     ):
         LoaderBase.__init__(
             self,
@@ -91,7 +90,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             global_rank=global_rank,
             drop_last=drop_last,
             transforms=transforms,
-            device=device
+            device=device,
         )
         self._map_fns = []
 
@@ -137,9 +136,9 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         # [x for x in torch.tensor_split(tensor, idx, axis=axis)] seems to be slower 50x
         # Using view instead of .squeeze for the case of single batch
         return [self._reshape_dim(x) for x in torch.tensor_split(tensor, idx, axis=axis)]
-        
+
     def _reshape_dim(self, tensor):
-        return tensor.view(-1)            
+        return tensor.view(-1)
 
     def _pull_values_offsets(self, values_offset):
         # pull_values_offsets, return values offsets diff_offsets
@@ -150,10 +149,6 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             values = values_offset.flatten()
             offsets = torch.arange(values.size()[0], device=self.device)
         num_rows = len(offsets)
-        if HAS_GPU:
-            offsets = torch.cat([offsets, torch.cuda.LongTensor([len(values)], device=self.device)])
-        else:
-            offsets = torch.cat([offsets, torch.LongTensor([len(values)])])
         diff_offsets = offsets[1:] - offsets[:-1]
         return values, offsets, diff_offsets, num_rows
 
@@ -194,20 +189,16 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         Get the numpy dtype from the framework dtype.
         """
         return torch_to_numpy_dtype_dict[dtype]
-    
+
     def _add_last_offset(self, index, value):
         """
         Add last length of value as last offset to index
         """
         dtype = index.dtype
         device = index.device
-        return torch.concat([index.view(-1), 
-            torch.tensor(
-                [value.shape[0]],
-                dtype=dtype, 
-                device=device
-            )])
-        
+        return torch.concat(
+            [index.view(-1), torch.tensor([value.shape[0]], dtype=dtype, device=device)]
+        )
 
 
 class DLDataLoader(torch.utils.data.DataLoader):

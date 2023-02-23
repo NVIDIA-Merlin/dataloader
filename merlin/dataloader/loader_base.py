@@ -38,7 +38,7 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
-from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node, ungroup_values_offsets 
+from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node, ungroup_values_offsets
 from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
 from merlin.schema import Schema, Tags
@@ -64,7 +64,7 @@ class LoaderBase:
         global_rank=None,
         drop_last=False,
         transforms=None,
-        device=None
+        device=None,
     ):
         self.dataset = dataset
         self.batch_size = batch_size
@@ -404,12 +404,12 @@ class LoaderBase:
                     batch_row_lengths = [chunk_row_lengths]
                 else:
                     batch_row_lengths = [None] * (len(batch_offsets) - 1)
-                
+
                 # group all these indices together and iterate through
                 # them in batches to grab the proper elements from each
                 # values tensor
                 chunk = zip(chunk, batch_offsets[:-1], batch_offsets[1:], batch_row_lengths)
-            
+
             for n, c in enumerate(chunk):
                 if isinstance(c, tuple):
                     c, off0s, off1s, _row_lengths = c
@@ -440,10 +440,7 @@ class LoaderBase:
                             index = self._add_last_offset(index, value)
                         value = self._reshape_dim(value)
                         index = self._reshape_dim(index)
-                        batch_lists[column_name] = (
-                            value, 
-                            index
-                        )
+                        batch_lists[column_name] = (value, index)
                     c = (c, batch_lists)
 
                 batches[n].append(c)
@@ -587,14 +584,14 @@ class LoaderBase:
             elif len(names) == 1:
                 lists[names[0]] = self._reshape_dim(tensor)
             X.update(lists)
-        
+
         X = ungroup_values_offsets(X)
         for column_name in self.sparse_names:
             if column_name in self.sparse_max:
                 # raise ValueError(
                 #     f"Did not convert {column_name} to sparse due to missing sparse_max entry"
                 # )
-                tensor = (X[f"{column_name}__values"], X[f"{column_name}__offsets"][:-1])
+                tensor = (X[f"{column_name}__values"], X[f"{column_name}__offsets"])
                 X.pop(f"{column_name}__values")
                 X.pop(f"{column_name}__offsets")
                 X[column_name] = self._to_sparse_tensor(tensor, column_name)
