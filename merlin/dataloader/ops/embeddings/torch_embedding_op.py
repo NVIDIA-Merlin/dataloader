@@ -79,7 +79,7 @@ class Torch_NumpyEmbeddingOperator(NumpyEmbeddingOperator):
     """
 
     def _format_embeddings(self, embeddings, keys):
-        return torch.from_numpy(embeddings).to(keys.device)
+        return torch.from_numpy(embeddings).to(keys.device).squeeze(1)
 
 
 class Torch_MmapNumpyTorchEmbedding(MmapNumpyTorchEmbedding):
@@ -103,4 +103,4 @@ class Torch_MmapNumpyTorchEmbedding(MmapNumpyTorchEmbedding):
     """
 
     def _format_embeddings(self, embeddings, keys):
-        return torch.from_numpy(embeddings).to(keys.device)
+        return torch.from_numpy(embeddings).to(keys.device).squeeze(1)
