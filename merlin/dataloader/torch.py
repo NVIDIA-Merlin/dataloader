@@ -17,7 +17,6 @@ import numpy as np
 import torch
 from torch.utils.dlpack import from_dlpack
 
-from merlin.core.dispatch import HAS_GPU
 from merlin.dataloader.loader_base import LoaderBase
 
 numpy_to_torch_dtype_dict = {
@@ -144,11 +143,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         else:
             values = values_offset.flatten()
             offsets = torch.arange(values.size()[0], device=self.device)
-        num_rows = len(offsets)
-        if HAS_GPU:
-            offsets = torch.cat([offsets, torch.cuda.LongTensor([len(values)], device=self.device)])
-        else:
-            offsets = torch.cat([offsets, torch.LongTensor([len(values)])])
+        num_rows = len(offsets) - 1
         diff_offsets = offsets[1:] - offsets[:-1]
         return values, offsets, diff_offsets, num_rows
 
@@ -167,6 +162,12 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
 
     def _sum(self, tensor):
         return tensor.sum()
+
+    def _row_lengths_to_offsets(self, row_lengths):
+        zero_value = torch.tensor([0], device=self.device)
+        if len(row_lengths.shape) == 2:
+            zero_value = zero_value.view(-1, 1)
+        return torch.cat((zero_value, torch.cumsum(row_lengths, 0)))
 
     def _build_sparse_tensor(
         self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense

@@ -385,10 +385,11 @@ class LoaderBase:
             for tensor_key in tensors_by_name:
                 tensor_value = tensor_batches[tensor_key]
                 if isinstance(tensor_value, dict):
-                    batch[tensor_key] = (
-                        tensor_value["values"][batch_idx],
-                        tensor_value["row_lengths"][batch_idx],
-                    )
+                    values = tensor_value["values"][batch_idx]
+                    row_partition = tensor_value["row_lengths"][batch_idx]
+                    if not use_row_lengths:
+                        row_partition = self._row_lengths_to_offsets(row_partition)
+                    batch[tensor_key] = values, row_partition
                 else:
                     batch[tensor_key] = tensor_value[batch_idx]
 
