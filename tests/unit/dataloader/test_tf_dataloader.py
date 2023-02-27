@@ -98,6 +98,63 @@ def test_simple_model():
     _ = model.evaluate(loader)
 
 
+def test_nested_list():
+    num_rows = 100
+    batch_size = 12
+
+    df = pd.DataFrame(
+        {
+            "data": [
+                np.random.rand(np.random.randint(10) + 1, 3).tolist() for i in range(num_rows)
+            ],
+            "data2": [np.random.rand(np.random.randint(10) + 1).tolist() for i in range(num_rows)],
+            "label": [np.random.rand() for i in range(num_rows)],
+        }
+    )
+    ds = Dataset(df)
+    schema = ds.schema
+    schema["label"] = schema["label"].with_tags([Tags.TARGET])
+    ds.schema = schema
+    loader = tf_dataloader.Loader(
+        ds,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+
+    batch = next(loader)
+
+    # [[1,2,3],[3,1],[...],[]]
+    @tf.function
+    def _ragged_for_nested_data_col():
+        nested_data_col = tf.RaggedTensor.from_row_lengths(
+            batch[0]["data"][0][:, 0], tf.cast(batch[0]["data"][1][:, 0], tf.int32)
+        ).to_tensor()
+        return nested_data_col
+
+    nested_data_col = _ragged_for_nested_data_col()
+    true_data_col = tf.reshape(
+        tf.ragged.constant(df.iloc[:batch_size, 0].tolist()).to_tensor(), [batch_size, -1]
+    )
+
+    # [1,2,3]
+    @tf.function
+    def _ragged_for_multihot_data_col():
+        multihot_data2_col = tf.RaggedTensor.from_row_lengths(
+            batch[0]["data2"][0][:, 0], tf.cast(batch[0]["data2"][1][:, 0], tf.int32)
+        ).to_tensor()
+        return multihot_data2_col
+
+    multihot_data2_col = _ragged_for_multihot_data_col()
+    true_data2_col = tf.reshape(
+        tf.ragged.constant(df.iloc[:batch_size, 1].tolist()).to_tensor(),
+        [batch_size, -1],
+    )
+    assert nested_data_col.shape == true_data_col.shape
+    assert np.allclose(nested_data_col.numpy(), true_data_col.numpy())
+    assert multihot_data2_col.shape == true_data2_col.shape
+    assert np.allclose(multihot_data2_col.numpy(), true_data2_col.numpy())
+
+
 def test_shuffling():
     num_rows = 10000
     batch_size = 10000
