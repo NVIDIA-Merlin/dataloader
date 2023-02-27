@@ -486,6 +486,11 @@ class LoaderBase:
                 for column_name in lists:
                     column = gdf_i.pop(column_name)
                     leaves, col_offsets = pull_apart_list(column, device=self.device)
+
+                    if isinstance(leaves[0], list):
+                        leaves, nest_offsets = pull_apart_list(leaves, device=self.device)
+                        col_offsets = nest_offsets.iloc[col_offsets[:]]
+
                     tensors_by_name[column_name] = self._to_tensor(leaves), self._to_tensor(
                         col_offsets
                     )
