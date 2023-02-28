@@ -69,6 +69,9 @@ class Loader(LoaderBase):
 
     _tensor_split = _split_fn
 
+    def _sum(self, tensor):
+        return tensor.sum()
+
     def _to_tensor(self, gdf):
         if gdf.empty:
             return
