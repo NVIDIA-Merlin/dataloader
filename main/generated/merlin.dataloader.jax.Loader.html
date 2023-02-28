@@ -131,7 +131,7 @@ will usually contain fewer rows.</p></li>
 <td><p>Create a dataloader that will efficiently run for more than one epoch.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_tensors</span></code>(gdf[, use_row_lengths])</p></td>
-<td><p>Turns a gdf into tensor representation by column</p></td>
+<td><p>Yields batches of tensors from a dataframe</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">peek</span></code>()</p></td>
 <td><p>Get the next batch without advancing the iterator.</p></td>
