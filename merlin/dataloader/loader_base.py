@@ -74,10 +74,8 @@ class LoaderBase:
         self.global_rank = global_rank or 0
         self.drop_last = drop_last
 
-        if device:
-            self.device = device
-        else:
-            self.device = "cpu" if not HAS_GPU or dataset.cpu else 0
+        device = device or 0
+        self.device = "cpu" if not HAS_GPU or dataset.cpu else device
 
         if self.device == "cpu":
             self._array_lib = np

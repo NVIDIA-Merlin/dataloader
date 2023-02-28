@@ -98,6 +98,11 @@ def test_simple_model():
     _ = model.evaluate(loader)
 
 
+def test_with_device():
+    dataset = Dataset(make_df({"a": [1]}))
+    tf_dataloader.Loader(dataset, batch_size=1, device=1).peek()
+
+
 def test_nested_list():
     num_rows = 100
     batch_size = 12
