@@ -241,6 +241,9 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             x = tf.transpose(x)
         return x
 
+    def _sum(self, tensor):
+        return tf.reduce_sum(tensor)
+
     def _pull_values_offsets(self, values_offset):
         """
         values_offset is either a tuple (values, offsets) or just values.
@@ -292,8 +295,8 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             tensor = tf.sparse.to_dense(tensor)
         return tensor
 
-    def _handle_tensors(self, tensors, tensor_names):
-        to_return = super()._handle_tensors(tensors, tensor_names)
+    def _process_batch(self, tensors):
+        to_return = super()._process_batch(tensors)
 
         for map_fn in self._map_fns:
             to_return = map_fn(*to_return)
