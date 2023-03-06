@@ -241,6 +241,9 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             x = tf.transpose(x)
         return x
 
+    def _sum(self, tensor):
+        return tf.reduce_sum(tensor)
+
     def _pull_values_offsets(self, values_offset):
         """
         values_offset is either a tuple (values, offsets) or just values.
@@ -258,6 +261,12 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         num_rows = len(offsets)
         diff_offsets = offsets[1:] - offsets[:-1]
         return values, offsets, diff_offsets, num_rows
+
+    def _row_lengths_to_offsets(self, row_lengths):
+        zero_value = tf.constant([0])
+        if len(row_lengths.shape) == 2:
+            zero_value = tf.expand_dims(zero_value, axis=0)
+        return tf.concat([zero_value, tf.cumsum(row_lengths)], axis=0)
 
     def _get_max_seq_len(self, diff_offsets):
         # get_max_seq_len, return int
@@ -285,14 +294,14 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
     def _build_sparse_tensor(
         self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
     ):
-        ragged = tf.RaggedTensor.from_row_lengths(values=values, row_lengths=diff_offsets)
+        ragged = tf.RaggedTensor.from_row_splits(values=values, row_splits=offsets)
         tensor = tf.RaggedTensor.from_tensor(ragged.to_tensor(shape=[None, seq_limit])).to_sparse()
         if sparse_as_dense:
             tensor = tf.sparse.to_dense(tensor)
         return tensor
 
-    def _handle_tensors(self, tensors, tensor_names):
-        to_return = super()._handle_tensors(tensors, tensor_names)
+    def _process_batch(self, tensors):
+        to_return = super()._process_batch(tensors)
 
         for map_fn in self._map_fns:
             to_return = map_fn(*to_return)

@@ -312,7 +312,7 @@ def test_sparse_tensors(sparse_dense):
             else:
                 feature_tensor = feats[col]
             if not sparse_dense:
-                assert list(feature_tensor.shape) == [batch_size + 1, spa_mx[col]]
+                assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
                 assert feature_tensor.is_sparse
             else:
                 assert not feature_tensor[0].is_sparse
