@@ -131,9 +131,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         return torch.split(tensor, idx, dim=axis)
 
     def _tensor_split(self, tensor, idx, axis=0):
-        # [x for x in torch.tensor_split(tensor, idx, axis=axis)] seems to be slower 50x
-        # Using view instead of .squeeze for the case of single batch
-        return [self._reshape_dim(x) for x in torch.tensor_split(tensor, idx, axis=axis)]
+        return torch.tensor_split(tensor, idx, axis=axis)
 
     def _reshape_dim(self, tensor):
         return tensor.view(-1)

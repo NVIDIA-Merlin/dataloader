@@ -191,7 +191,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         Same function as above but need this method
         for api match.
         """
-        return [self._reshape_dim(x) for x in tf.split(tensor, idx, axis=axis)]
+        return tf.split(tensor, idx, axis=axis)
 
     @property
     def _LONG_DTYPE(self):
