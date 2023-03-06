@@ -317,24 +317,6 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
     def _reshape_dim(self, tensor):
         return tf.reshape(tensor, shape=[-1])
 
-    def _add_last_offset(self, index, value):
-        """
-        Add last length of value as last offset to index
-        """
-        dtype = index.dtype
-        # device = index.device
-        if len(index.shape) == 2:
-            shape = [1, -1]
-        elif len(index.shape) == 1:
-            shape = [-1]
-        else:
-            print(index.shape)
-            raise ValueError
-        return tf.concat(
-            [index, tf.reshape(tf.convert_to_tensor([value.shape[0]], dtype=dtype), shape=shape)],
-            axis=0,
-        )
-
 
 class KerasSequenceValidater(tf.keras.callbacks.Callback):
     # TODO: document

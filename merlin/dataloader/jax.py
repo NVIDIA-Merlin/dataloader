@@ -130,6 +130,3 @@ class Loader(LoaderBase):
 
     def _reshape_dim(self, tensor):
         return jax.numpy.reshape(tensor, (-1,))
-
-    def _add_last_offset(self, index, value):
-        raise NotImplementedError("Sparse support isn't implemented yet for the Jax dataloader")

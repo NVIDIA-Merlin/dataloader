@@ -195,16 +195,6 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         """
         return torch_to_numpy_dtype_dict[dtype]
 
-    def _add_last_offset(self, index, value):
-        """
-        Add last length of value as last offset to index
-        """
-        dtype = index.dtype
-        device = index.device
-        return torch.concat(
-            [index.view(-1), torch.tensor([value.shape[0]], dtype=dtype, device=device)]
-        )
-
 
 class DLDataLoader(torch.utils.data.DataLoader):
     """
