@@ -167,7 +167,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         return tensor.sum()
 
     def _row_lengths_to_offsets(self, row_lengths):
-        zero_value = torch.tensor([0], device=self.device)
+        zero_value = torch.tensor([0], device=self.device, dtype=row_lengths.dtype)
         if len(row_lengths.shape) == 2:
             zero_value = zero_value.view(-1, 1)
         return torch.cat((zero_value, torch.cumsum(row_lengths, 0)))

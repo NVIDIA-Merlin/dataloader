@@ -263,7 +263,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         return values, offsets, diff_offsets, num_rows
 
     def _row_lengths_to_offsets(self, row_lengths):
-        zero_value = tf.constant([0])
+        zero_value = tf.constant([0], dtype=row_lengths.dtype)
         if len(row_lengths.shape) == 2:
             zero_value = tf.expand_dims(zero_value, axis=0)
         return tf.concat([zero_value, tf.cumsum(row_lengths)], axis=0)
