@@ -513,9 +513,6 @@ class LoaderBase:
         X = ungroup_values_offsets(X)
         for column_name in self.sparse_names:
             if column_name in self.sparse_max:
-                # raise ValueError(
-                #     f"Did not convert {column_name} to sparse due to missing sparse_max entry"
-                # )
                 tensor = (X[f"{column_name}__values"], X[f"{column_name}__offsets"])
                 X.pop(f"{column_name}__values")
                 X.pop(f"{column_name}__offsets")
