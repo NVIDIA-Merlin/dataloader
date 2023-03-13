@@ -1,4 +1,4 @@
-name: CPU CI
+name: Packages
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
     branches: [main]
 
 jobs:
-  build-packages:
+  build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -85,7 +85,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [build-packages]
+    needs: [build]
     steps:
       - uses: actions/download-artifact@v3
         with:
