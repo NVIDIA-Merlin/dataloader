@@ -85,7 +85,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [build]
+    needs: [build-packages]
     steps:
       - uses: actions/download-artifact@v3
         with:
