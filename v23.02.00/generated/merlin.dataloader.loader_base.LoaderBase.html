@@ -113,7 +113,7 @@
 <td><p>Create a dataloader that will efficiently run for more than one epoch.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.make_tensors" title="merlin.dataloader.loader_base.LoaderBase.make_tensors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_tensors</span></code></a>(gdf[, use_row_lengths])</p></td>
-<td><p>Yields batches of tensors from a dataframe</p></td>
+<td><p>Turns a gdf into tensor representation by column</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#merlin.dataloader.loader_base.LoaderBase.peek" title="merlin.dataloader.loader_base.LoaderBase.peek"><code class="xref py py-obj docutils literal notranslate"><span class="pre">peek</span></code></a>()</p></td>
 <td><p>Get the next batch without advancing the iterator.</p></td>
@@ -181,7 +181,7 @@
 <dl class="py method">
 <dt id="merlin.dataloader.loader_base.LoaderBase.make_tensors">
 <code class="sig-name descname"><span class="pre">make_tensors</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gdf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_row_lengths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/merlin/dataloader/loader_base.html#LoaderBase.make_tensors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#merlin.dataloader.loader_base.LoaderBase.make_tensors" title="Permalink to this definition"></a></dt>
-<dd><p>Yields batches of tensors from a dataframe</p>
+<dd><p>Turns a gdf into tensor representation by column</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -288,6 +288,11 @@ will be the same as the input schema.</p>
       <dd><a href="../../v0.0.3/index.html">v0.0.3</a></dd>
       <dd><a href="../../v0.0.4/index.html">v0.0.4</a></dd>
       <dd><a href="merlin.dataloader.loader_base.LoaderBase.html">v23.02.00</a></dd>
+      <dd><a href="../../v23.02.01/index.html">v23.02.01</a></dd>
+    </dl>
+    <dl>
+      <dt>Branches</dt>
+      <dd><a href="../../main/index.html">main</a></dd>
     </dl>
   </div>
 </div><script>

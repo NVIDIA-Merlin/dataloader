@@ -96,14 +96,15 @@
 <span class="kn">import</span> <span class="nn">queue</span>
 <span class="kn">import</span> <span class="nn">threading</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="k">try</span><span class="p">:</span>
-    <span class="kn">import</span> <span class="nn">cupy</span>
+    <span class="kn">import</span> <span class="nn">cupy</span> <span class="k">as</span> <span class="nn">cp</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="n">cupy</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">cp</span> <span class="o">=</span> <span class="n">np</span>
 
 <span class="kn">from</span> <span class="nn">merlin.core.dispatch</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">HAS_GPU</span><span class="p">,</span>
@@ -151,15 +152,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">global_rank</span> <span class="o">=</span> <span class="n">global_rank</span> <span class="ow">or</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">drop_last</span> <span class="o">=</span> <span class="n">drop_last</span>
 
-        <span class="n">device</span> <span class="o">=</span> <span class="n">device</span> <span class="ow">or</span> <span class="mi">0</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="s2">&quot;cpu&quot;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">HAS_GPU</span> <span class="ow">or</span> <span class="n">dataset</span><span class="o">.</span><span class="n">cpu</span> <span class="k">else</span> <span class="n">device</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">==</span> <span class="s2">&quot;cpu&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_array_lib</span> <span class="o">=</span> <span class="n">np</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">npartitions</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">device</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">device</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_array_lib</span> <span class="o">=</span> <span class="n">cupy</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_array_lib</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">npartitions</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="s2">&quot;cpu&quot;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">HAS_GPU</span> <span class="ow">or</span> <span class="n">dataset</span><span class="o">.</span><span class="n">cpu</span> <span class="k">else</span> <span class="mi">0</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">dataset</span><span class="o">.</span><span class="n">schema</span><span class="p">:</span>
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
@@ -299,8 +296,8 @@
         <span class="n">generate_local_seed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_rank</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_size</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">seed_fn</span><span class="p">:</span>
             <span class="n">new_seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">seed_fn</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_array_lib</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">new_seed</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_array_lib</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">)</span>
+            <span class="n">cp</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">new_seed</span><span class="p">)</span>
+        <span class="n">cp</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">)</span>
         <span class="n">generate_local_seed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_rank</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_size</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -418,7 +415,7 @@
 
 <div class="viewcode-block" id="LoaderBase.make_tensors"><a class="viewcode-back" href="../../../generated/merlin.dataloader.loader_base.LoaderBase.html#merlin.dataloader.loader_base.LoaderBase.make_tensors">[docs]</a>    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;make_tensors&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">make_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">,</span> <span class="n">use_row_lengths</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Yields batches of tensors from a dataframe</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Turns a gdf into tensor representation by column</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -434,41 +431,93 @@
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">split_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_segment_lengths</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gdf</span><span class="p">))</span>
+        <span class="c1"># map from big chunk to framework-specific tensors</span>
+        <span class="n">chunks</span><span class="p">,</span> <span class="n">names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_tensors</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span>
 
-        <span class="c1"># convert dataframe to framework-specific tensors</span>
-        <span class="n">tensors_by_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_dataframe</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span>
+        <span class="c1"># if we have any offsets, calculate row lengths up front</span>
+        <span class="c1"># will need to get offsets if list columns detected in schema</span>
+
+        <span class="c1"># if len(chunks) == 4:</span>
+        <span class="n">lists_list</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">col_name</span>
+            <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">col_schema</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_schema</span><span class="o">.</span><span class="n">column_schemas</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">col_schema</span><span class="o">.</span><span class="n">is_list</span>
+        <span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lists_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">offsets</span> <span class="o">=</span> <span class="n">chunks</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">use_row_lengths</span><span class="p">:</span>
+                <span class="n">row_lengths</span> <span class="o">=</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">offsets</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">chunks</span> <span class="o">=</span> <span class="n">chunks</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 
         <span class="c1"># split them into batches and map to the framework-specific output format</span>
-        <span class="n">tensor_batches</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">batches</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">split_idx</span><span class="p">))]</span>
+        <span class="n">offset_idx</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+            <span class="n">lists</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                <span class="n">chunk</span><span class="p">,</span> <span class="n">lists</span> <span class="o">=</span> <span class="n">chunk</span>
 
-        <span class="k">for</span> <span class="n">tensor_key</span><span class="p">,</span> <span class="n">tensor_value</span> <span class="ow">in</span> <span class="n">tensors_by_name</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tensor_value</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-                <span class="n">values</span><span class="p">,</span> <span class="n">offsets</span> <span class="o">=</span> <span class="n">tensor_value</span>
-                <span class="n">row_lengths</span> <span class="o">=</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">offsets</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-                <span class="n">batch_row_lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">row_lengths</span><span class="p">,</span> <span class="n">split_idx</span><span class="p">)</span>
-                <span class="n">values_split_idx</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_sum</span><span class="p">(</span><span class="n">row_lengths</span><span class="p">)</span> <span class="k">for</span> <span class="n">row_lengths</span> <span class="ow">in</span> <span class="n">batch_row_lengths</span><span class="p">]</span>
-                <span class="n">batch_values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">values_split_idx</span><span class="p">)</span>
-                <span class="n">tensor_batches</span><span class="p">[</span><span class="n">tensor_key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="s2">&quot;values&quot;</span><span class="p">:</span> <span class="n">batch_values</span><span class="p">,</span>
-                    <span class="s2">&quot;row_lengths&quot;</span><span class="p">:</span> <span class="n">batch_row_lengths</span><span class="p">,</span>
-                <span class="p">}</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">chunk</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">split_idx</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">tensor_batches</span><span class="p">[</span><span class="n">tensor_key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">tensor_value</span><span class="p">,</span> <span class="n">split_idx</span><span class="p">)</span>
+                <span class="n">chunk</span> <span class="o">=</span> <span class="p">[</span><span class="n">chunk</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">split_idx</span><span class="p">]</span>
 
-        <span class="k">for</span> <span class="n">batch_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">split_idx</span><span class="p">)):</span>
-            <span class="n">batch</span> <span class="o">=</span> <span class="p">{}</span>
-            <span class="k">for</span> <span class="n">tensor_key</span> <span class="ow">in</span> <span class="n">tensors_by_name</span><span class="p">:</span>
-                <span class="n">tensor_value</span> <span class="o">=</span> <span class="n">tensor_batches</span><span class="p">[</span><span class="n">tensor_key</span><span class="p">]</span>
-                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tensor_value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-                    <span class="n">values</span> <span class="o">=</span> <span class="n">tensor_value</span><span class="p">[</span><span class="s2">&quot;values&quot;</span><span class="p">][</span><span class="n">batch_idx</span><span class="p">]</span>
-                    <span class="n">row_partition</span> <span class="o">=</span> <span class="n">tensor_value</span><span class="p">[</span><span class="s2">&quot;row_lengths&quot;</span><span class="p">][</span><span class="n">batch_idx</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="ow">not</span> <span class="n">use_row_lengths</span><span class="p">:</span>
-                        <span class="n">row_partition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_row_lengths_to_offsets</span><span class="p">(</span><span class="n">row_partition</span><span class="p">)</span>
-                    <span class="n">batch</span><span class="p">[</span><span class="n">tensor_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">values</span><span class="p">,</span> <span class="n">row_partition</span>
+            <span class="k">if</span> <span class="n">lists</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">num_list_columns</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">lists</span><span class="p">)</span>
+
+                <span class="c1"># grab the set of offsets and row lengths</span>
+                <span class="c1"># corresponding to the list columns from this chunk</span>
+                <span class="n">chunk_offsets</span> <span class="o">=</span> <span class="n">offsets</span><span class="p">[:,</span> <span class="n">offset_idx</span> <span class="p">:</span> <span class="n">offset_idx</span> <span class="o">+</span> <span class="n">num_list_columns</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">use_row_lengths</span><span class="p">:</span>
+                    <span class="n">chunk_row_lengths</span> <span class="o">=</span> <span class="n">row_lengths</span><span class="p">[:,</span> <span class="n">offset_idx</span> <span class="p">:</span> <span class="n">offset_idx</span> <span class="o">+</span> <span class="n">num_list_columns</span><span class="p">]</span>
+                <span class="n">offset_idx</span> <span class="o">+=</span> <span class="n">num_list_columns</span>
+
+                <span class="c1"># split them into batches, including an extra 1 on the offsets</span>
+                <span class="c1"># so we know how long the very last element is</span>
+                <span class="n">batch_offsets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">chunk_offsets</span><span class="p">,</span> <span class="n">split_idx</span> <span class="o">+</span> <span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">use_row_lengths</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">batch_row_lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">chunk_row_lengths</span><span class="p">,</span> <span class="n">split_idx</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">use_row_lengths</span><span class="p">:</span>
+                    <span class="n">batch_row_lengths</span> <span class="o">=</span> <span class="p">[</span><span class="n">chunk_row_lengths</span><span class="p">]</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">batch</span><span class="p">[</span><span class="n">tensor_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">tensor_value</span><span class="p">[</span><span class="n">batch_idx</span><span class="p">]</span>
+                    <span class="n">batch_row_lengths</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">batch_offsets</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
 
-            <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span></div>
+                <span class="c1"># group all these indices together and iterate through</span>
+                <span class="c1"># them in batches to grab the proper elements from each</span>
+                <span class="c1"># values tensor</span>
+                <span class="n">chunk</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">batch_offsets</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">batch_offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">batch_row_lengths</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chunk</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                    <span class="n">c</span><span class="p">,</span> <span class="n">off0s</span><span class="p">,</span> <span class="n">off1s</span><span class="p">,</span> <span class="n">_row_lengths</span> <span class="o">=</span> <span class="n">c</span>
+                    <span class="n">offsets_split_idx</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_list_columns</span><span class="p">)]</span>
+                    <span class="n">off0s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">off0s</span><span class="p">,</span> <span class="n">offsets_split_idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="n">off1s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">off1s</span><span class="p">,</span> <span class="n">offsets_split_idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">use_row_lengths</span><span class="p">:</span>
+                        <span class="n">_row_lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split_fn</span><span class="p">(</span><span class="n">_row_lengths</span><span class="p">,</span> <span class="n">offsets_split_idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+                    <span class="c1"># TODO: does this need to be ordereddict?</span>
+                    <span class="n">batch_lists</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">column_name</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lists</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+                        <span class="n">off0</span><span class="p">,</span> <span class="n">off1</span> <span class="o">=</span> <span class="n">off0s</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">off1s</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">use_row_lengths</span><span class="p">:</span>
+                            <span class="n">row_length</span> <span class="o">=</span> <span class="n">_row_lengths</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+                        <span class="c1"># need to grab scalars for TF case</span>
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">off0</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="n">start</span><span class="p">,</span> <span class="n">stop</span> <span class="o">=</span> <span class="n">off0</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">off1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">off0</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                            <span class="n">start</span><span class="p">,</span> <span class="n">stop</span> <span class="o">=</span> <span class="n">off0</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">off1</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="n">off0</span><span class="p">,</span> <span class="n">off1</span><span class="p">)</span>
+                            <span class="k">raise</span> <span class="ne">ValueError</span>
+                        <span class="n">value</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">start</span><span class="p">)</span> <span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">stop</span><span class="p">)]</span>
+                        <span class="n">index</span> <span class="o">=</span> <span class="n">off0</span> <span class="o">-</span> <span class="n">start</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_row_lengths</span> <span class="k">else</span> <span class="n">row_length</span>
+                        <span class="n">batch_lists</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+                    <span class="n">c</span> <span class="o">=</span> <span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">batch_lists</span><span class="p">)</span>
+
+                <span class="n">batches</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handle_tensors</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span> <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batches</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_get_segment_lengths</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_samples</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -535,29 +584,35 @@
                 <span class="n">scalars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">scalars</span><span class="p">,</span> <span class="n">lists</span>
 
-    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;_process_dataframe&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">_process_dataframe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert a dataframe into framework tensors.</span>
-<span class="sd">        Returns dictionary of tensors by feature name.</span>
-<span class="sd">        Where scalar features are grouped under the same key (tuple of column names)</span>
-<span class="sd">        when they share the same dtype.</span>
+    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;_create_tensors&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_create_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Breaks a dataframe down into the relevant</span>
+<span class="sd">        categorical, continuous, and label tensors.</span>
+<span class="sd">        Can be overrideen</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">tensors_by_name</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">tensors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">tensor_names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">offsets</span> <span class="o">=</span> <span class="n">make_df</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">column_names</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="c1"># for column names using schema find scalars and lists columns</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">column_names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">tensors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+                <span class="k">continue</span>
+
             <span class="n">gdf_i</span> <span class="o">=</span> <span class="n">gdf</span><span class="p">[</span><span class="n">column_names</span><span class="p">]</span>
             <span class="n">gdf</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">column_names</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
             <span class="n">scalars</span><span class="p">,</span> <span class="n">lists</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_separate_list_columns</span><span class="p">(</span><span class="n">gdf_i</span><span class="p">)</span>
 
+            <span class="n">x</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="k">if</span> <span class="n">scalars</span><span class="p">:</span>
                 <span class="c1"># split out cols and change all scalars</span>
                 <span class="c1"># should always return dict column_name: values, offsets (optional)</span>
-                <span class="n">scalars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_tensor</span><span class="p">(</span><span class="n">gdf_i</span><span class="p">[</span><span class="n">scalars</span><span class="p">])</span>
-                <span class="n">tensor_key</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">column_names</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">column_names</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">column_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="n">tensors_by_name</span><span class="p">[</span><span class="n">tensor_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">scalars</span>
-
+                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_tensor</span><span class="p">(</span><span class="n">gdf_i</span><span class="p">[</span><span class="n">scalars</span><span class="p">])</span>
             <span class="k">if</span> <span class="n">lists</span><span class="p">:</span>
                 <span class="c1"># split out lists</span>
+                <span class="n">list_tensors</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
                 <span class="k">for</span> <span class="n">column_name</span> <span class="ow">in</span> <span class="n">lists</span><span class="p">:</span>
                     <span class="n">column</span> <span class="o">=</span> <span class="n">gdf_i</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">column_name</span><span class="p">)</span>
                     <span class="n">leaves</span><span class="p">,</span> <span class="n">col_offsets</span> <span class="o">=</span> <span class="n">pull_apart_list</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
@@ -566,22 +621,40 @@
                         <span class="n">leaves</span><span class="p">,</span> <span class="n">nest_offsets</span> <span class="o">=</span> <span class="n">pull_apart_list</span><span class="p">(</span><span class="n">leaves</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                         <span class="n">col_offsets</span> <span class="o">=</span> <span class="n">nest_offsets</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">col_offsets</span><span class="p">[:]]</span>
 
-                    <span class="n">tensors_by_name</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_tensor</span><span class="p">(</span><span class="n">leaves</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_tensor</span><span class="p">(</span>
-                        <span class="n">col_offsets</span>
-                    <span class="p">)</span>
+                    <span class="n">offsets</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">col_offsets</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="n">list_tensors</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_tensor</span><span class="p">(</span><span class="n">leaves</span><span class="p">)</span>
+                <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="p">,</span> <span class="n">list_tensors</span>
+            <span class="n">tensors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">tensor_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">column_names</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">tensors_by_name</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">offsets</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="n">offsets_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_tensor</span><span class="p">(</span><span class="n">offsets</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">offsets_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">offsets_tensor</span> <span class="o">=</span> <span class="n">offsets_tensor</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="n">tensors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">offsets_tensor</span><span class="p">)</span>
+        <span class="k">del</span> <span class="n">gdf</span><span class="p">,</span> <span class="n">offsets</span>
 
-    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;_process_batch&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">_process_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensors</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">tensors</span><span class="p">,</span> <span class="n">tensor_names</span>
+
+    <span class="nd">@annotate</span><span class="p">(</span><span class="s2">&quot;_handle_tensors&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;darkgreen&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;merlin_dataloader&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_handle_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensors</span><span class="p">,</span> <span class="n">tensor_names</span><span class="p">):</span>
+        <span class="c1"># tensors =  dictionary of all tensors</span>
         <span class="n">X</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tensors</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-                <span class="n">values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_split</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">k</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">column_name</span><span class="p">,</span> <span class="n">column_value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
-                    <span class="n">X</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">column_value</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">X</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">tensors</span><span class="p">,</span> <span class="n">tensor_names</span><span class="p">)):</span>
+            <span class="n">lists</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                <span class="n">tensor</span><span class="p">,</span> <span class="n">lists</span> <span class="o">=</span> <span class="n">tensor</span>
+
+            <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">names</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">lists</span><span class="p">]</span>
+
+            <span class="c1"># now add in any scalar tensors</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">tensors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tensor_split</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="c1"># pull out label tensor from here</span>
+                <span class="n">lists</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">tensors</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">lists</span><span class="p">[</span><span class="n">names</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">tensor</span>
+            <span class="n">X</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">lists</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">column_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse_names</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">column_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse_max</span><span class="p">:</span>
@@ -915,6 +988,11 @@
       <dd><a href="../../../../v0.0.3/index.html">v0.0.3</a></dd>
       <dd><a href="../../../../v0.0.4/index.html">v0.0.4</a></dd>
       <dd><a href="loader_base.html">v23.02.00</a></dd>
+      <dd><a href="../../../../v23.02.01/index.html">v23.02.01</a></dd>
+    </dl>
+    <dl>
+      <dt>Branches</dt>
+      <dd><a href="../../../../main/index.html">main</a></dd>
     </dl>
   </div>
 </div><script>
