@@ -106,7 +106,7 @@ class EmbeddingOperator(BaseOperator):
         col_schemas.append(
             ColumnSchema(
                 name=self.embedding_name,
-                tags=[Tags.CONTINUOUS],
+                tags=[Tags.CONTINUOUS, Tags.EMBEDDING],
                 dtype=self._get_dtype(self.embeddings),
                 is_list=True,
                 is_ragged=False,
@@ -189,7 +189,7 @@ class NumpyEmbeddingOperator(BaseOperator):
         col_schemas.append(
             ColumnSchema(
                 name=self.embedding_name,
-                tags=[Tags.CONTINUOUS],
+                tags=[Tags.CONTINUOUS, Tags.EMBEDDING],
                 dtype=self.embeddings.dtype,
                 is_list=True,
                 is_ragged=False,
