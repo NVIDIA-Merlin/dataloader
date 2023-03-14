@@ -27,6 +27,8 @@ from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
+pytestmark = pytest.mark.torch
+
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
 torch = pytest.importorskip("torch")
@@ -44,7 +46,7 @@ def test_shuffling():
 
     train_dataset = torch_dataloader.Loader(ds, batch_size=batch_size, shuffle=True)
 
-    batch = next(iter(train_dataset))
+    batch = next(train_dataset)
 
     first_batch = batch[0]["a"].cpu()
     in_order = torch.arange(0, batch_size)
@@ -174,6 +176,8 @@ def test_dataloader_break(dataset, batch_size, part_mem_fraction, cpu):
         if idx == 1:
             break
         del chunk
+
+    dataloader.stop()
 
     assert idx < len_dl
 
@@ -313,15 +317,52 @@ def test_sparse_tensors(sparse_dense):
 @pytest.mark.parametrize("batch_size", [1000])
 @pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_schema(df, dataset, batch_size, cpu):
-    data_loader = torch_dataloader.Loader(
+    with torch_dataloader.Loader(
         dataset,
         batch_size=batch_size,
         shuffle=False,
-    )
-
-    X, y = next(iter(data_loader))
+    ) as data_loader:
+        X, y = data_loader.peek()
     columns = set(dataset.schema.column_names) - {"label"}
     assert columns == set(X.keys())
 
     num_label_cols = y.shape[1] if len(y.shape) > 1 else 1
     assert num_label_cols == 1
+
+
+def test_torch_map(tmpdir):
+    df = make_df(
+        {
+            "cat1": [1] * 100,
+            "cat2": [2] * 100,
+            "cat3": [3] * 100,
+            "label": [0] * 100,
+            "sample_weight": [1.0] * 100,
+            "cont2": [2.0] * 100,
+            "cont1": [1.0] * 100,
+        }
+    )
+    path = os.path.join(tmpdir, "dataset.parquet")
+    df.to_parquet(path)
+    ds = Dataset(df)
+    ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
+
+    def add_sample_weight(features, labels, sample_weight_col_name="sample_weight"):
+        sample_weight = features.pop(sample_weight_col_name)
+
+        return features, labels, sample_weight
+
+    data_itr = torch_dataloader.Loader(
+        ds,
+        batch_size=10,
+        shuffle=False,
+    ).map(add_sample_weight)
+
+    for X, y, sample_weight in data_itr:
+        assert list(X["cat1"].cpu().numpy()) == [1] * 10
+        assert list(X["cat2"].cpu().numpy()) == [2] * 10
+        assert list(X["cat3"].cpu().numpy()) == [3] * 10
+        assert list(X["cont1"].cpu().numpy()) == [1.0] * 10
+        assert list(X["cont2"].cpu().numpy()) == [2.0] * 10
+
+        assert list(sample_weight.cpu().numpy()) == [1.0] * 10

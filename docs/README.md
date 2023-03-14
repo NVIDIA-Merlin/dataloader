@@ -2,27 +2,39 @@
 
 This folder contains the scripts necessary to build the repository
 documentation. You can view the documentation at
-<https://nvidia-merlin.github.io/template/main/README.html>.
+<https://nvidia-merlin.github.io/dataloader/main>.
 
 ## Contributing to Docs
 
-Perform the following steps to build the docs.
+You build the documentation with the `tox` command and specify the `docs` environment.
+The following steps are one way of many to build the documentation before opening a merge request.
 
-1. Install the documentation dependencies:
-
-   ```shell
-   python -m pip install -r docs/requirements-doc.txt
-   ```
-
-1. Run the build command:
+1. Create a virtual environment:
 
    ```shell
-   make -C docs clean html
+   python -m venv .venv
    ```
 
-   Remove the `-C docs` argument if you are already in the `docs/` directory.
+1. Activate the virtual environment:
 
-These steps should run Sphinx in your shell and create HTML in the `build/html/`
+   ```shell
+   source .venv/bin/activate
+   ```
+
+1. Install tox in the virtual environment:
+
+   ```shell
+   python -m pip install --upgrade pip
+   python -m pip install tox
+   ```
+
+1. Build the documentation with tox:
+
+   ```shell
+   tox -e docs
+   ```
+
+These steps run Sphinx in your shell and create HTML in the `docs/build/html/`
 directory.
 
 ## Preview the Changes

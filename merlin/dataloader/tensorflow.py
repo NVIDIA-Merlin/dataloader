@@ -73,6 +73,10 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
     `feature_name: feature_tensor` and each element of the labels
     list is a tensor, and all tensors are of shape `(batch_size, 1)`.
 
+    We're implementing the keras Sequence interface because using the
+    loader as an iterator with keras has a limitation of only being able
+    to run for one epoch.
+
     Parameters
     -------------
     dataset: merlin.io.Dataset
@@ -98,7 +102,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         will usually contain fewer rows.
     """
 
-    _use_nnz = True
+    _use_row_lengths = True
 
     def __init__(
         self,
@@ -129,21 +133,29 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         self._map_fns = []
 
     def __len__(self):
-        """
-        Computes the number of items in the dataset
+        """Number of batches in the Sequence.
 
-        This is required for Keras compatibility
+        Note: This also resets the loader state.
+              Required because of the calls to `__getitem__`
+              from keras prior to the start of the main loop
+              through the loader.
         """
         LoaderBase.stop(self)
         return LoaderBase.__len__(self)
 
-    def __getitem__(self, idx):
-        """
-        implemented exclusively for consistency
-        with Keras model.fit. Does not leverage
-        passed idx in any way
+    def __getitem__(self, index):
+        """Gets batch at position `index`.
+
+        Note: This returns the next batch in the iterator.
+              Not the batch at position `index`.
+              This is because the dataloader is implemented as an iterator and
+              don't currently support fetching a batch by index.
         """
         return LoaderBase.__next__(self)
+
+    def on_epoch_end(self):
+        "Method called at the end of every epoch."
+        self.stop()
 
     def map(self, fn):
         """
@@ -229,6 +241,9 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             x = tf.transpose(x)
         return x
 
+    def _sum(self, tensor):
+        return tf.reduce_sum(tensor)
+
     def _pull_values_offsets(self, values_offset):
         """
         values_offset is either a tuple (values, offsets) or just values.
@@ -280,8 +295,8 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             tensor = tf.sparse.to_dense(tensor)
         return tensor
 
-    def _handle_tensors(self, tensors, tensor_names):
-        to_return = super()._handle_tensors(tensors, tensor_names)
+    def _process_batch(self, tensors):
+        to_return = super()._process_batch(tensors)
 
         for map_fn in self._map_fns:
             to_return = map_fn(*to_return)

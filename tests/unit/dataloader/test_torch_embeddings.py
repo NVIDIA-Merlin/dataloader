@@ -31,6 +31,8 @@ from merlin.dataloader.ops.embeddings.torch_embedding_op import (  # noqa
 )
 from merlin.dataloader.torch import Loader  # noqa
 
+pytestmark = pytest.mark.torch
+
 
 @pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
 def test_embedding_torch_np_mmap_dl_with_lookup(

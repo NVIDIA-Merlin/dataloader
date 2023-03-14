@@ -21,18 +21,22 @@ import subprocess
 import time
 import timeit
 
+import numpy as np
+import pandas as pd
+import pytest
+from sklearn.metrics import roc_auc_score
+
 from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
+
+pytestmark = pytest.mark.tensorflow
 
 try:
     import cupy
 except ImportError:
     cupy = None
-import numpy as np
-import pandas as pd
-import pytest
-from sklearn.metrics import roc_auc_score
+
 
 tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
@@ -68,6 +72,66 @@ def test_list_features_load_time(tmpdir):
     assert full_load_time < 1.0
 
 
+def test_peek():
+    df = make_df({"a": [1, 2, 3]})
+    dataset = Dataset(df)
+    with tf_dataloader.Loader(dataset, batch_size=1, shuffle=False) as loader:
+        first_batch = loader.peek()
+        all_batches = list(loader)
+    test_case = tf.test.TestCase()
+    test_case.assertAllEqual(first_batch, all_batches[0])
+    assert len(all_batches) == 3
+
+
+def test_set_input_schema():
+    df = make_df({"a": [1, 2, 3], "b": [[4], [5, 6], [7]]})
+    dataset = Dataset(df)
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    loader.input_schema = dataset.schema.excluding_by_name(["b"])
+    x, y = loader.peek()
+    assert set(x.keys()) == {"a"}
+
+
+def test_set_input_schema_after_start():
+    df = make_df({"a": [1, 2, 3], "b": [4, 5, 6]})
+    dataset = Dataset(df)
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    with pytest.raises(RuntimeError) as exc_info:
+        _ = next(loader)
+        loader.input_schema = dataset.schema.excluding_by_name(["b"])
+    assert "Setting the input_schema after the dataloader has started is not supported" in str(
+        exc_info.value
+    )
+
+
+def test_simple_model():
+    df = make_df({"a": [0.1, 0.2, 0.3], "label": [0, 1, 0]})
+    dataset = Dataset(df)
+    dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
+
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+
+    inputs = tf.keras.Input(name="a", dtype=tf.float32, shape=(1,))
+    outputs = tf.keras.layers.Dense(16, "relu")(inputs)
+    outputs = tf.keras.layers.Dense(1, activation="softmax")(outputs)
+    model = tf.keras.Model(inputs=inputs, outputs=outputs)
+    model.compile(optimizer="sgd", loss="binary_crossentropy", metrics=["accuracy"])
+    history_callback = model.fit(loader, epochs=2, shuffle=False)
+    assert len(history_callback.history["loss"]) == 2
+    assert all(loss > 0.0 for loss in history_callback.history["loss"])
+
+    preds_model = model.predict({"a": tf.constant([0.1, 0.2, 0.3])})
+    preds_loader = model.predict(loader)
+    assert preds_model.shape == preds_loader.shape
+
+    _ = model.evaluate(loader)
+
+
+def test_with_device():
+    dataset = Dataset(make_df({"a": [1]}))
+    tf_dataloader.Loader(dataset, batch_size=1, device=1).peek()
+
+
 def test_nested_list():
     num_rows = 100
     batch_size = 12
@@ -85,25 +149,36 @@ def test_nested_list():
     schema = ds.schema
     schema["label"] = schema["label"].with_tags([Tags.TARGET])
     ds.schema = schema
-    train_dataset = tf_dataloader.Loader(
+    loader = tf_dataloader.Loader(
         ds,
         batch_size=batch_size,
         shuffle=False,
     )
 
-    batch = next(iter(train_dataset))
+    batch = next(loader)
+
     # [[1,2,3],[3,1],[...],[]]
-    nested_data_col = tf.RaggedTensor.from_row_lengths(
-        batch[0]["data"][0][:, 0], tf.cast(batch[0]["data"][1][:, 0], tf.int32)
-    ).to_tensor()
+    @tf.function
+    def _ragged_for_nested_data_col():
+        nested_data_col = tf.RaggedTensor.from_row_lengths(
+            batch[0]["data"][0][:, 0], tf.cast(batch[0]["data"][1][:, 0], tf.int32)
+        ).to_tensor()
+        return nested_data_col
+
+    nested_data_col = _ragged_for_nested_data_col()
     true_data_col = tf.reshape(
-        tf.ragged.constant(df.iloc[:batch_size, 0].tolist()).to_tensor(),
-        [batch_size, -1],
+        tf.ragged.constant(df.iloc[:batch_size, 0].tolist()).to_tensor(), [batch_size, -1]
     )
+
     # [1,2,3]
-    multihot_data2_col = tf.RaggedTensor.from_row_lengths(
-        batch[0]["data2"][0][:, 0], tf.cast(batch[0]["data2"][1][:, 0], tf.int32)
-    ).to_tensor()
+    @tf.function
+    def _ragged_for_multihot_data_col():
+        multihot_data2_col = tf.RaggedTensor.from_row_lengths(
+            batch[0]["data2"][0][:, 0], tf.cast(batch[0]["data2"][1][:, 0], tf.int32)
+        ).to_tensor()
+        return multihot_data2_col
+
+    multihot_data2_col = _ragged_for_multihot_data_col()
     true_data2_col = tf.reshape(
         tf.ragged.constant(df.iloc[:batch_size, 1].tolist()).to_tensor(),
         [batch_size, -1],
@@ -125,7 +200,7 @@ def test_shuffling():
 
     train_dataset = tf_dataloader.Loader(ds, batch_size=batch_size, shuffle=True)
 
-    batch = next(iter(train_dataset))
+    batch = next(train_dataset)
 
     first_batch = tf.reshape(tf.cast(batch[0]["a"].cpu(), tf.int32), (batch_size,))
     in_order = tf.range(0, batch_size, dtype=tf.int32)
@@ -341,7 +416,7 @@ def test_mh_support(tmpdir, multihot_data, multihot_dataset, batch_size):
         batch_size=batch_size,
         shuffle=False,
     )
-    nnzs = None
+    row_lengths = None
     idx = 0
 
     for X, y in data_itr:
@@ -350,18 +425,18 @@ def test_mh_support(tmpdir, multihot_data, multihot_dataset, batch_size):
 
         for mh_name in ["Authors", "Reviewers", "Embedding"]:
             # assert (mh_name) in X
-            array, nnzs = X[mh_name]
-            nnzs = nnzs.numpy()[:, 0]
+            array, row_lengths = X[mh_name]
+            row_lengths = row_lengths.numpy()[:, 0]
             array = array.numpy()[:, 0]
 
             if mh_name == "Embedding":
-                assert (nnzs == 3).all()
+                assert (row_lengths == 3).all()
             else:
                 lens = [
                     len(x)
                     for x in multihot_data[mh_name][idx * batch_size : idx * batch_size + n_samples]
                 ]
-                assert (nnzs == np.array(lens)).all()
+                assert (row_lengths == np.array(lens)).all()
 
             if mh_name == "Embedding":
                 assert len(array) == (n_samples * 3)
@@ -492,7 +567,7 @@ def test_sparse_tensors(tmpdir, sparse_dense):
     for batch in data_itr:
         feats, labs = batch
         for col in spa_lst:
-            # grab nnzs
+            # grab row lengths
             feature_tensor = feats[f"{col}"]
             if not sparse_dense:
                 assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
@@ -508,7 +583,7 @@ def test_sparse_tensors(tmpdir, sparse_dense):
 )
 @pytest.mark.skipif(importlib.util.find_spec("horovod") is None, reason="needs horovod")
 @pytest.mark.skipif(
-    cupy and cupy.cuda.runtime.getDeviceCount() <= 1,
+    HAS_GPU and cupy and cupy.cuda.runtime.getDeviceCount() <= 1,
     reason="This unittest requires multiple gpu's to run",
 )
 def test_horovod_multigpu(tmpdir):
@@ -602,13 +677,12 @@ def test_horovod_multigpu(tmpdir):
 @pytest.mark.parametrize("batch_size", [1000])
 @pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_schema(tmpdir, dataset, batch_size, cpu):
-    data_loader = tf_dataloader.Loader(
+    with tf_dataloader.Loader(
         dataset,
         batch_size=batch_size,
         shuffle=False,
-    )
-
-    batch = next(iter(data_loader))
+    ) as data_loader:
+        batch = data_loader.peek()
 
     columns = set(dataset.schema.column_names) - {"label"}
     assert set(batch[0]) == columns
@@ -645,3 +719,31 @@ def test_lazy_dataset_map():
 
     assert map_function_called
     assert elapsed_time_seconds < 1
+
+
+def test_keras_model_with_multiple_label_columns():
+    df = make_df({"a": [0.1, 0.2, 0.3], "label1": [0, 1, 0], "label2": [1, 0, 0]})
+    dataset = Dataset(df)
+    dataset.schema["label1"] = dataset.schema["label1"].with_tags(Tags.TARGET)
+    dataset.schema["label2"] = dataset.schema["label2"].with_tags(Tags.TARGET)
+
+    loader = tf_dataloader.Loader(dataset, batch_size=1)
+
+    inputs = tf.keras.Input(name="a", dtype=tf.float32, shape=(1,))
+    outputs = tf.keras.layers.Dense(16, "relu")(inputs)
+    output_1 = tf.keras.layers.Dense(1, activation="softmax", name="label1")(outputs)
+    output_2 = tf.keras.layers.Dense(5, activation="softmax", name="label2")(outputs)
+    # If we are using a Keras model and dataloader returns multiple labels,
+    # `outputs` keys must match the multiple labels returned by the dataloader.
+    model = tf.keras.Model(inputs=inputs, outputs={"label1": output_1, "label2": output_2})
+    model.compile(optimizer="sgd", loss="binary_crossentropy", metrics=["accuracy"])
+    model.fit(loader, epochs=2)
+
+    preds_model = model.predict({"a": tf.constant([0.1, 0.2, 0.3])})
+    preds_loader = model.predict(loader)
+    assert preds_model["label1"].shape == preds_loader["label1"].shape
+    assert preds_model["label2"].shape == preds_loader["label2"].shape
+
+    metrics = model.evaluate(loader, return_dict=True)
+    assert "label1_accuracy" in metrics
+    assert "label2_accuracy" in metrics

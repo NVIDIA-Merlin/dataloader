@@ -21,6 +21,8 @@ from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
+pytestmark = pytest.mark.jax
+
 jax = pytest.importorskip("jax")
 jax_dataloader = pytest.importorskip("merlin.dataloader.jax")
 
@@ -41,12 +43,11 @@ def test_dataloader_schema(tmpdir, dataset, cpu, num_rows):
     dataset = Dataset(df, use_cpu=cpu)
     dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
 
-    data_loader = jax_dataloader.Loader(
+    with jax_dataloader.Loader(
         dataset,
         batch_size=num_rows,
         shuffle=False,
-    )
-
-    inputs, target = next(iter(data_loader))
+    ) as data_loader:
+        inputs, target = data_loader.peek()
     columns = set(dataset.schema.column_names) - {"label"}
     assert set(inputs) == columns

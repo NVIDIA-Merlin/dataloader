@@ -17,7 +17,6 @@ import numpy as np
 import torch
 from torch.utils.dlpack import from_dlpack
 
-from merlin.core.dispatch import HAS_GPU
 from merlin.dataloader.loader_base import LoaderBase
 
 numpy_to_torch_dtype_dict = {
@@ -93,6 +92,17 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             transforms=transforms,
             device=device,
         )
+        self._map_fns = []
+
+    def map(self, fn):
+        """
+        Applying a function to each batch.
+
+        This can for instance be used to add `sample_weight` to the model.
+        """
+        self._map_fns.append(fn)
+
+        return self
 
     def __iter__(self):
         return LoaderBase.__iter__(self)
@@ -107,14 +117,12 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             values = dlpack.values if hasattr(dlpack, "values") else dlpack
             dtype = values.dtype
             dtype = numpy_to_torch_dtype_dict[dtype.type] if hasattr(dtype, "type") else dtype
-            if (
-                len(values.shape) == 2
-                and values.shape[1] == 1
-                and isinstance(values[0], np.ndarray)
-            ):
-                return torch.squeeze(torch.Tensor(values)).type(dtype)
-            return torch.Tensor(values).type(dtype)
-        return from_dlpack(dlpack)
+            values = torch.Tensor(values).type(dtype)
+        else:
+            values = from_dlpack(dlpack)
+        if len(values.shape) <= 1:
+            values = values.view(-1, 1)
+        return values
 
     def _to_tensor(self, gdf):
         return self._unpack(self._pack(gdf))
@@ -133,11 +141,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         else:
             values = values_offset.flatten()
             offsets = torch.arange(values.size()[0], device=self.device)
-        num_rows = len(offsets)
-        if HAS_GPU:
-            offsets = torch.cat([offsets, torch.cuda.LongTensor([len(values)], device=self.device)])
-        else:
-            offsets = torch.cat([offsets, torch.LongTensor([len(values)])])
+        num_rows = len(offsets) - 1
         diff_offsets = offsets[1:] - offsets[:-1]
         return values, offsets, diff_offsets, num_rows
 
@@ -154,6 +158,15 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         indices = torch.cat([row_ids_repeated.unsqueeze(-1), col_ids.unsqueeze(-1)], axis=1)
         return indices
 
+    def _sum(self, tensor):
+        return tensor.sum()
+
+    def _row_lengths_to_offsets(self, row_lengths):
+        zero_value = torch.tensor([0], device=self.device)
+        if len(row_lengths.shape) == 2:
+            zero_value = zero_value.view(-1, 1)
+        return torch.cat((zero_value, torch.cumsum(row_lengths, 0)))
+
     def _build_sparse_tensor(
         self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
     ):
@@ -164,6 +177,14 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         if sparse_as_dense:
             sparse_tensor = sparse_tensor.to_dense()
         return sparse_tensor
+
+    def _process_batch(self, tensors):
+        to_return = super()._process_batch(tensors)
+
+        for map_fn in self._map_fns:
+            to_return = map_fn(*to_return)
+
+        return to_return
 
     def _cast_to_numpy_dtype(self, dtype):
         """
