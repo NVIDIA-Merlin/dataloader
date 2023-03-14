@@ -537,7 +537,11 @@ class LoaderBase:
         if isinstance(gdf, np.ndarray):
             return gdf
         # if self.device has value ('cpu') gdf should not be transferred to dlpack
-        elif hasattr(gdf, "to_dlpack") and callable(getattr(gdf, "to_dlpack")) and not self.device:
+        elif (
+            hasattr(gdf, "to_dlpack")
+            and callable(getattr(gdf, "to_dlpack"))
+            and self.device != "cpu"
+        ):
             return gdf.to_dlpack()
         elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
             gdf = gdf.to_numpy()
