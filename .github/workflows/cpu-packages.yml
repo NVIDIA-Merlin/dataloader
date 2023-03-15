@@ -1,4 +1,4 @@
-name: CPU CI
+name: Packages
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
     branches: [main]
 
 jobs:
-  build-packages:
+  build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
