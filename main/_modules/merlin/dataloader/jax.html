@@ -197,7 +197,16 @@
         <span class="k">return</span> <span class="n">dtype</span>
 
     <span class="k">def</span> <span class="nf">_to_sparse_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values_offset</span><span class="p">,</span> <span class="n">column_name</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Sparse support isn&#39;t implemented yet for the Jax dataloader&quot;</span><span class="p">)</span></div>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Sparse support isn&#39;t implemented yet for the Jax dataloader&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_row_lengths_to_offsets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">row_lengths</span><span class="p">):</span>
+        <span class="n">zero_value</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">row_lengths</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">row_lengths</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">zero_value</span> <span class="o">=</span> <span class="n">zero_value</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">zero_value</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">row_lengths</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_reshape_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensor</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">numpy</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,))</span></div>
 </pre></div>
 
            </div>
