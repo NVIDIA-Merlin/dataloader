@@ -102,7 +102,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         will usually contain fewer rows.
     """
 
-    _use_row_lengths = True
+    _use_row_lengths = False
 
     def __init__(
         self,
@@ -254,14 +254,19 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         diff_offsets = None
         if isinstance(values_offset, tuple):
             values = tf.reshape(values_offset[0], [-1])
-            diff_offsets = tf.cast(tf.reshape(values_offset[1], [-1]), dtype=tf.int64)
-            offsets = tf.math.cumsum(diff_offsets)
+            offsets = tf.reshape(values_offset[1], [-1])
         else:
             values = tf.reshape(values_offset, [-1])
             offsets = tf.arange(tf.shape(values)[0], dtype=tf.int64)
-            diff_offsets = offsets[1:] - offsets[:-1]
         num_rows = len(offsets)
+        diff_offsets = offsets[1:] - offsets[:-1]
         return values, offsets, diff_offsets, num_rows
+
+    def _row_lengths_to_offsets(self, row_lengths):
+        zero_value = tf.constant([0], dtype=row_lengths.dtype)
+        if len(row_lengths.shape) == 2:
+            zero_value = tf.expand_dims(zero_value, axis=0)
+        return tf.concat([zero_value, tf.cumsum(row_lengths)], axis=0)
 
     def _get_max_seq_len(self, diff_offsets):
         # get_max_seq_len, return int
@@ -289,7 +294,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
     def _build_sparse_tensor(
         self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
     ):
-        ragged = tf.RaggedTensor.from_row_lengths(values=values, row_lengths=diff_offsets)
+        ragged = tf.RaggedTensor.from_row_splits(values=values, row_splits=offsets)
         tensor = tf.RaggedTensor.from_tensor(ragged.to_tensor(shape=[None, seq_limit])).to_sparse()
         if sparse_as_dense:
             tensor = tf.sparse.to_dense(tensor)
@@ -308,6 +313,9 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         Get the numpy dtype from the framework dtype.
         """
         return dtype.as_numpy_dtype()
+
+    def _reshape_dim(self, tensor):
+        return tf.reshape(tensor, shape=[-1])
 
 
 class KerasSequenceValidater(tf.keras.callbacks.Callback):

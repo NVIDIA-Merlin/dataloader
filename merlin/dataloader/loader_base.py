@@ -37,7 +37,7 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
-from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node
+from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node, ungroup_values_offsets
 from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
 from merlin.schema import Schema, Tags
@@ -502,16 +502,21 @@ class LoaderBase:
             if isinstance(k, tuple):
                 values = self._tensor_split(v, len(k), axis=1)
                 for column_name, column_value in zip(k, values):
-                    X[column_name] = column_value
+                    X[column_name] = self._reshape_dim(column_value)
             else:
+                if isinstance(v, tuple):
+                    v = tuple(self._reshape_dim(tv) for tv in v)
+                else:
+                    v = self._reshape_dim(v)
                 X[k] = v
 
+        X = ungroup_values_offsets(X)
         for column_name in self.sparse_names:
             if column_name in self.sparse_max:
-                # raise ValueError(
-                #     f"Did not convert {column_name} to sparse due to missing sparse_max entry"
-                # )
-                X[column_name] = self._to_sparse_tensor(X[column_name], column_name)
+                tensor = (X[f"{column_name}__values"], X[f"{column_name}__offsets"])
+                X.pop(f"{column_name}__values")
+                X.pop(f"{column_name}__offsets")
+                X[column_name] = self._to_sparse_tensor(tensor, column_name)
 
         # Return a tensor if we have only one label column, but return a
         # dictionary of tensors if there are multiple label columns, since
