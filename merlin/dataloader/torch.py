@@ -120,8 +120,6 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             values = torch.Tensor(values).type(dtype)
         else:
             values = from_dlpack(dlpack)
-        if len(values.shape) <= 1:
-            values = values.view(-1, 1)
         return values
 
     def _to_tensor(self, gdf):

@@ -485,10 +485,6 @@ class LoaderBase:
                 for column_name, column_value in zip(k, values):
                     X[column_name] = self._reshape_dim(column_value)
             else:
-                if isinstance(v, tuple):
-                    v = tuple(self._reshape_dim(tv) for tv in v)
-                else:
-                    v = self._reshape_dim(v)
                 X[k] = v
 
         X = ungroup_values_offsets(X)
