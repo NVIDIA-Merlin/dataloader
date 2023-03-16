@@ -136,18 +136,6 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
     def _reshape_dim(self, tensor):
         return tensor.view(-1)
 
-    def _pull_values_offsets(self, values_offset):
-        # pull_values_offsets, return values offsets diff_offsets
-        if isinstance(values_offset, tuple):
-            values = values_offset[0].flatten()
-            offsets = values_offset[1].flatten()
-        else:
-            values = values_offset.flatten()
-            offsets = torch.arange(values.size()[0], device=self.device)
-        num_rows = len(offsets) - 1
-        diff_offsets = offsets[1:] - offsets[:-1]
-        return values, offsets, diff_offsets, num_rows
-
     def _sum(self, tensor):
         return tensor.sum()
 

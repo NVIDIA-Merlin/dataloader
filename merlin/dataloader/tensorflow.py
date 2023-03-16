@@ -244,24 +244,6 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
     def _sum(self, tensor):
         return tf.reduce_sum(tensor)
 
-    def _pull_values_offsets(self, values_offset):
-        """
-        values_offset is either a tuple (values, offsets) or just values.
-        Values is a tensor.
-        This method is used to turn a tensor into its ragged representation
-        """
-        # pull_values_offsets, return values offsets diff_offsets
-        diff_offsets = None
-        if isinstance(values_offset, tuple):
-            values = tf.reshape(values_offset[0], [-1])
-            offsets = tf.reshape(values_offset[1], [-1])
-        else:
-            values = tf.reshape(values_offset, [-1])
-            offsets = tf.arange(tf.shape(values)[0], dtype=tf.int64)
-        num_rows = len(offsets)
-        diff_offsets = offsets[1:] - offsets[:-1]
-        return values, offsets, diff_offsets, num_rows
-
     def _row_lengths_to_offsets(self, row_lengths):
         zero_value = tf.constant([0], dtype=row_lengths.dtype)
         if len(row_lengths.shape) == 2:
