@@ -148,18 +148,6 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         diff_offsets = offsets[1:] - offsets[:-1]
         return values, offsets, diff_offsets, num_rows
 
-    def _get_max_seq_len(self, diff_offsets):
-        return int(diff_offsets.max())
-
-    def _get_indices(self, offsets, diff_offsets):
-        # Building the indices to reconstruct the ragged tensors
-        row_ids = torch.arange(len(offsets) - 1, device=self.device)
-        row_ids_repeated = torch.repeat_interleave(row_ids, diff_offsets)
-        row_offset_repeated = torch.repeat_interleave(offsets[:-1], diff_offsets)
-        col_ids = torch.arange(len(row_offset_repeated), device=self.device) - row_offset_repeated
-        indices = torch.cat([row_ids_repeated.unsqueeze(-1), col_ids.unsqueeze(-1)], axis=1)
-        return indices
-
     def _sum(self, tensor):
         return tensor.sum()
 

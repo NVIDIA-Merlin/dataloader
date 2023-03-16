@@ -268,23 +268,6 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
             zero_value = tf.expand_dims(zero_value, axis=0)
         return tf.concat([zero_value, tf.cumsum(row_lengths)], axis=0)
 
-    def _get_max_seq_len(self, diff_offsets):
-        # get_max_seq_len, return int
-        return int(tf.math.reduce_max(diff_offsets))
-
-    def _get_indices(self, offsets, diff_offsets):
-        # Building the indices to reconstruct the ragged tensors
-        row_ids = tf.range(len(offsets), dtype=tf.int64)
-
-        row_ids_repeated = tf.repeat(row_ids, diff_offsets)
-        row_offset_repeated = tf.repeat(offsets, diff_offsets)
-        col_ids = tf.range(len(row_offset_repeated), dtype=tf.int64) - row_offset_repeated
-        indices = tf.concat(
-            values=[tf.expand_dims(row_ids_repeated, -1), tf.expand_dims(col_ids, -1)],
-            axis=1,
-        )
-        return indices
-
     def _process_batch(self, tensors):
         to_return = super()._process_batch(tensors)
 
