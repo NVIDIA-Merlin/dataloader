@@ -213,31 +213,6 @@
     <span class="k">def</span> <span class="nf">_reshape_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensor</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">tensor</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_pull_values_offsets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values_offset</span><span class="p">):</span>
-        <span class="c1"># pull_values_offsets, return values offsets diff_offsets</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values_offset</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-            <span class="n">values</span> <span class="o">=</span> <span class="n">values_offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
-            <span class="n">offsets</span> <span class="o">=</span> <span class="n">values_offset</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">values</span> <span class="o">=</span> <span class="n">values_offset</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
-            <span class="n">offsets</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">size</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="n">num_rows</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">offsets</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
-        <span class="n">diff_offsets</span> <span class="o">=</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">offsets</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">values</span><span class="p">,</span> <span class="n">offsets</span><span class="p">,</span> <span class="n">diff_offsets</span><span class="p">,</span> <span class="n">num_rows</span>
-
-    <span class="k">def</span> <span class="nf">_get_max_seq_len</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">diff_offsets</span><span class="p">):</span>
-        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">diff_offsets</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
-
-    <span class="c1"># Building the indices to reconstruct the sparse tensors</span>
-
-    <span class="k">def</span> <span class="nf">_get_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offsets</span><span class="p">,</span> <span class="n">diff_offsets</span><span class="p">):</span>
-        <span class="n">row_ids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">offsets</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="n">row_ids_repeated</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">row_ids</span><span class="p">,</span> <span class="n">diff_offsets</span><span class="p">)</span>
-        <span class="n">row_offset_repeated</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">offsets</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">diff_offsets</span><span class="p">)</span>
-        <span class="n">col_ids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">row_offset_repeated</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span> <span class="o">-</span> <span class="n">row_offset_repeated</span>
-        <span class="n">indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">row_ids_repeated</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">col_ids</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">indices</span>
-
     <span class="k">def</span> <span class="nf">_sum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensor</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">tensor</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
 
@@ -246,17 +221,6 @@
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">row_lengths</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
             <span class="n">zero_value</span> <span class="o">=</span> <span class="n">zero_value</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">((</span><span class="n">zero_value</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">row_lengths</span><span class="p">,</span> <span class="mi">0</span><span class="p">)))</span>
-
-    <span class="k">def</span> <span class="nf">_build_sparse_tensor</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">offsets</span><span class="p">,</span> <span class="n">diff_offsets</span><span class="p">,</span> <span class="n">num_rows</span><span class="p">,</span> <span class="n">seq_limit</span><span class="p">,</span> <span class="n">sparse_as_dense</span>
-    <span class="p">):</span>
-        <span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_indices</span><span class="p">(</span><span class="n">offsets</span><span class="p">,</span> <span class="n">diff_offsets</span><span class="p">)</span>
-        <span class="n">sparse_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sparse_coo_tensor</span><span class="p">(</span>
-            <span class="n">indices</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Size</span><span class="p">([</span><span class="n">num_rows</span><span class="p">,</span> <span class="n">seq_limit</span><span class="p">]),</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span>
-        <span class="p">)</span>
-        <span class="k">if</span> <span class="n">sparse_as_dense</span><span class="p">:</span>
-            <span class="n">sparse_tensor</span> <span class="o">=</span> <span class="n">sparse_tensor</span><span class="o">.</span><span class="n">to_dense</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">sparse_tensor</span>
 
     <span class="k">def</span> <span class="nf">_process_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensors</span><span class="p">):</span>
         <span class="n">to_return</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_process_batch</span><span class="p">(</span><span class="n">tensors</span><span class="p">)</span>

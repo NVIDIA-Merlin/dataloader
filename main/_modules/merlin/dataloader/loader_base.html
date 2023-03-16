@@ -481,25 +481,6 @@
         <span class="n">idx</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">num_samples</span> <span class="o">-</span> <span class="n">num_full_batches</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">idx</span>
 
-    <span class="k">def</span> <span class="nf">_to_sparse_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values_offset</span><span class="p">,</span> <span class="n">column_name</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Create a sparse representation of the input tensor.</span>
-<span class="sd">        values_offset is either a tensor or a tuple of tensor, offset.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">seq_limit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse_max</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span>
-        <span class="n">values</span><span class="p">,</span> <span class="n">offsets</span><span class="p">,</span> <span class="n">diff_offsets</span><span class="p">,</span> <span class="n">num_rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pull_values_offsets</span><span class="p">(</span><span class="n">values_offset</span><span class="p">)</span>
-        <span class="n">max_seq_len</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_max_seq_len</span><span class="p">(</span><span class="n">diff_offsets</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">max_seq_len</span> <span class="o">&gt;</span> <span class="n">seq_limit</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;The default sequence length has been configured &quot;</span>
-                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;to </span><span class="si">{</span><span class="n">seq_limit</span><span class="si">}</span><span class="s2"> but the &quot;</span>
-                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;largest sequence in this batch have </span><span class="si">{</span><span class="n">max_seq_len</span><span class="si">}</span><span class="s2"> length&quot;</span>
-            <span class="p">)</span>
-        <span class="n">sparse_as_dense</span> <span class="o">=</span> <span class="n">column_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse_as_dense</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_sparse_tensor</span><span class="p">(</span>
-            <span class="n">values</span><span class="p">,</span> <span class="n">offsets</span><span class="p">,</span> <span class="n">diff_offsets</span><span class="p">,</span> <span class="n">num_rows</span><span class="p">,</span> <span class="n">seq_limit</span><span class="p">,</span> <span class="n">sparse_as_dense</span>
-        <span class="p">)</span>
-
     <span class="k">def</span> <span class="nf">_to_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdf</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        One of the mandatory functions a child class needs</span>
@@ -588,12 +569,6 @@
                 <span class="n">X</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
 
         <span class="n">X</span> <span class="o">=</span> <span class="n">ungroup_values_offsets</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">column_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse_names</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">column_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparse_max</span><span class="p">:</span>
-                <span class="n">tensor</span> <span class="o">=</span> <span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s2">__values&quot;</span><span class="p">],</span> <span class="n">X</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s2">__offsets&quot;</span><span class="p">])</span>
-                <span class="n">X</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s2">__values&quot;</span><span class="p">)</span>
-                <span class="n">X</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s2">__offsets&quot;</span><span class="p">)</span>
-                <span class="n">X</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_sparse_tensor</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="n">column_name</span><span class="p">)</span>
 
         <span class="c1"># Return a tensor if we have only one label column, but return a</span>
         <span class="c1"># dictionary of tensors if there are multiple label columns, since</span>
@@ -705,9 +680,6 @@
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">label_names</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">select_by_tag</span><span class="p">(</span><span class="n">Tags</span><span class="o">.</span><span class="n">TARGET</span><span class="p">)</span><span class="o">.</span><span class="n">column_names</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">sparse_names</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sparse_max</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sparse_as_dense</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span> <span class="o">=</span> <span class="p">{}</span>
 
         <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">col_spec</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_schema</span><span class="o">.</span><span class="n">column_schemas</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -715,22 +687,6 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span><span class="p">[</span><span class="n">col_spec</span><span class="o">.</span><span class="n">dtype</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">col_name</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">dtype_reverse_map</span><span class="p">[</span><span class="n">col_spec</span><span class="o">.</span><span class="n">dtype</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">is_list</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">sparse_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>
-
-                <span class="n">value_count</span> <span class="o">=</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">value_count</span>
-                <span class="k">if</span> <span class="n">value_count</span> <span class="ow">and</span> <span class="n">value_count</span><span class="o">.</span><span class="n">max</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">sparse_max</span><span class="p">[</span><span class="n">col_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value_count</span><span class="o">.</span><span class="n">max</span>
-
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">col_spec</span><span class="o">.</span><span class="n">is_ragged</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">sparse_as_dense</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>
-
-                    <span class="k">if</span> <span class="ow">not</span> <span class="n">value_count</span><span class="p">:</span>
-                        <span class="c1"># TODO: error message linking to docs</span>
-                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                            <span class="sa">f</span><span class="s2">&quot;Dense column </span><span class="si">{</span><span class="n">col_name</span><span class="si">}</span><span class="s2"> doesn&#39;t have the max value_count defined&quot;</span>
-                            <span class="s2">&quot; in the schema&quot;</span>
-                        <span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_graph</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_graph</span><span class="o">.</span><span class="n">construct_schema</span><span class="p">(</span>
