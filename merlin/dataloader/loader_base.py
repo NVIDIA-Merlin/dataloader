@@ -37,10 +37,16 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
+from merlin.core.compat import cupy
 from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node, ungroup_values_offsets
 from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
 from merlin.schema import Schema, Tags
+
+try:
+    import cudf
+except ImportError:
+    cudf = None
 
 
 def _num_steps(num_samples, step_size):
@@ -464,6 +470,17 @@ class LoaderBase:
                 # split out lists
                 for column_name in lists:
                     column = gdf_i.pop(column_name)
+
+                    if cudf and isinstance(column, cudf.Series):
+                        is_fixed_length = (
+                            not self.input_schema[column_name].shape.is_ragged
+                            and (column.list.len() == column.list.len()[0]).all()
+                        )
+                        if is_fixed_length:
+                            values = column.list.leaves.values.reshape(-1, *cupy.array(column[0]).shape)
+                            tensors_by_name[column_name] = self._unpack(self._pack(values))
+                            continue
+
                     leaves, col_offsets = pull_apart_list(column, device=self.device)
 
                     if isinstance(leaves[0], list):
