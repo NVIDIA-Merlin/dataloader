@@ -244,61 +244,11 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
     def _sum(self, tensor):
         return tf.reduce_sum(tensor)
 
-    def _pull_values_offsets(self, values_offset):
-        """
-        values_offset is either a tuple (values, offsets) or just values.
-        Values is a tensor.
-        This method is used to turn a tensor into its sparse representation
-        """
-        # pull_values_offsets, return values offsets diff_offsets
-        diff_offsets = None
-        if isinstance(values_offset, tuple):
-            values = tf.reshape(values_offset[0], [-1])
-            offsets = tf.reshape(values_offset[1], [-1])
-        else:
-            values = tf.reshape(values_offset, [-1])
-            offsets = tf.arange(tf.shape(values)[0], dtype=tf.int64)
-        num_rows = len(offsets)
-        diff_offsets = offsets[1:] - offsets[:-1]
-        return values, offsets, diff_offsets, num_rows
-
     def _row_lengths_to_offsets(self, row_lengths):
         zero_value = tf.constant([0], dtype=row_lengths.dtype)
         if len(row_lengths.shape) == 2:
             zero_value = tf.expand_dims(zero_value, axis=0)
         return tf.concat([zero_value, tf.cumsum(row_lengths)], axis=0)
-
-    def _get_max_seq_len(self, diff_offsets):
-        # get_max_seq_len, return int
-        return int(tf.math.reduce_max(diff_offsets))
-
-    def _get_indices(self, offsets, diff_offsets):
-        # Building the indices to reconstruct the sparse tensors
-        row_ids = tf.range(len(offsets), dtype=tf.int64)
-
-        row_ids_repeated = tf.repeat(row_ids, diff_offsets)
-        row_offset_repeated = tf.repeat(offsets, diff_offsets)
-        col_ids = tf.range(len(row_offset_repeated), dtype=tf.int64) - row_offset_repeated
-        indices = tf.concat(
-            values=[tf.expand_dims(row_ids_repeated, -1), tf.expand_dims(col_ids, -1)],
-            axis=1,
-        )
-        return indices
-
-    def _get_sparse_tensor(self, values, indices, num_rows, seq_limit):
-        sparse_tensor = tf.sparse.SparseTensor(
-            indices=indices, values=values, dense_shape=[num_rows, seq_limit]
-        )
-        return sparse_tensor
-
-    def _build_sparse_tensor(
-        self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
-    ):
-        ragged = tf.RaggedTensor.from_row_splits(values=values, row_splits=offsets)
-        tensor = tf.RaggedTensor.from_tensor(ragged.to_tensor(shape=[None, seq_limit])).to_sparse()
-        if sparse_as_dense:
-            tensor = tf.sparse.to_dense(tensor)
-        return tensor
 
     def _process_batch(self, tensors):
         to_return = super()._process_batch(tensors)

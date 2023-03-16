@@ -404,25 +404,6 @@ class LoaderBase:
         idx.append(num_samples - num_full_batches * self.batch_size)
         return idx
 
-    def _to_sparse_tensor(self, values_offset, column_name):
-        """
-        Create a sparse representation of the input tensor.
-        values_offset is either a tensor or a tuple of tensor, offset.
-        """
-        seq_limit = self.sparse_max[column_name]
-        values, offsets, diff_offsets, num_rows = self._pull_values_offsets(values_offset)
-        max_seq_len = self._get_max_seq_len(diff_offsets)
-        if max_seq_len > seq_limit:
-            raise ValueError(
-                "The default sequence length has been configured "
-                + f"to {seq_limit} but the "
-                + f"largest sequence in this batch have {max_seq_len} length"
-            )
-        sparse_as_dense = column_name in self.sparse_as_dense
-        return self._build_sparse_tensor(
-            values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
-        )
-
     def _to_tensor(self, gdf):
         """
         One of the mandatory functions a child class needs
@@ -511,12 +492,6 @@ class LoaderBase:
                 X[k] = v
 
         X = ungroup_values_offsets(X)
-        for column_name in self.sparse_names:
-            if column_name in self.sparse_max:
-                tensor = (X[f"{column_name}__values"], X[f"{column_name}__offsets"])
-                X.pop(f"{column_name}__values")
-                X.pop(f"{column_name}__offsets")
-                X[column_name] = self._to_sparse_tensor(tensor, column_name)
 
         # Return a tensor if we have only one label column, but return a
         # dictionary of tensors if there are multiple label columns, since
@@ -628,9 +603,6 @@ class LoaderBase:
         )
         self.label_names = value.select_by_tag(Tags.TARGET).column_names
 
-        self.sparse_names = []
-        self.sparse_max = {}
-        self.sparse_as_dense = set()
         self.dtype_reverse_map = {}
 
         for col_name, col_spec in self._input_schema.column_schemas.items():
@@ -638,22 +610,6 @@ class LoaderBase:
                 self.dtype_reverse_map[col_spec.dtype] = [col_name]
             else:
                 self.dtype_reverse_map[col_spec.dtype].append(col_name)
-            if col_spec.is_list:
-                self.sparse_names.append(col_name)
-
-                value_count = col_spec.value_count
-                if value_count and value_count.max:
-                    self.sparse_max[col_name] = value_count.max
-
-                if not col_spec.is_ragged:
-                    self.sparse_as_dense.add(col_name)
-
-                    if not value_count:
-                        # TODO: error message linking to docs
-                        raise ValueError(
-                            f"Dense column {col_name} doesn't have the max value_count defined"
-                            " in the schema"
-                        )
 
         if self._transform_graph is not None:
             self._transforms = self._transform_graph.construct_schema(
