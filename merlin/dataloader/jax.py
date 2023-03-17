@@ -94,18 +94,6 @@ class Loader(LoaderBase):
 
         return x
 
-    def _pack(self, gdf):
-        if isinstance(gdf, np.ndarray):
-            return gdf
-        elif hasattr(gdf, "to_dlpack") and callable(getattr(gdf, "to_dlpack")):
-            return gdf.to_dlpack()
-        elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
-            gdf = gdf.to_numpy()
-            if isinstance(gdf[0], list):
-                gdf = np.stack(gdf)
-            return gdf
-        return gdf.toDlpack()
-
     def _unpack(self, gdf):
         if hasattr(gdf, "shape"):
             return jax.device_put(gdf)
