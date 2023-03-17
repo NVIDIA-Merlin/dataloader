@@ -533,10 +533,13 @@ class LoaderBase:
         elif hasattr(gdf, "to_dlpack") and callable(getattr(gdf, "to_dlpack")) and not self.device:
             return gdf.to_dlpack()
         elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
-            gdf = gdf.to_numpy()
-            if isinstance(gdf[0], list):
-                gdf = np.stack(gdf)
-            return gdf
+            if hasattr(gdf, "columns") and len(gdf.columns) == 1:
+                values = gdf[gdf.columns[0]].to_numpy()
+            else:
+                values = gdf.to_numpy()
+            if isinstance(values[0], list):
+                values = np.stack(values)
+            return values
         return gdf.toDlpack()
 
     @property
