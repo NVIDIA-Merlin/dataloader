@@ -210,13 +210,13 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         if gdf.empty:
             return
 
+        transpose = False
         # checks necessary because of this bug
         # https://github.com/tensorflow/tensorflow/issues/42660
         if len(gdf.shape) == 1 or gdf.shape[1] == 1:
             dlpack = self._pack(gdf)
-        elif gdf.shape[0] == 1:
-            dlpack = self._pack(gdf.values[0])
         else:
+            transpose = True
             dlpack = self._pack(gdf.values.T)
 
         # catch error caused by tf eager context
@@ -226,19 +226,12 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         except AssertionError:
             tf.random.uniform((1,))
             x = self._unpack(dlpack)
-        # if rank is already two it is  already in list format
-        if gdf.shape[0] == 1 and not tf.rank(x) == 2:
-            # batch size 1 so got squashed to a vector
-            x = tf.expand_dims(x, 0)
-        elif len(gdf.shape) == 1 or len(x.shape) == 1:
-            # sort of a generic check for any other
-            # len(shape)==1 case, could probably
-            # be more specific
-            x = tf.expand_dims(x, -1)
-        elif gdf.shape[1] > 1:
+
+        if transpose:
             # matrix which means we had to transpose
             # for the bug above, so untranspose
             x = tf.transpose(x)
+
         return x
 
     def _sum(self, tensor):

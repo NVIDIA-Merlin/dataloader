@@ -22,12 +22,14 @@ import warnings
 from typing import List, Optional
 
 import numpy as np
+import pandas as pd
 
 try:
     import cupy
 except ImportError:
     cupy = None
 
+from merlin.core.compat import cupy
 from merlin.core.dispatch import (
     HAS_GPU,
     annotate,
@@ -41,6 +43,11 @@ from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node, ung
 from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
 from merlin.schema import Schema, Tags
+
+try:
+    import cudf
+except ImportError:
+    cudf = None
 
 
 def _num_steps(num_samples, step_size):
@@ -464,6 +471,26 @@ class LoaderBase:
                 # split out lists
                 for column_name in lists:
                     column = gdf_i.pop(column_name)
+
+                    if cudf and isinstance(column, cudf.Series):
+                        is_fixed_length = (
+                            not self.input_schema[column_name].shape.is_ragged
+                            and (column.list.len() == column.list.len()[0]).all()
+                        )
+                        if is_fixed_length:
+                            values = column.list.leaves.values.reshape(
+                                -1, *cupy.array(column[0]).shape
+                            )
+                            tensors_by_name[column_name] = self._unpack(self._pack(values))
+                            continue
+                    elif isinstance(column, pd.Series):
+                        if not self.input_schema[column_name].shape.is_ragged:
+                            values = np.array(list(_array_leaves(column.values))).reshape(
+                                -1, *np.array(column[0]).shape
+                            )
+                            tensors_by_name[column_name] = self._unpack(values)
+                            continue
+
                     leaves, col_offsets = pull_apart_list(column, device=self.device)
 
                     if isinstance(leaves[0], list):
@@ -485,10 +512,6 @@ class LoaderBase:
                 for column_name, column_value in zip(k, values):
                     X[column_name] = self._reshape_dim(column_value)
             else:
-                if isinstance(v, tuple):
-                    v = tuple(self._reshape_dim(tv) for tv in v)
-                else:
-                    v = self._reshape_dim(v)
                 X[k] = v
 
         X = ungroup_values_offsets(X)
@@ -520,10 +543,13 @@ class LoaderBase:
         elif hasattr(gdf, "to_dlpack") and callable(getattr(gdf, "to_dlpack")) and not self.device:
             return gdf.to_dlpack()
         elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
-            gdf = gdf.to_numpy()
-            if isinstance(gdf[0], list):
-                gdf = np.stack(gdf)
-            return gdf
+            if hasattr(gdf, "columns") and len(gdf.columns) == 1:
+                values = gdf[gdf.columns[0]].to_numpy()
+            else:
+                values = gdf.to_numpy()
+            if isinstance(values[0], list):
+                values = np.stack(values)
+            return values
         return gdf.toDlpack()
 
     @property
@@ -762,3 +788,11 @@ class ChunkQueue:
         if not spill.empty:
             spill.reset_index(drop=True, inplace=True)
         return chunks, spill
+
+
+def _array_leaves(x):
+    if isinstance(x, (list, np.ndarray)):
+        for element in x:
+            yield from _array_leaves(element)
+    else:
+        yield x
