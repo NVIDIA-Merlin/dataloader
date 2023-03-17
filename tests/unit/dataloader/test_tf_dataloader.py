@@ -25,22 +25,42 @@ import pandas as pd
 import pytest
 from sklearn.metrics import roc_auc_score
 
-from merlin.core.dispatch import HAS_GPU, make_df
+from merlin.core.compat import HAS_GPU, cupy
+from merlin.core.dispatch import make_df, random_uniform
 from merlin.io import Dataset
 from merlin.schema import Tags
 
 pytestmark = pytest.mark.tensorflow
-
-try:
-    import cupy
-except ImportError:
-    cupy = None
 
 
 tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
 # tf_dataloader import needs to happen after this line
 tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
+
+
+@pytest.mark.parametrize("shape", [(), (1,), (2,), (3, 4)])
+@pytest.mark.parametrize("num_cols", [1, 2])
+def test_fixed_column(shape, num_cols):
+    num_rows = 4
+    batch_size = 3
+    df = make_df({
+        f"col{i}": random_uniform(size=(num_rows, *shape)).tolist()
+        for i in range(num_cols)
+    })
+
+    dataset = Dataset(df)
+    for col in dataset.schema:
+        dataset.schema[col.name] = dataset.schema[col.name].with_shape((None, *shape))
+
+    loader = tf_dataloader.Loader(dataset, batch_size=batch_size)
+    batches = [batch for batch in loader]
+
+    for tensor in batches[0][0].values():
+        assert tensor.shape == (batch_size, *shape)
+
+    for tensor in batches[1][0].values():
+        assert tensor.shape == (1, *shape)
 
 
 def test_peek():
