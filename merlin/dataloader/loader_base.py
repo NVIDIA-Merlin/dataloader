@@ -22,6 +22,7 @@ import warnings
 from typing import List, Optional
 
 import numpy as np
+import pandas as pd
 
 try:
     import cupy
@@ -480,6 +481,11 @@ class LoaderBase:
                             values = column.list.leaves.values.reshape(-1, *cupy.array(column[0]).shape)
                             tensors_by_name[column_name] = self._unpack(self._pack(values))
                             continue
+                    elif isinstance(column, pd.Series):
+                        if not self.input_schema[column_name].shape.is_ragged:
+                            values = np.array(list(_array_leaves(column.values))).reshape(-1, *np.array(column[0]).shape)
+                            tensors_by_name[column_name] = self._unpack(values)
+                            continue
 
                     leaves, col_offsets = pull_apart_list(column, device=self.device)
 
@@ -778,3 +784,12 @@ class ChunkQueue:
         if not spill.empty:
             spill.reset_index(drop=True, inplace=True)
         return chunks, spill
+
+
+
+def _array_leaves(x):
+    if isinstance(x, (list, np.ndarray)):
+        for element in x:
+            yield from _array_leaves(element)
+    else:
+        yield x
