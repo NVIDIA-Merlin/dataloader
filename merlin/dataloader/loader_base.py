@@ -29,6 +29,7 @@ try:
 except ImportError:
     cupy = None
 
+from merlin.core.compat import cupy
 from merlin.core.dispatch import (
     HAS_GPU,
     annotate,
@@ -38,7 +39,6 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
-from merlin.core.compat import cupy
 from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node, ungroup_values_offsets
 from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
@@ -478,12 +478,16 @@ class LoaderBase:
                             and (column.list.len() == column.list.len()[0]).all()
                         )
                         if is_fixed_length:
-                            values = column.list.leaves.values.reshape(-1, *cupy.array(column[0]).shape)
+                            values = column.list.leaves.values.reshape(
+                                -1, *cupy.array(column[0]).shape
+                            )
                             tensors_by_name[column_name] = self._unpack(self._pack(values))
                             continue
                     elif isinstance(column, pd.Series):
                         if not self.input_schema[column_name].shape.is_ragged:
-                            values = np.array(list(_array_leaves(column.values))).reshape(-1, *np.array(column[0]).shape)
+                            values = np.array(list(_array_leaves(column.values))).reshape(
+                                -1, *np.array(column[0]).shape
+                            )
                             tensors_by_name[column_name] = self._unpack(values)
                             continue
 
@@ -784,7 +788,6 @@ class ChunkQueue:
         if not spill.empty:
             spill.reset_index(drop=True, inplace=True)
         return chunks, spill
-
 
 
 def _array_leaves(x):

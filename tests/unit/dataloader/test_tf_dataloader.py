@@ -39,22 +39,21 @@ tf = pytest.importorskip("tensorflow")
 tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
 
 
-@pytest.mark.parametrize("shape", [(), (1,), (2,), (3, 4)])
+@pytest.mark.parametrize("shape", [(), (1,), (2,), (3, 4), (4, 5, 6)])
 @pytest.mark.parametrize("num_cols", [1, 2])
 def test_fixed_column(shape, num_cols):
     num_rows = 4
     batch_size = 3
-    df = make_df({
-        f"col{i}": random_uniform(size=(num_rows, *shape)).tolist()
-        for i in range(num_cols)
-    })
+    df = make_df(
+        {f"col{i}": random_uniform(size=(num_rows, *shape)).tolist() for i in range(num_cols)}
+    )
 
     dataset = Dataset(df)
     for col in dataset.schema:
         dataset.schema[col.name] = dataset.schema[col.name].with_shape((None, *shape))
 
     loader = tf_dataloader.Loader(dataset, batch_size=batch_size)
-    batches = [batch for batch in loader]
+    batches = list(loader)
 
     for tensor in batches[0][0].values():
         assert tensor.shape == (batch_size, *shape)
