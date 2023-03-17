@@ -76,24 +76,20 @@ class Loader(LoaderBase):
         if gdf.empty:
             return
 
+        transpose = False
+
         # checks necessary because of this bug
         # https://github.com/tensorflow/tensorflow/issues/42660
         # same logic as in TF dataloader
         if len(gdf.shape) == 1 or gdf.shape[1] == 1:
             dlpack = self._pack(gdf)
-        elif gdf.shape[0] == 1:
-            dlpack = self._pack(gdf.values[0])
         else:
+            transpose = True
             dlpack = self._pack(gdf.values.T)
 
         x = self._unpack(dlpack)
 
-        if gdf.shape[0] == 1 and len(x.shape) != 2:
-            # batch size 1 so got squashed to a vector
-            x = x.reshape((1, x.shape[0]))
-        elif len(gdf.shape) == 1 or len(x.shape) == 1:
-            x = x.reshape((x.shape[0], 1))
-        elif gdf.shape[1] > 1:
+        if transpose:
             x = x.T
 
         return x
