@@ -215,8 +215,6 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         # https://github.com/tensorflow/tensorflow/issues/42660
         if len(gdf.shape) == 1 or gdf.shape[1] == 1:
             dlpack = self._pack(gdf)
-        elif gdf.shape[0] == 1:
-            dlpack = self._pack(gdf.values[0])
         else:
             transpose = True
             dlpack = self._pack(gdf.values.T)
@@ -228,11 +226,6 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         except AssertionError:
             tf.random.uniform((1,))
             x = self._unpack(dlpack)
-
-        # if rank is already two it is  already in list format
-        if gdf.shape[0] == 1 and not tf.rank(x) == 2:
-            # batch size 1 so got squashed to a vector
-            x = tf.expand_dims(x, 0)
 
         if transpose:
             # matrix which means we had to transpose
