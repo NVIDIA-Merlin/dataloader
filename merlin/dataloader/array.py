@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import contextlib
+import itertools
 
 from merlin.core.compat import cupy as cp
 from merlin.core.compat import numpy as np
@@ -55,44 +56,48 @@ class Loader(LoaderBase):
         else:
             return np
 
+    def __len__(self):
+        """Number of batches in the Sequence.
+
+        Note: This also resets the loader state.
+              Required because of the calls to `__getitem__`
+              from keras prior to the start of the main loop
+              through the loader.
+        """
+        LoaderBase.stop(self)
+        return LoaderBase.__len__(self)
+
+    def __getitem__(self, index):
+        """Gets batch at position `index`.
+
+        Note: This returns the next batch in the iterator.
+              Not the batch at position `index`.
+              This is because the dataloader is implemented as an iterator and
+              don't currently support fetching a batch by index.
+        """
+        return LoaderBase.__next__(self)
+
     @contextlib.contextmanager
     def _get_device_ctx(self, dev):
         yield dev
 
     def _split_fn(self, tensor, idx, axis=0):
+        splits = list(itertools.accumulate(idx))[:-1]
+        return self.array_lib().split(tensor, splits, axis=axis)
+
+    def _tensor_split(self, tensor, idx, axis=0):
         return self.array_lib().split(tensor, idx, axis=axis)
 
-    _tensor_split = _split_fn
-
-    def _to_tensor(self, gdf):
-        if gdf.empty:
+    def _to_tensor(self, df_or_series):
+        if df_or_series.empty:
             return
 
-        if len(gdf.shape) == 1 or gdf.shape[1] == 1:
-            dlpack = self._pack(gdf)
-        elif gdf.shape[0] == 1:
-            dlpack = self._pack(gdf.values[0])
+        if self.device == "cpu":
+            tensor = df_or_series.to_numpy()
         else:
-            dlpack = self._pack(gdf.values.T)
+            tensor = df_or_series.to_cupy()
 
-        x = self._unpack(dlpack)
-
-        if gdf.shape[0] == 1 and len(x.shape) != 2:
-            # batch size 1 so got squashed to a vector
-            x = x.reshape((1, x.shape[0]))
-        elif len(gdf.shape) == 1 or len(x.shape) == 1:
-            x = x.reshape((x.shape[0], 1))
-        elif gdf.shape[1] > 1:
-            x = x.T
-
-        return x
-
-    def _unpack(self, gdf):
-        if self.device != "cpu":
-            return self.array_lib().from_dlpack(gdf)
-        else:
-            # already numpy
-            return gdf
+        return tensor
 
     def _cast_to_numpy_dtype(self, dtype):
         return dtype

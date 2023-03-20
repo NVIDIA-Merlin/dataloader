@@ -41,12 +41,14 @@ def test_dataloader(tmpdir, dataset, cpu, num_rows):
     dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
 
     data_loader = arr_dataloader.Loader(
-        dataset, batch_size=num_rows, shuffle=False, device="cpu" if cpu else "0"
+        dataset, batch_size=int(num_rows / 10), shuffle=False, device="cpu" if cpu else "0"
     )
     inputs, target = data_loader.peek()
     columns = set(dataset.schema.column_names) - {"label"}
     assert set(inputs) == columns
 
-    for batch in data_loader:
+    for idx, batch in enumerate(data_loader):
         for col in columns:
-            assert np.all(batch[0][col].ravel() == df[col])
+            start = idx * int(num_rows / 10)
+            end = start + int(num_rows / 10)
+            assert np.all(batch[0][col].ravel() == df[col].iloc[start:end])
