@@ -418,3 +418,9 @@ def test_offsets():
                 feature_tensor = list(feats[col].cpu().numpy())
                 feature_result = results[i][col]
                 assert feature_tensor == feature_result
+
+
+def test_row_lengths_to_offsets_device():
+    dataset = Dataset(make_df({"a": [1]}))
+    loader = torch_dataloader.Loader(dataset, batch_size=1)
+    loader._row_lengths_to_offsets(torch.tensor([1, 2, 3], device=1))

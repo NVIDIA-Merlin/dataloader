@@ -141,7 +141,7 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         zero_value = torch.tensor([0], device=self.device, dtype=row_lengths.dtype)
         if len(row_lengths.shape) == 2:
             zero_value = zero_value.view(-1, 1)
-        return torch.cat((zero_value, torch.cumsum(row_lengths, 0)))
+        return torch.cat((zero_value, torch.cumsum(row_lengths, 0).to(device=self.device)))
 
     def _process_batch(self, tensors):
         to_return = super()._process_batch(tensors)
