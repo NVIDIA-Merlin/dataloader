@@ -23,7 +23,8 @@ import pytest
 from conftest import assert_eq
 
 from merlin.core import dispatch
-from merlin.core.dispatch import HAS_GPU, make_df
+from merlin.core.compat import HAS_GPU
+from merlin.core.dispatch import make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
@@ -33,6 +34,32 @@ pytestmark = pytest.mark.torch
 # torch_dataloader import needs to happen after this line
 torch = pytest.importorskip("torch")
 import merlin.dataloader.torch as torch_dataloader  # noqa isort:skip
+
+
+@pytest.mark.parametrize("shape", [(), (1,), (2,), (3, 4)])
+@pytest.mark.parametrize("num_cols", [1, 2])
+def test_fixed_column(shape, num_cols):
+    num_rows = 4
+    batch_size = 3
+    df = make_df(
+        {
+            f"col{i}": dispatch.random_uniform(size=(num_rows, *shape)).tolist()
+            for i in range(num_cols)
+        }
+    )
+
+    dataset = Dataset(df)
+    for col in dataset.schema:
+        dataset.schema[col.name] = dataset.schema[col.name].with_shape((None, *shape))
+
+    loader = torch_dataloader.Loader(dataset, batch_size=batch_size)
+    batches = list(loader)
+
+    for tensor in batches[0][0].values():
+        assert tensor.shape == (batch_size, *shape)
+
+    for tensor in batches[1][0].values():
+        assert tensor.shape == (1, *shape)
 
 
 def test_shuffling():
@@ -90,10 +117,18 @@ def test_torch_drp_reset(tmpdir, batch_size, drop_last, num_rows):
         if idx < all_len:
             for col in df_cols:
                 if col in chunk[0].keys():
+                    # We test if the values did NOT change in the dataloader
+                    # Each column has only one unique value
+                    # We test that each value in chunk (output of dataloader)
+                    # is equal to every value in dataframe
                     if dispatch.HAS_GPU:
-                        assert (list(chunk[0][col].cpu().numpy()) == df[col].values_host).all()
+                        assert (
+                            np.expand_dims(chunk[0][col].cpu().numpy(), 1) == df[col].values_host
+                        ).all()
                     else:
-                        assert (list(chunk[0][col].cpu().numpy()) == df[col].values).all()
+                        assert (
+                            np.expand_dims(chunk[0][col].cpu().numpy(), 1) == df[col].values
+                        ).all()
 
     if drop_last and num_rows % batch_size > 0:
         assert num_rows > all_rows
@@ -264,54 +299,11 @@ def test_mh_support(multihot_dataset):
     for batch in torch_dataloader.Loader(multihot_dataset):
         idx = idx + 1
         cats_conts, labels = batch
-        assert "Reviewers" in cats_conts
-        # check it is multihot
-        assert isinstance(cats_conts["Reviewers"], tuple)
-        # mh is a tuple of dictionaries {Column name: (values, offsets)}
-        assert "Authors" in cats_conts
-        assert isinstance(cats_conts["Authors"], tuple)
+        assert "Reviewers__values" in cats_conts
+        assert "Reviewers__offsets" in cats_conts
+        assert "Authors__values" in cats_conts
+        assert "Authors__offsets" in cats_conts
     assert idx > 0
-
-
-@pytest.mark.parametrize("sparse_dense", [False, True])
-def test_sparse_tensors(sparse_dense):
-    # create small dataset, add values to sparse_list
-    df = make_df(
-        {
-            "spar1": [[1, 2, 3, 4], [4, 2, 4, 4], [1, 3, 4, 3], [1, 1, 3, 3]],
-            "spar2": [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14], [15, 16]],
-        }
-    )
-    spa_lst = ["spar1", "spar2"]
-    spa_mx = {"spar1": 5, "spar2": 6}
-    batch_size = 2
-
-    ds = Dataset(df)
-    schema = ds.schema
-    for col_name in spa_lst:
-        if not sparse_dense:
-            schema[col_name] = schema[col_name].with_properties(
-                {"value_count": {"max": spa_mx[col_name]}}
-            )
-    ds.schema = schema
-
-    dataloader = torch_dataloader.Loader(
-        ds,
-        batch_size=batch_size,
-    )
-    for batch in dataloader:
-        feats, labs = batch
-        for col in spa_lst:
-            feature_tensor = feats[col]
-            if not sparse_dense:
-                assert list(feature_tensor.shape) == [batch_size, spa_mx[col]]
-                assert feature_tensor.is_sparse
-            else:
-                assert not feature_tensor[0].is_sparse
-
-    # add dict sparse_max entry for each target
-    # iterate dataloader grab sparse columns
-    # ensure they are correct structurally
 
 
 @pytest.mark.parametrize("batch_size", [1000])
@@ -366,3 +358,63 @@ def test_torch_map(tmpdir):
         assert list(X["cont2"].cpu().numpy()) == [2.0] * 10
 
         assert list(sample_weight.cpu().numpy()) == [1.0] * 10
+
+
+def test_1d_tensors():
+    # create small dataset, add values to sparse_list
+    df = make_df(
+        {
+            "cat1": [1] * 4,
+            "cat2": [2] * 4,
+            "cat3": [3] * 4,
+            "cont2": [2.0] * 4,
+            "spar1": [[1, 2, 3, 4], [4, 2, 4, 4], [1, 3, 4, 3], [1, 1, 3, 3]],
+            "spar2": [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14], [15, 16]],
+        }
+    )
+    batch_size = 2
+
+    ds = Dataset(df)
+    dataloader = torch_dataloader.Loader(ds, batch_size=batch_size)
+    for batch in dataloader:
+        feats, labs = batch
+        for col in feats.keys():
+            feature_tensor = feats[col]
+            assert len(list(feature_tensor.shape)) == 1
+
+
+def test_offsets():
+    # create small dataset, add values to sparse_list
+    df = make_df(
+        {
+            "cat1": [1] * 4,
+            "cat2": [1] * 4,
+            "cont1": [2.0] * 4,
+            "spar1": [[1, 2, 3, 4], [4, 2, 4, 4], [1, 3, 4, 3], [1, 1, 3, 3]],
+            "spar2": [[1, 2, 3, 4, 5], [], [11, 0, -1, 14], [15, 16]],
+        }
+    )
+    results = [
+        {
+            "spar1__values": [1, 2, 3, 4, 4, 2, 4, 4],
+            "spar1__offsets": [0, 4, 8],
+            "spar2__values": [1, 2, 3, 4, 5],
+            "spar2__offsets": [0, 5, 5],
+        },
+        {
+            "spar1__values": [1, 3, 4, 3, 1, 1, 3, 3],
+            "spar1__offsets": [0, 4, 8],
+            "spar2__values": [11, 0, -1, 14, 15, 16],
+            "spar2__offsets": [0, 4, 6],
+        },
+    ]
+    batch_size = 2
+    ds = Dataset(df)
+    dataloader = torch_dataloader.Loader(ds, batch_size=batch_size, shuffle=False)
+    for i, batch in enumerate(dataloader):
+        feats, labs = batch
+        for col in feats.keys():
+            if col in results[i]:
+                feature_tensor = list(feats[col].cpu().numpy())
+                feature_result = results[i][col]
+                assert feature_tensor == feature_result

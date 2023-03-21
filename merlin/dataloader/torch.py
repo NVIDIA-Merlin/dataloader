@@ -120,8 +120,6 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
             values = torch.Tensor(values).type(dtype)
         else:
             values = from_dlpack(dlpack)
-        if len(values.shape) <= 1:
-            values = values.view(-1, 1)
         return values
 
     def _to_tensor(self, gdf):
@@ -133,50 +131,17 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
     def _tensor_split(self, tensor, idx, axis=0):
         return torch.tensor_split(tensor, idx, axis=axis)
 
-    def _pull_values_offsets(self, values_offset):
-        # pull_values_offsets, return values offsets diff_offsets
-        if isinstance(values_offset, tuple):
-            values = values_offset[0].flatten()
-            offsets = values_offset[1].flatten()
-        else:
-            values = values_offset.flatten()
-            offsets = torch.arange(values.size()[0], device=self.device)
-        num_rows = len(offsets) - 1
-        diff_offsets = offsets[1:] - offsets[:-1]
-        return values, offsets, diff_offsets, num_rows
-
-    def _get_max_seq_len(self, diff_offsets):
-        return int(diff_offsets.max())
-
-    # Building the indices to reconstruct the sparse tensors
-
-    def _get_indices(self, offsets, diff_offsets):
-        row_ids = torch.arange(len(offsets) - 1, device=self.device)
-        row_ids_repeated = torch.repeat_interleave(row_ids, diff_offsets)
-        row_offset_repeated = torch.repeat_interleave(offsets[:-1], diff_offsets)
-        col_ids = torch.arange(len(row_offset_repeated), device=self.device) - row_offset_repeated
-        indices = torch.cat([row_ids_repeated.unsqueeze(-1), col_ids.unsqueeze(-1)], axis=1)
-        return indices
+    def _reshape_dim(self, tensor):
+        return tensor.view(-1)
 
     def _sum(self, tensor):
         return tensor.sum()
 
     def _row_lengths_to_offsets(self, row_lengths):
-        zero_value = torch.tensor([0], device=self.device)
+        zero_value = torch.tensor([0], device=self.device, dtype=row_lengths.dtype)
         if len(row_lengths.shape) == 2:
             zero_value = zero_value.view(-1, 1)
         return torch.cat((zero_value, torch.cumsum(row_lengths, 0)))
-
-    def _build_sparse_tensor(
-        self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
-    ):
-        indices = self._get_indices(offsets, diff_offsets)
-        sparse_tensor = torch.sparse_coo_tensor(
-            indices.T, values, torch.Size([num_rows, seq_limit]), device=self.device
-        )
-        if sparse_as_dense:
-            sparse_tensor = sparse_tensor.to_dense()
-        return sparse_tensor
 
     def _process_batch(self, tensors):
         to_return = super()._process_batch(tensors)

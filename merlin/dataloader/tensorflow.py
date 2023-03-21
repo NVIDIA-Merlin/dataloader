@@ -102,7 +102,7 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         will usually contain fewer rows.
     """
 
-    _use_row_lengths = True
+    _use_row_lengths = False
 
     def __init__(
         self,
@@ -210,13 +210,13 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         if gdf.empty:
             return
 
+        transpose = False
         # checks necessary because of this bug
         # https://github.com/tensorflow/tensorflow/issues/42660
         if len(gdf.shape) == 1 or gdf.shape[1] == 1:
             dlpack = self._pack(gdf)
-        elif gdf.shape[0] == 1:
-            dlpack = self._pack(gdf.values[0])
         else:
+            transpose = True
             dlpack = self._pack(gdf.values.T)
 
         # catch error caused by tf eager context
@@ -226,74 +226,22 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         except AssertionError:
             tf.random.uniform((1,))
             x = self._unpack(dlpack)
-        # if rank is already two it is  already in list format
-        if gdf.shape[0] == 1 and not tf.rank(x) == 2:
-            # batch size 1 so got squashed to a vector
-            x = tf.expand_dims(x, 0)
-        elif len(gdf.shape) == 1 or len(x.shape) == 1:
-            # sort of a generic check for any other
-            # len(shape)==1 case, could probably
-            # be more specific
-            x = tf.expand_dims(x, -1)
-        elif gdf.shape[1] > 1:
+
+        if transpose:
             # matrix which means we had to transpose
             # for the bug above, so untranspose
             x = tf.transpose(x)
+
         return x
 
     def _sum(self, tensor):
         return tf.reduce_sum(tensor)
 
-    def _pull_values_offsets(self, values_offset):
-        """
-        values_offset is either a tuple (values, offsets) or just values.
-        Values is a tensor.
-        This method is used to turn a tensor into its sparse representation
-        """
-        # pull_values_offsets, return values offsets diff_offsets
-        diff_offsets = None
-        if isinstance(values_offset, tuple):
-            values = tf.reshape(values_offset[0], [-1])
-            diff_offsets = tf.cast(tf.reshape(values_offset[1], [-1]), dtype=tf.int64)
-            offsets = tf.math.cumsum(diff_offsets)
-        else:
-            values = tf.reshape(values_offset, [-1])
-            offsets = tf.arange(tf.shape(values)[0], dtype=tf.int64)
-            diff_offsets = offsets[1:] - offsets[:-1]
-        num_rows = len(offsets)
-        return values, offsets, diff_offsets, num_rows
-
-    def _get_max_seq_len(self, diff_offsets):
-        # get_max_seq_len, return int
-        return int(tf.math.reduce_max(diff_offsets))
-
-    def _get_indices(self, offsets, diff_offsets):
-        # Building the indices to reconstruct the sparse tensors
-        row_ids = tf.range(len(offsets), dtype=tf.int64)
-
-        row_ids_repeated = tf.repeat(row_ids, diff_offsets)
-        row_offset_repeated = tf.repeat(offsets, diff_offsets)
-        col_ids = tf.range(len(row_offset_repeated), dtype=tf.int64) - row_offset_repeated
-        indices = tf.concat(
-            values=[tf.expand_dims(row_ids_repeated, -1), tf.expand_dims(col_ids, -1)],
-            axis=1,
-        )
-        return indices
-
-    def _get_sparse_tensor(self, values, indices, num_rows, seq_limit):
-        sparse_tensor = tf.sparse.SparseTensor(
-            indices=indices, values=values, dense_shape=[num_rows, seq_limit]
-        )
-        return sparse_tensor
-
-    def _build_sparse_tensor(
-        self, values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
-    ):
-        ragged = tf.RaggedTensor.from_row_lengths(values=values, row_lengths=diff_offsets)
-        tensor = tf.RaggedTensor.from_tensor(ragged.to_tensor(shape=[None, seq_limit])).to_sparse()
-        if sparse_as_dense:
-            tensor = tf.sparse.to_dense(tensor)
-        return tensor
+    def _row_lengths_to_offsets(self, row_lengths):
+        zero_value = tf.constant([0], dtype=row_lengths.dtype)
+        if len(row_lengths.shape) == 2:
+            zero_value = tf.expand_dims(zero_value, axis=0)
+        return tf.concat([zero_value, tf.cumsum(row_lengths)], axis=0)
 
     def _process_batch(self, tensors):
         to_return = super()._process_batch(tensors)
@@ -308,6 +256,9 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         Get the numpy dtype from the framework dtype.
         """
         return dtype.as_numpy_dtype()
+
+    def _reshape_dim(self, tensor):
+        return tf.reshape(tensor, shape=[-1])
 
 
 class KerasSequenceValidater(tf.keras.callbacks.Callback):

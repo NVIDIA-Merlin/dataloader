@@ -48,7 +48,7 @@ def test_embedding_torch_np_mmap_dl_with_lookup(
     dataset = dataset.repartition(10)
     schema = dataset.schema
     for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
 
     data_loader = Loader(
@@ -81,7 +81,7 @@ def test_embedding_torch_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddin
     dataset = dataset.repartition(10)
     schema = dataset.schema
     for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
 
     data_loader = Loader(
@@ -115,7 +115,7 @@ def test_embedding_torch_np_dl_with_lookup(
     dataset = dataset.repartition(10)
     schema = dataset.schema
     for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
     paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
     embeddings_ds = Dataset(paths)
@@ -150,7 +150,7 @@ def test_embedding_torch_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_
     dataset = dataset.repartition(10)
     schema = dataset.schema
     for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
     paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
     embeddings_ds = Dataset(paths)
@@ -184,7 +184,7 @@ def test_embedding_torch_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
     dataset = dataset.repartition(10)
     schema = dataset.schema
     for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
     paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
     embeddings_ds = Dataset(paths)
@@ -218,7 +218,7 @@ def test_embedding_torch_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dat
     dataset = dataset.repartition(10)
     schema = dataset.schema
     for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags(Tags.CATEGORICAL)
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
     paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
     embeddings_ds = Dataset(paths)

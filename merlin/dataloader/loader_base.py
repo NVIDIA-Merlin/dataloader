@@ -22,12 +22,14 @@ import warnings
 from typing import List, Optional
 
 import numpy as np
+import pandas as pd
 
 try:
     import cupy
 except ImportError:
     cupy = None
 
+from merlin.core.compat import cupy
 from merlin.core.dispatch import (
     HAS_GPU,
     annotate,
@@ -37,10 +39,15 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
-from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node
+from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node, ungroup_values_offsets
 from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
 from merlin.schema import Schema, Tags
+
+try:
+    import cudf
+except ImportError:
+    cudf = None
 
 
 def _num_steps(num_samples, step_size):
@@ -404,25 +411,6 @@ class LoaderBase:
         idx.append(num_samples - num_full_batches * self.batch_size)
         return idx
 
-    def _to_sparse_tensor(self, values_offset, column_name):
-        """
-        Create a sparse representation of the input tensor.
-        values_offset is either a tensor or a tuple of tensor, offset.
-        """
-        seq_limit = self.sparse_max[column_name]
-        values, offsets, diff_offsets, num_rows = self._pull_values_offsets(values_offset)
-        max_seq_len = self._get_max_seq_len(diff_offsets)
-        if max_seq_len > seq_limit:
-            raise ValueError(
-                "The default sequence length has been configured "
-                + f"to {seq_limit} but the "
-                + f"largest sequence in this batch have {max_seq_len} length"
-            )
-        sparse_as_dense = column_name in self.sparse_as_dense
-        return self._build_sparse_tensor(
-            values, offsets, diff_offsets, num_rows, seq_limit, sparse_as_dense
-        )
-
     def _to_tensor(self, gdf):
         """
         One of the mandatory functions a child class needs
@@ -483,6 +471,26 @@ class LoaderBase:
                 # split out lists
                 for column_name in lists:
                     column = gdf_i.pop(column_name)
+
+                    if cudf and isinstance(column, cudf.Series):
+                        is_fixed_length = (
+                            not self.input_schema[column_name].shape.is_ragged
+                            and (column.list.len() == column.list.len()[0]).all()
+                        )
+                        if is_fixed_length:
+                            values = column.list.leaves.values.reshape(
+                                -1, *cupy.array(column[0]).shape
+                            )
+                            tensors_by_name[column_name] = self._unpack(self._pack(values))
+                            continue
+                    elif isinstance(column, pd.Series):
+                        if not self.input_schema[column_name].shape.is_ragged:
+                            values = np.array(list(_array_leaves(column.values))).reshape(
+                                -1, *np.array(column[0]).shape
+                            )
+                            tensors_by_name[column_name] = self._unpack(values)
+                            continue
+
                     leaves, col_offsets = pull_apart_list(column, device=self.device)
 
                     if isinstance(leaves[0], list):
@@ -502,16 +510,11 @@ class LoaderBase:
             if isinstance(k, tuple):
                 values = self._tensor_split(v, len(k), axis=1)
                 for column_name, column_value in zip(k, values):
-                    X[column_name] = column_value
+                    X[column_name] = self._reshape_dim(column_value)
             else:
                 X[k] = v
 
-        for column_name in self.sparse_names:
-            if column_name in self.sparse_max:
-                # raise ValueError(
-                #     f"Did not convert {column_name} to sparse due to missing sparse_max entry"
-                # )
-                X[column_name] = self._to_sparse_tensor(X[column_name], column_name)
+        X = ungroup_values_offsets(X)
 
         # Return a tensor if we have only one label column, but return a
         # dictionary of tensors if there are multiple label columns, since
@@ -544,10 +547,13 @@ class LoaderBase:
         ):
             return gdf.to_dlpack()
         elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
-            gdf = gdf.to_numpy()
-            if isinstance(gdf[0], list):
-                gdf = np.stack(gdf)
-            return gdf
+            if hasattr(gdf, "columns") and len(gdf.columns) == 1:
+                values = gdf[gdf.columns[0]].to_numpy()
+            else:
+                values = gdf.to_numpy()
+            if isinstance(values[0], list):
+                values = np.stack(values)
+            return values
         return gdf.toDlpack()
 
     @property
@@ -627,9 +633,6 @@ class LoaderBase:
         )
         self.label_names = value.select_by_tag(Tags.TARGET).column_names
 
-        self.sparse_names = []
-        self.sparse_max = {}
-        self.sparse_as_dense = set()
         self.dtype_reverse_map = {}
 
         for col_name, col_spec in self._input_schema.column_schemas.items():
@@ -637,22 +640,6 @@ class LoaderBase:
                 self.dtype_reverse_map[col_spec.dtype] = [col_name]
             else:
                 self.dtype_reverse_map[col_spec.dtype].append(col_name)
-            if col_spec.is_list:
-                self.sparse_names.append(col_name)
-
-                value_count = col_spec.value_count
-                if value_count and value_count.max:
-                    self.sparse_max[col_name] = value_count.max
-
-                if not col_spec.is_ragged:
-                    self.sparse_as_dense.add(col_name)
-
-                    if not value_count:
-                        # TODO: error message linking to docs
-                        raise ValueError(
-                            f"Dense column {col_name} doesn't have the max value_count defined"
-                            " in the schema"
-                        )
 
         if self._transform_graph is not None:
             self._transforms = self._transform_graph.construct_schema(
@@ -805,3 +792,11 @@ class ChunkQueue:
         if not spill.empty:
             spill.reset_index(drop=True, inplace=True)
         return chunks, spill
+
+
+def _array_leaves(x):
+    if isinstance(x, (list, np.ndarray)):
+        for element in x:
+            yield from _array_leaves(element)
+    else:
+        yield x
