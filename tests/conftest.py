@@ -118,7 +118,7 @@ def dataset(request, tmpdir_factory, parquet_path):
     try:
         cpu = request.getfixturevalue("cpu")
     except Exception:  # pylint: disable=broad-except
-        cpu = False
+        cpu = None
 
     dataset = Dataset(parquet_path, engine="parquet", part_mem_fraction=gpu_memory_frac, cpu=cpu)
     dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
