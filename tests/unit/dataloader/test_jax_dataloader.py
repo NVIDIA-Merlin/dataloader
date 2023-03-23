@@ -17,7 +17,8 @@
 import numpy as np
 import pytest
 
-from merlin.core.dispatch import HAS_GPU, make_df
+from merlin.core.compat import HAS_GPU
+from merlin.core.dispatch import make_df, random_uniform
 from merlin.io import Dataset
 from merlin.schema import Tags
 
@@ -25,6 +26,32 @@ pytestmark = pytest.mark.jax
 
 jax = pytest.importorskip("jax")
 jax_dataloader = pytest.importorskip("merlin.dataloader.jax")
+
+
+@pytest.mark.parametrize("element_shape", [(), (1,), (2,), (3, 4)])
+@pytest.mark.parametrize("num_cols", [1, 2])
+def test_fixed_column(element_shape, num_cols):
+    num_rows = 4
+    batch_size = 3
+    df = make_df(
+        {
+            f"col{i}": random_uniform(size=(num_rows, *element_shape)).tolist()
+            for i in range(num_cols)
+        }
+    )
+
+    dataset = Dataset(df)
+    for col in dataset.schema:
+        dataset.schema[col.name] = dataset.schema[col.name].with_shape((None, *element_shape))
+
+    loader = jax_dataloader.Loader(dataset, batch_size=batch_size)
+    batches = list(loader)
+
+    for tensor in batches[0][0].values():
+        assert tensor.shape == (batch_size, *element_shape)
+
+    for tensor in batches[1][0].values():
+        assert tensor.shape == (1, *element_shape)
 
 
 @pytest.mark.parametrize("num_rows", [1000, 10000])
