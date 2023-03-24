@@ -20,9 +20,23 @@ from merlin.table.conversions import convert_col
 
 
 class TFArrayDataloader(ArrayLoader, tf.keras.utils.Sequence):
+    def __getitem__(self, index):
+        """Gets batch at position `index`.
+
+        Note: This returns the next batch in the iterator.
+              Not the batch at position `index`.
+              This is because the dataloader is implemented as an iterator and
+              don't currently support fetching a batch by index.
+        """
+        return self.__next__()
+
     def __next__(self):
         """Get the next batch from the dataloader"""
-        return self.convert_batch(super().__next__())
+        converted_batch = self.convert_batch(super().__next__())
+        for map_fn in self._map_fns:
+            converted_batch = map_fn(*converted_batch)
+
+        return converted_batch
 
     def peek(self):
         """Grab the next batch from the dataloader
@@ -45,17 +59,34 @@ class TFArrayDataloader(ArrayLoader, tf.keras.utils.Sequence):
             A tuple of dictionary inputs, with lists split as values and offsets,
             and targets as an array
         """
+        target_column_type = TensorflowColumn
         inputs, targets = batch
-
         tf_inputs = {}
-        if inputs:
+        if inputs is not None:
             inputs_table = TensorTable(inputs)
             for col_name, col in inputs_table.items():
-                tf_inputs[col_name] = convert_col(col, TensorflowColumn)
+                tf_inputs[col_name] = convert_col(col, target_column_type)
 
         tf_target = None
-        if targets:
-            targets_col = TensorColumn(targets)
-            tf_target = convert_col(targets_col, TensorflowColumn).values
+        if targets is not None:
+            if isinstance(targets, dict):
+                targets_table = TensorTable(targets)
+                tf_targets = {}
+                for col_name, col in targets_table.items():
+                    tf_targets[col_name] = convert_col(col, target_column_type)
+                    tf_target = TensorTable(tf_targets).to_dict()
+            else:
+                targets_col = TensorColumn(targets)
+                tf_target = convert_col(targets_col, target_column_type).values
 
         return (TensorTable(tf_inputs).to_dict(), tf_target)
+
+    def map(self, fn):
+        """
+        Applying a function to each batch.
+
+        This can for instance be used to add `sample_weight` to the model.
+        """
+        self._map_fns.append(fn)
+
+        return self

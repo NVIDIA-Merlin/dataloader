@@ -37,6 +37,8 @@ tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
 # tf_dataloader import needs to happen after this line
 tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
+tf_array_dl = pytest.importorskip("merlin.dataloader.frameworks.tensorflow")
+tf_loader = tf_array_dl.TFArrayDataloader
 
 
 @pytest.mark.parametrize("shape", [(), (1,), (2,), (3, 4), (4, 5, 6)])
@@ -52,7 +54,7 @@ def test_fixed_column(shape, num_cols):
     for col in dataset.schema:
         dataset.schema[col.name] = dataset.schema[col.name].with_shape((None, *shape))
 
-    loader = tf_dataloader.Loader(dataset, batch_size=batch_size)
+    loader = tf_loader(dataset, batch_size=batch_size)
     batches = list(loader)
 
     for tensor in batches[0][0].values():
@@ -65,7 +67,7 @@ def test_fixed_column(shape, num_cols):
 def test_peek():
     df = make_df({"a": [1, 2, 3]})
     dataset = Dataset(df)
-    with tf_dataloader.Loader(dataset, batch_size=1, shuffle=False) as loader:
+    with tf_loader(dataset, batch_size=1, shuffle=False) as loader:
         first_batch = loader.peek()
         all_batches = list(loader)
     test_case = tf.test.TestCase()
@@ -76,7 +78,7 @@ def test_peek():
 def test_set_input_schema():
     df = make_df({"a": [1, 2, 3], "b": [[4], [5, 6], [7]]})
     dataset = Dataset(df)
-    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    loader = tf_loader(dataset, batch_size=1)
     loader.input_schema = dataset.schema.excluding_by_name(["b"])
     x, y = loader.peek()
     assert set(x.keys()) == {"a"}
@@ -85,7 +87,7 @@ def test_set_input_schema():
 def test_set_input_schema_after_start():
     df = make_df({"a": [1, 2, 3], "b": [4, 5, 6]})
     dataset = Dataset(df)
-    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    loader = tf_loader(dataset, batch_size=1)
     with pytest.raises(RuntimeError) as exc_info:
         _ = next(loader)
         loader.input_schema = dataset.schema.excluding_by_name(["b"])
@@ -99,7 +101,7 @@ def test_simple_model():
     dataset = Dataset(df)
     dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
 
-    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    loader = tf_loader(dataset, batch_size=1)
 
     inputs = tf.keras.Input(name="a", dtype=tf.float32, shape=(1,))
     outputs = tf.keras.layers.Dense(16, "relu")(inputs)
@@ -119,7 +121,7 @@ def test_simple_model():
 
 def test_with_device():
     dataset = Dataset(make_df({"a": [1]}))
-    tf_dataloader.Loader(dataset, batch_size=1, device=1).peek()
+    tf_loader(dataset, batch_size=1, device=1).peek()
 
 
 def test_nested_list():
@@ -142,7 +144,7 @@ def test_nested_list():
     schema = ds.schema
     schema["label"] = schema["label"].with_tags([Tags.TARGET])
     ds.schema = schema
-    loader = tf_dataloader.Loader(
+    loader = tf_loader(
         ds,
         batch_size=batch_size,
         shuffle=False,
@@ -190,7 +192,7 @@ def test_shuffling():
     ds = Dataset(df)
     ds.schema["b"] = ds.schema["b"].with_tags([Tags.TARGET])
 
-    train_dataset = tf_dataloader.Loader(ds, batch_size=batch_size, shuffle=True)
+    train_dataset = tf_loader(ds, batch_size=batch_size, shuffle=True)
 
     batch = next(train_dataset)
 
@@ -222,7 +224,7 @@ def test_tf_drp_reset(tmpdir, batch_size, drop_last, num_rows):
     ds = Dataset(df)
     ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
-    data_itr = tf_dataloader.Loader(
+    data_itr = tf_loader(
         ds,
         batch_size=batch_size,
         shuffle=False,
@@ -265,7 +267,7 @@ def test_tf_catname_ordering(tmpdir):
     ds = Dataset(df)
     ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
-    data_itr = tf_dataloader.Loader(
+    data_itr = tf_loader(
         ds,
         batch_size=10,
         shuffle=False,
@@ -302,7 +304,7 @@ def test_tf_map(tmpdir):
 
         return features, labels, sample_weight
 
-    data_itr = tf_dataloader.Loader(
+    data_itr = tf_loader(
         ds,
         batch_size=10,
         shuffle=False,
@@ -330,7 +332,7 @@ def test_tensorflow_dataloader(
     batch_size,
     gpu_memory_frac,
 ):
-    dataloader = tf_dataloader.Loader(
+    dataloader = tf_loader(
         dataset,
         batch_size=batch_size,
         shuffle=False,
@@ -403,7 +405,7 @@ def test_tensorflow_dataloader(
 
 @pytest.mark.parametrize("batch_size", [1, 2, 3])
 def test_mh_support(tmpdir, multihot_data, multihot_dataset, batch_size):
-    data_itr = tf_dataloader.Loader(
+    data_itr = tf_loader(
         multihot_dataset,
         batch_size=batch_size,
         shuffle=False,
@@ -440,7 +442,7 @@ def test_validater(tmpdir, batch_size):
     ds = Dataset(df)
     ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
-    dataloader = tf_dataloader.Loader(
+    dataloader = tf_loader(
         ds,
         batch_size=batch_size,
         shuffle=False,
@@ -484,7 +486,7 @@ def test_validater(tmpdir, batch_size):
 @pytest.mark.parametrize("batch_size", [1, 10, 100])
 @pytest.mark.parametrize("global_rank", [0, 1])
 def test_multigpu_partitioning(dataset, batch_size, global_rank):
-    data_loader = tf_dataloader.Loader(
+    data_loader = tf_loader(
         dataset,
         batch_size=batch_size,
         shuffle=False,
@@ -595,7 +597,7 @@ def test_horovod_multigpu(tmpdir):
 @pytest.mark.parametrize("batch_size", [1000])
 @pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_schema(tmpdir, dataset, batch_size, cpu):
-    with tf_dataloader.Loader(
+    with tf_loader(
         dataset,
         batch_size=batch_size,
         shuffle=False,
@@ -613,7 +615,7 @@ def test_lazy_dataset_map():
     dataset_size = 100
     data_df = pd.DataFrame({"feature": np.random.randint(100, size=dataset_size)})
     dataset = Dataset(data_df)
-    dataloader = tf_dataloader.Loader(dataset, batch_size=10)
+    dataloader = tf_loader(dataset, batch_size=10)
 
     # since this is timing dependent, the first time a Dataloader works a bunch
     # of things are initialized - which takes 1.5s on my system
@@ -645,7 +647,7 @@ def test_keras_model_with_multiple_label_columns():
     dataset.schema["label1"] = dataset.schema["label1"].with_tags(Tags.TARGET)
     dataset.schema["label2"] = dataset.schema["label2"].with_tags(Tags.TARGET)
 
-    loader = tf_dataloader.Loader(dataset, batch_size=1)
+    loader = tf_loader(dataset, batch_size=1)
 
     inputs = tf.keras.Input(name="a", dtype=tf.float32, shape=(1,))
     outputs = tf.keras.layers.Dense(16, "relu")(inputs)

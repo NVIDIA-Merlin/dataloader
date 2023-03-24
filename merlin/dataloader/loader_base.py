@@ -63,7 +63,7 @@ class LoaderBase:
         self,
         dataset,
         batch_size,
-        shuffle=True,
+        shuffle=False,
         seed_fn=None,
         parts_per_chunk=1,
         global_size=None,
@@ -80,6 +80,7 @@ class LoaderBase:
         self.global_size = global_size or 1
         self.global_rank = global_rank or 0
         self.drop_last = drop_last
+        self._map_fns = []
 
         device = device or 0
         self.device = "cpu" if not HAS_GPU or dataset.cpu else device
@@ -376,7 +377,7 @@ class LoaderBase:
                 values, offsets = tensor_value
                 row_lengths = offsets[1:] - offsets[:-1]
                 batch_row_lengths = self._split_fn(row_lengths, split_idx)
-                values_split_idx = [self._sum(row_lengths) for row_lengths in batch_row_lengths]
+                values_split_idx = [sum(row_lengths.tolist()) for row_lengths in batch_row_lengths]
                 batch_values = self._split_fn(values, values_split_idx)
                 tensor_batches[tensor_key] = {
                     "values": batch_values,
@@ -481,14 +482,14 @@ class LoaderBase:
                             values = column.list.leaves.values.reshape(
                                 -1, *cupy.array(column[0]).shape
                             )
-                            tensors_by_name[column_name] = self._unpack(self._pack(values))
+                            tensors_by_name[column_name] = values
                             continue
                     elif isinstance(column, pd.Series):
                         if not self.input_schema[column_name].shape.is_ragged:
                             values = np.array(list(_array_leaves(column.values))).reshape(
                                 -1, *np.array(column[0]).shape
                             )
-                            tensors_by_name[column_name] = self._unpack(values)
+                            tensors_by_name[column_name] = values
                             continue
 
                     leaves, col_offsets = pull_apart_list(column, device=self.device)

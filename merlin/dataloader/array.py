@@ -92,6 +92,14 @@ class Loader(LoaderBase):
         if df_or_series.empty:
             return
 
+        # if you have one series in a dataframe pull that series out
+        # otherwise you will add a dimension to the column [[1,2,3]]
+        try:
+            if len(df_or_series.columns) == 1:
+                df_or_series = df_or_series.iloc[:, 0]
+        except AttributeError:
+            pass
+
         if self.device == "cpu":
             tensor = df_or_series.to_numpy()
         else:
@@ -104,3 +112,14 @@ class Loader(LoaderBase):
 
     def _to_sparse_tensor(self, values_offset, column_name):
         raise NotImplementedError("Sparse support isn't implemented yet for the array dataloader")
+
+    def _reshape_dim(self, tensor):
+        return self.array_lib().reshape(tensor, [-1])
+
+    def _row_lengths_to_offsets(self, row_lengths):
+        zero_value = self.array_lib().array([0], dtype=row_lengths.dtype)
+        if len(row_lengths.shape) == 2:
+            zero_value = self.array_lib().expand_dims(zero_value, axis=0)
+        return self.array_lib().concatenate(
+            [zero_value, self.array_lib().cumsum(row_lengths)], axis=0
+        )
