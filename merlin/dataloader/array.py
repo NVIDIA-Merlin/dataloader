@@ -18,10 +18,10 @@ import itertools
 
 from merlin.core.compat import cupy as cp
 from merlin.core.compat import numpy as np
-from merlin.dataloader.loader_base import LoaderBase
+from merlin.dataloader.array_loader_base import ArrayLoaderBase
 
 
-class Loader(LoaderBase):
+class Loader(ArrayLoaderBase):
     """
     Jax dataloader
 
@@ -64,8 +64,8 @@ class Loader(LoaderBase):
               from keras prior to the start of the main loop
               through the loader.
         """
-        LoaderBase.stop(self)
-        return LoaderBase.__len__(self)
+        ArrayLoaderBase.stop(self)
+        return ArrayLoaderBase.__len__(self)
 
     def __getitem__(self, index):
         """Gets batch at position `index`.
@@ -75,15 +75,15 @@ class Loader(LoaderBase):
               This is because the dataloader is implemented as an iterator and
               don't currently support fetching a batch by index.
         """
-        return LoaderBase.__next__(self)
+        return ArrayLoaderBase.__next__(self)
 
     @contextlib.contextmanager
     def _get_device_ctx(self, dev):
         yield dev
 
-    def _split_fn(self, tensor, idx, axis=0):
-        splits = list(itertools.accumulate(idx))[:-1]
-        return self.array_lib().split(tensor, splits, axis=axis)
+    # def _split_fn(self, tensor, idx, axis=0):
+    #     splits = list(itertools.accumulate(idx))[:-1]
+    #     return self.array_lib().split(tensor, splits, axis=axis)
 
     def _tensor_split(self, tensor, idx, axis=0):
         return self.array_lib().split(tensor, idx, axis=axis)
