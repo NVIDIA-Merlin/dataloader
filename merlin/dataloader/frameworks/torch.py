@@ -16,7 +16,7 @@
 from merlin.core.compat import torch as th
 from merlin.dataloader.array import Loader as ArrayLoader
 from merlin.table import TensorColumn, TensorTable, TorchColumn
-from merlin.table.conversions import convert_col, _dispatch_dlpack_fns
+from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
 
 
 class TorchArrayDataloader(ArrayLoader, th.utils.data.IterableDataset):
@@ -45,14 +45,15 @@ class TorchArrayDataloader(ArrayLoader, th.utils.data.IterableDataset):
             transforms,
             device,
         )
-        
+
         column = TensorColumn(self.array_lib().array([]))
         self._to_dlpack_fn, self._from_dlpack_fn = _dispatch_dlpack_fns(column, TorchColumn)
 
-
     def __next__(self):
         """Get the next batch from the dataloader"""
-        converted_batch = self.convert_batch(super().__next__(), self._to_dlpack_fn, self._from_dlpack_fn)
+        converted_batch = self.convert_batch(
+            super().__next__(), self._to_dlpack_fn, self._from_dlpack_fn
+        )
         for map_fn in self._map_fns:
             converted_batch = map_fn(*converted_batch)
 
@@ -63,7 +64,7 @@ class TorchArrayDataloader(ArrayLoader, th.utils.data.IterableDataset):
         without removing it from the queue"""
         return self.convert_batch(self._peek_next_batch())
 
-    def convert_batch(self, batch, _to_dlpack_fn = None, _from_dlpack_fn = None):
+    def convert_batch(self, batch, _to_dlpack_fn=None, _from_dlpack_fn=None):
         """Returns a batch after it has been converted to the appropriate tensor
         column type and then formats it in a flat dictionary which makes list
         columns into values and offsets as separate entries.
@@ -81,7 +82,7 @@ class TorchArrayDataloader(ArrayLoader, th.utils.data.IterableDataset):
         """
         column_type = TorchColumn
         inputs, targets = batch
-        
+
         tf_inputs = {}
         if inputs is not None:
             inputs_table = TensorTable(inputs)
@@ -96,7 +97,9 @@ class TorchArrayDataloader(ArrayLoader, th.utils.data.IterableDataset):
 
                 tf_targets = {}
                 for col_name, col in targets_table.items():
-                    tf_targets[col_name] = convert_col(col, column_type, _to_dlpack_fn, _from_dlpack_fn)
+                    tf_targets[col_name] = convert_col(
+                        col, column_type, _to_dlpack_fn, _from_dlpack_fn
+                    )
                     tf_target = TensorTable(tf_targets).to_dict()
             else:
                 targets_col = TensorColumn(targets)

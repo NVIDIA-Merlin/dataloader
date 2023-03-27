@@ -373,11 +373,11 @@ class ArrayLoaderBase:
         def _split_row_lengths(tensor, rows_per_batch, axis=0):
             splits = list(itertools.accumulate(rows_per_batch))[:-1]
             return self.array_lib().split(tensor, splits, axis=axis)
-        
+
         def _split_offsets(tensor, offsets_per_batch, axis=0):
             splits = list(itertools.accumulate(offsets_per_batch))[:-1]
             return self.array_lib().split(tensor, splits, axis=axis)
-        
+
         def _split_values(tensor, values_per_batch, axis=0):
             # accumulate = cumulative sum
             splits = list(itertools.accumulate(values_per_batch))[:-1]
@@ -392,34 +392,38 @@ class ArrayLoaderBase:
 
                 full_tensor_values, full_tensor_offsets = tensor_value
 
-                splits = list(itertools.accumulate(rows_per_batch)) 
+                splits = list(itertools.accumulate(rows_per_batch))
                 # offsets_grouped_by_batch = self.array_lib().split(full_tensor_offsets[1:], splits, axis=0)
                 # breakpoint()
                 # offsets_grouped_by_batch_2 = [full_tensor_offsets[1:][splits[idx]: splits[idx-]] for idx, split in enumerate([0] + splits)]
 
                 offsets_grouped_by_batch = []
                 if splits:
-                    for idx, split in enumerate([0]+splits[:-1]):
+                    for idx, split in enumerate([0] + splits[:-1]):
                         start = split
                         end = splits[idx] + 1
                         offsets_grouped_by_batch.append(full_tensor_offsets[start:end])
 
                 # breakpoint()
 
-                subtracted_offsets_grouped_by_batch = self._subtract_offsets(offsets_grouped_by_batch)
+                subtracted_offsets_grouped_by_batch = self._subtract_offsets(
+                    offsets_grouped_by_batch
+                )
 
                 # full_tensor_row_lengths = full_tensor_offsets[1:] - full_tensor_offsets[:-1]
                 # # Offsets: [11,12,13,14,15,16,18,19,20] - 11 = [0,1,2,3,4,5,6,7,8,9]
                 # row_lengths_grouped_by_batch = _split_row_lengths(full_tensor_row_lengths, rows_per_batch)
                 # offsets_grouped_by_batch = [list(itertools.accumulate([0] + batch_row_lengths.tolist())) for batch_row_lengths in row_lengths_grouped_by_batch]
-                num_values_per_batch = [int(batch_offsets[-1]) for batch_offsets in subtracted_offsets_grouped_by_batch]
+                num_values_per_batch = [
+                    int(batch_offsets[-1]) for batch_offsets in subtracted_offsets_grouped_by_batch
+                ]
 
                 # num_values_per_batch = last offset of the batch (but we don't have the other ones)
                 batch_values = _split_values(full_tensor_values, num_values_per_batch)
                 tensor_batches[tensor_key] = {
                     "values": batch_values,
                     # "row_lengths": row_lengths_grouped_by_batch,
-                    "offsets": subtracted_offsets_grouped_by_batch
+                    "offsets": subtracted_offsets_grouped_by_batch,
                 }
             else:
                 # Scalar feature
@@ -444,8 +448,8 @@ class ArrayLoaderBase:
         # xp_array = xp.array([0])
         subtracted_offsets_grouped_by_batch = []
         for idx, batch_offsets in enumerate(offsets_grouped_by_batch):
-            if idx != 0 :
-                previous_batch_offsets = offsets_grouped_by_batch[idx -1]
+            if idx != 0:
+                previous_batch_offsets = offsets_grouped_by_batch[idx - 1]
                 batch_offsets = batch_offsets - previous_batch_offsets[-1]
             # batch_offsets = xp.concatenate([xp_array, batch_offsets], axis=0)
             subtracted_offsets_grouped_by_batch.append(batch_offsets)
