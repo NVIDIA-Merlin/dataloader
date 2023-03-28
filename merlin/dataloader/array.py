@@ -23,7 +23,7 @@ from merlin.dataloader.loader_base import LoaderBase
 
 class Loader(LoaderBase):
     """
-    Jax dataloader
+    NumPy/CuPy Array dataloader
 
     Parameters
     -------------

@@ -51,25 +51,25 @@ class TorchArrayDataloader(ArrayLoader, th.utils.data.IterableDataset):
         """
         target_column_type = TorchColumn
         inputs, targets = batch
-        tf_inputs = {}
+        torch_inputs = {}
         if inputs is not None:
-            inputs_table = TensorTable(inputs)
+            inputs_table = TensorTable(inputs, _unsafe=True)
             for col_name, col in inputs_table.items():
-                tf_inputs[col_name] = convert_col(col, target_column_type)
+                torch_inputs[col_name] = convert_col(col, target_column_type)
 
-        tf_target = None
+        torch_targets = None
         if targets is not None:
             if isinstance(targets, dict):
-                targets_table = TensorTable(targets)
-                tf_targets = {}
+                targets_table = TensorTable(targets, _unsafe=True)
+                torch_targets = {}
                 for col_name, col in targets_table.items():
-                    tf_targets[col_name] = convert_col(col, target_column_type)
-                    tf_target = TensorTable(tf_targets).to_dict()
+                    torch_targets[col_name] = convert_col(col, target_column_type)
+                torch_targets = TensorTable(torch_targets, _unsafe=True).to_dict()
             else:
                 targets_col = TensorColumn(targets)
-                tf_target = convert_col(targets_col, target_column_type).values
+                torch_targets = convert_col(targets_col, target_column_type).values
 
-        return (TensorTable(tf_inputs).to_dict(), tf_target)
+        return (TensorTable(torch_inputs, _unsafe=True).to_dict(), torch_targets)
 
     def map(self, fn):
         """

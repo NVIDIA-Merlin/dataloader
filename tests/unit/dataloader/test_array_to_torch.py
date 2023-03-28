@@ -24,14 +24,15 @@ torch_loader = pytest.importorskip("merlin.dataloader.frameworks.torch")
 loader = torch_loader.TorchArrayDataloader
 
 
-def test_array_dataloader_with_tensorflow():
+def test_array_dataloader_with_torch():
     # Create dataset and loader
-    df = make_df({"a": [0.1, 0.2, 0.3], "label": [0, 1, 0]})
+    df = make_df({"a": [[0.1], [0.2], [0.3]], "label": [[0], [1], [0]]})
     dataset = Dataset(df, cpu=True)
-    dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
+    dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET).with_shape((3, 1))
+    dataset.schema["a"] = dataset.schema["a"].with_shape((3, 1))
 
     class NeuralNetwork(th.nn.Module):
-        layers = th.nn.Sequential(th.nn.Linear(1, 16), th.nn.Linear(16, 1), th.nn.Softmax(dim=1))
+        layers = th.nn.Sequential(th.nn.Linear(1, 16), th.nn.Linear(16, 1), th.nn.Softmax(dim=0))
 
         def forward(self, batch):
             if isinstance(batch, loader):
@@ -39,7 +40,8 @@ def test_array_dataloader_with_tensorflow():
                 x_tens = th.cat(tuple(batches), 0)
             elif isinstance(batch, tuple):
                 x, _ = batch
-                x_tens = th.cat(tuple(x.values()), 1)
+                tups_x = tuple(x.values())
+                x_tens = th.cat(tups_x, 1)
             elif isinstance(batch, th.Tensor):
                 x_tens = batch
             y_preds = self.layers(x_tens.to(th.float32))
