@@ -464,9 +464,7 @@ class LoaderBase:
                 # split out cols and change all scalars
                 # should always return dict column_name: values, offsets (optional)
                 for column_name in column_names:
-                    tensors_by_name[column_name] = self._unpack(
-                        self._pack(gdf_i[column_name].values)
-                    )
+                    tensors_by_name[column_name] = self._to_tensor(gdf_i[[column_name]])
 
             if lists:
                 # split out lists
