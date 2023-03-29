@@ -131,9 +131,6 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
     def _tensor_split(self, tensor, idx, axis=0):
         return torch.tensor_split(tensor, idx, axis=axis)
 
-    def _reshape_dim(self, tensor):
-        return tensor.view(-1)
-
     def _sum(self, tensor):
         return tensor.sum()
 

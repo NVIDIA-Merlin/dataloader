@@ -257,9 +257,6 @@ class Loader(tf.keras.utils.Sequence, LoaderBase):
         """
         return dtype.as_numpy_dtype()
 
-    def _reshape_dim(self, tensor):
-        return tf.reshape(tensor, shape=[-1])
-
 
 class KerasSequenceValidater(tf.keras.callbacks.Callback):
     # TODO: document
