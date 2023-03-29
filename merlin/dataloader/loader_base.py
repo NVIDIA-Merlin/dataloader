@@ -464,9 +464,8 @@ class LoaderBase:
             if scalars:
                 # split out cols and change all scalars
                 # should always return dict column_name: values, offsets (optional)
-                scalars = self._to_tensor(gdf_i[scalars])
-                tensor_key = tuple(column_names) if len(column_names) > 1 else column_names[0]
-                tensors_by_name[tensor_key] = scalars
+                for column_name in column_names:
+                    tensors_by_name[column_name] = self._to_tensor(gdf_i[[column_name]])
 
             if lists:
                 # split out lists
@@ -506,16 +505,7 @@ class LoaderBase:
 
     @annotate("_process_batch", color="darkgreen", domain="merlin_dataloader")
     def _process_batch(self, tensors):
-        X = {}
-        for k, v in tensors.items():
-            if isinstance(k, tuple):
-                values = self._tensor_split(v, len(k), axis=1)
-                for column_name, column_value in zip(k, values):
-                    X[column_name] = self._reshape_dim(column_value)
-            else:
-                X[k] = v
-
-        X = ungroup_values_offsets(X)
+        X = ungroup_values_offsets(tensors)
 
         # Return a tensor if we have only one label column, but return a
         # dictionary of tensors if there are multiple label columns, since
