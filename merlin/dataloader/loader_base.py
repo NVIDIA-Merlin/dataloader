@@ -39,10 +39,11 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
-from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node, ungroup_values_offsets
+from merlin.dag import BaseOperator, ColumnSelector, Graph, Node, ungroup_values_offsets
 from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
 from merlin.schema import Schema, Tags
+from merlin.table import TensorTable
 
 try:
     import cudf
@@ -522,7 +523,7 @@ class LoaderBase:
                 labels[label] = X.pop(label)
 
         if self.transforms:
-            X = self.executor.transform(DictArray(X), [self.transforms])
+            X = self.executor.transform(TensorTable(X), [self.transforms])
 
         return X, labels
 

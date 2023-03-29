@@ -63,9 +63,9 @@ def test_embedding_torch_np_mmap_dl_with_lookup(
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == embeddings[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        assert (batch[0]["embeddings"].cpu().values.numpy() == embeddings[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == rev_embedding_ids.shape[0]
 
 
@@ -96,9 +96,9 @@ def test_embedding_torch_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddin
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == embeddings[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        assert (batch[0]["embeddings"].cpu().values.numpy() == embeddings[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
 
 
@@ -134,9 +134,9 @@ def test_embedding_torch_np_dl_with_lookup(
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == embeddings_df[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        assert (batch[0]["embeddings"].cpu().values.numpy() == embeddings_df[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
 
 
@@ -167,9 +167,9 @@ def test_embedding_torch_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == embeddings_df[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        assert (batch[0]["embeddings"].cpu().values.numpy() == embeddings_df[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
 
 
@@ -202,9 +202,9 @@ def test_embedding_torch_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == np_tensor[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        assert (batch[0]["embeddings"].cpu().values.numpy() == np_tensor[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
 
 
@@ -236,7 +236,7 @@ def test_embedding_torch_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dat
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == np_tensor[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        assert (batch[0]["embeddings"].cpu().values.numpy() == np_tensor[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
