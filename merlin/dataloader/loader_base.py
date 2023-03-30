@@ -412,7 +412,7 @@ class LoaderBase:
         idx.append(num_samples - num_full_batches * self.batch_size)
         return idx
 
-    def _to_tensor(self, gdf):
+    def _to_tensor(self, df_or_series):
         """
         One of the mandatory functions a child class needs
         to implement. Maps from a cudf DataFrame to a
