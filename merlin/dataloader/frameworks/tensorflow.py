@@ -53,7 +53,7 @@ class TFArrayDataloader(ArrayLoader, tf.keras.utils.Sequence):
         column = self.create_column(self.array_lib().array([]))
         _to_dlpack_fn, _from_dlpack_fn = _dispatch_dlpack_fns(column, TensorflowColumn)
         self.convert_col = partial(
-            convert_col, _to_dlpack_fn=_to_dlpack_fn, _from_dlpack_fn=_from_dlpack_fn
+            convert_col, _to_dlpack_fn=_to_dlpack_fn, _from_dlpack_fn=_from_dlpack_fn, _unsafe=True
         )
 
     def __getitem__(self, index):
