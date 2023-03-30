@@ -13,13 +13,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from functools import partial
+
 from merlin.core.compat import torch as th
 from merlin.dataloader.array import Loader as ArrayLoader
 from merlin.table import TensorColumn, TensorTable, TorchColumn
-from merlin.table.conversions import convert_col
+from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
 
 
 class TorchArrayDataloader(ArrayLoader, th.utils.data.IterableDataset):
+    def __init__(
+        self,
+        dataset,
+        batch_size,
+        shuffle=False,
+        seed_fn=None,
+        parts_per_chunk=1,
+        global_size=None,
+        global_rank=None,
+        drop_last=False,
+        transforms=None,
+        device=None,
+    ):
+        super().__init__(
+            dataset,
+            batch_size,
+            shuffle,
+            seed_fn,
+            parts_per_chunk,
+            global_size,
+            global_rank,
+            drop_last,
+            transforms,
+            device,
+        )
+
+        self.create_table = partial(TensorTable, _unsafe=True)
+        self.create_column = partial(TensorColumn, _unsafe=True)
+        column = self.create_column(self.array_lib().array([]))
+
+        _to_dlpack_fn, _from_dlpack_fn = _dispatch_dlpack_fns(column, TorchColumn)
+        self.convert_col = partial(
+            convert_col, _to_dlpack_fn=_to_dlpack_fn, _from_dlpack_fn=_from_dlpack_fn, _unsafe=True
+        )
+
     def __next__(self):
         """Get the next batch from the dataloader"""
         converted_batch = self.convert_batch(super().__next__())
@@ -49,13 +86,13 @@ class TorchArrayDataloader(ArrayLoader, th.utils.data.IterableDataset):
             A tuple of dictionary inputs, with lists split as values and offsets,
             and targets as an array
         """
-        target_column_type = TorchColumn
+        column_type = TorchColumn
         inputs, targets = batch
         torch_inputs = {}
         if inputs is not None:
             inputs_table = TensorTable(inputs, _unsafe=True)
             for col_name, col in inputs_table.items():
-                torch_inputs[col_name] = convert_col(col, target_column_type)
+                torch_inputs[col_name] = self.convert_col(col, column_type)
 
         torch_targets = None
         if targets is not None:
@@ -63,11 +100,11 @@ class TorchArrayDataloader(ArrayLoader, th.utils.data.IterableDataset):
                 targets_table = TensorTable(targets, _unsafe=True)
                 torch_targets = {}
                 for col_name, col in targets_table.items():
-                    torch_targets[col_name] = convert_col(col, target_column_type)
+                    torch_targets[col_name] = self.convert_col(col, column_type)
                 torch_targets = TensorTable(torch_targets, _unsafe=True).to_dict()
             else:
-                targets_col = TensorColumn(targets)
-                torch_targets = convert_col(targets_col, target_column_type).values
+                targets_col = TensorColumn(targets, _unsafe=True)
+                torch_targets = self.convert_col(targets_col, column_type).values
 
         return (TensorTable(torch_inputs, _unsafe=True).to_dict(), torch_targets)
 
