@@ -54,7 +54,7 @@ class TorchArrayDataloader(ArrayLoader, th.utils.data.IterableDataset):
 
         _to_dlpack_fn, _from_dlpack_fn = _dispatch_dlpack_fns(column, TorchColumn)
         self.convert_col = partial(
-            convert_col, _to_dlpack_fn=_to_dlpack_fn, _from_dlpack_fn=_from_dlpack_fn, _unsafe=True
+            convert_col, _to_dlpack_fn=_to_dlpack_fn, _from_dlpack_fn=_from_dlpack_fn
         )
 
     def __next__(self):

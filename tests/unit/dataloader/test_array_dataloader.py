@@ -40,7 +40,7 @@ def test_dataloader(tmpdir, dataset, cpu, num_rows):
     dataset = Dataset(df, cpu=cpu)
     dataset.schema["label"] = dataset.schema["label"].with_tags(Tags.TARGET)
 
-    data_loader = arr_dataloader.Loader(
+    data_loader = arr_dataloader.ArrayLoader(
         dataset, batch_size=int(num_rows / 10), shuffle=False, device="cpu" if cpu else "0"
     )
     inputs, target = data_loader.peek()

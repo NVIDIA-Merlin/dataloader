@@ -53,7 +53,7 @@ class TFArrayDataloader(ArrayLoader, tf.keras.utils.Sequence):
         column = self.create_column(self.array_lib().array([]))
         _to_dlpack_fn, _from_dlpack_fn = _dispatch_dlpack_fns(column, TensorflowColumn)
         self.convert_col = partial(
-            convert_col, _to_dlpack_fn=_to_dlpack_fn, _from_dlpack_fn=_from_dlpack_fn, _unsafe=True
+            convert_col, _to_dlpack_fn=_to_dlpack_fn, _from_dlpack_fn=_from_dlpack_fn
         )
 
     def __getitem__(self, index):
@@ -79,7 +79,10 @@ class TFArrayDataloader(ArrayLoader, tf.keras.utils.Sequence):
         without removing it from the queue"""
         return self.convert_batch(self._peek_next_batch())
 
-    def convert_batch(self, batch, _to_dlpack_fn=None, _from_dlpack_fn=None):
+    def on_epoch_end(self):
+        self.stop()
+
+    def convert_batch(self, batch):
         """Returns a batch after it has been converted to the appropriate tensor
         column type and then formats it in a flat dictionary which makes list
         columns into values and offsets as separate entries.
