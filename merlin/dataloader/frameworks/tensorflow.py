@@ -15,7 +15,7 @@
 #
 from merlin.core.compat import tensorflow as tf
 from merlin.dataloader.array import Loader as ArrayLoader
-from merlin.table import TensorColumn, TensorflowColumn, TensorTable
+from merlin.table import Device, NumpyColumn, TensorColumn, TensorflowColumn, TensorTable
 from merlin.table.conversions import convert_col
 
 
@@ -59,11 +59,15 @@ class TFArrayDataloader(ArrayLoader, tf.keras.utils.Sequence):
             A tuple of dictionary inputs, with lists split as values and offsets,
             and targets as an array
         """
-        target_column_type = TensorflowColumn
         inputs, targets = batch
+        target_column_type = TensorflowColumn
+
         tf_inputs = {}
         if inputs is not None:
             inputs_table = TensorTable(inputs, _unsafe=True)
+            target_column_type = (
+                TensorflowColumn if Device.GPU == inputs_table.device else NumpyColumn
+            )
             for col_name, col in inputs_table.items():
                 tf_inputs[col_name] = convert_col(col, target_column_type)
 
