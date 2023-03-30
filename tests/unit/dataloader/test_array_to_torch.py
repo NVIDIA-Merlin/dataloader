@@ -20,6 +20,7 @@ from merlin.core.dispatch import make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
+pytest.importorskip("torch")
 torch_loader = pytest.importorskip("merlin.dataloader.frameworks.torch")
 loader = torch_loader.TorchArrayDataloader
 

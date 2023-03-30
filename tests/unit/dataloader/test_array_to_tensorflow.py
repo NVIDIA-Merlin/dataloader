@@ -21,6 +21,7 @@ from merlin.core.dispatch import make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
+pytest.importorskip("tensorflow")
 tf_dataloader = pytest.importorskip("merlin.dataloader.frameworks.tensorflow")
 loader = tf_dataloader.TFArrayDataloader
 
