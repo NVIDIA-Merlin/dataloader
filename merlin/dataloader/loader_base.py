@@ -364,10 +364,10 @@ class LoaderBase:
             A dictionary of the column tensor representations.
 
         """
-        split_idx = self._get_segment_lengths(len(gdf))
+        split_idx = self._get_rows_per_batch(len(gdf))
 
         # convert dataframe to framework-specific tensors
-        tensors_by_name = self._process_dataframe(gdf)
+        tensors_by_name = self._convert_df_to_tensors(gdf)
 
         # split them into batches and map to the framework-specific output format
         tensor_batches = {}
@@ -401,7 +401,7 @@ class LoaderBase:
 
             yield self._process_batch(batch)
 
-    def _get_segment_lengths(self, num_samples):
+    def _get_rows_per_batch(self, num_samples):
         """
         Helper function to build indices to pass
         to <torch|tf>.split functions for breaking
@@ -447,8 +447,8 @@ class LoaderBase:
                 scalars.append(col)
         return scalars, lists
 
-    @annotate("_process_dataframe", color="darkgreen", domain="merlin_dataloader")
-    def _process_dataframe(self, gdf):
+    @annotate("_convert_df_to_tensors", color="darkgreen", domain="merlin_dataloader")
+    def _convert_df_to_tensors(self, gdf):
         """Convert a dataframe into framework tensors.
         Returns dictionary of tensors by feature name.
         Where scalar features are grouped under the same key (tuple of column names)
