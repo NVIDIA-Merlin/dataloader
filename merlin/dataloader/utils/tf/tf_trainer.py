@@ -60,7 +60,10 @@ def seed_fn():
     max_rand = max_int // hvd.size()
 
     # Generate a seed fragment on each worker
-    seed_fragment = xp.random.randint(0, max_rand).get()
+    if cupy:
+        seed_fragment = xp.random.randint(0, max_rand).get()
+    else:
+        seed_fragment = xp.random.randint(0, max_rand)
 
     # Aggregate seed fragments from all Horovod workers
     seed_tensor = tf.constant(seed_fragment)
