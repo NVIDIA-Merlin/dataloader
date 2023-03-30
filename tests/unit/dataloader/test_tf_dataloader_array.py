@@ -37,8 +37,7 @@ tf = pytest.importorskip("tensorflow")
 # If tensorflow isn't installed skip these tests. Note that the
 # tf_dataloader import needs to happen after this line
 tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
-tf_array_dl = pytest.importorskip("merlin.dataloader.frameworks.tensorflow")
-tf_loader = tf_array_dl.TFArrayDataloader
+tf_loader = tf_dataloader.Loader
 
 
 @pytest.mark.parametrize("shape", [(), (1,), (2,), (3, 4), (4, 5, 6)])

@@ -32,10 +32,11 @@ pytestmark = pytest.mark.torch
 
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
-torch = pytest.importorskip("torch")
-import merlin.dataloader.torch as torch_dataloader  # noqa isort:skip
-from merlin.dataloader.frameworks.torch import (  # noqa isort:skip
-    TorchArrayDataloader as torch_loader,
+torch = pytest.importorskip("torch")  # noqa
+import merlin.dataloader.torch as torch_dataloader  # noqa
+
+from merlin.dataloader.torch import (  # noqa isort:skip
+    Loader as torch_loader,
 )
 
 

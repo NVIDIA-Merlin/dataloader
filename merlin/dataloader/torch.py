@@ -13,63 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import numpy as np
-import torch
-from torch.utils.dlpack import from_dlpack
+from functools import partial
 
-from merlin.dataloader.loader_base import LoaderBase
-
-numpy_to_torch_dtype_dict = {
-    np.bool: torch.bool,
-    np.uint8: torch.uint8,
-    np.int8: torch.int8,
-    np.int16: torch.int16,
-    np.int32: torch.int32,
-    np.int64: torch.int64,
-    np.float16: torch.float16,
-    np.float32: torch.float32,
-    np.float64: torch.float64,
-    np.complex64: torch.complex64,
-    np.complex128: torch.complex128,
-}
-
-torch_to_numpy_dtype_dict = {v: k for k, v in numpy_to_torch_dtype_dict.items()}
+from merlin.core.compat import torch as th
+from merlin.dataloader.array import ArrayLoader
+from merlin.table import TensorColumn, TensorTable, TorchColumn
+from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
 
 
-class Loader(torch.utils.data.IterableDataset, LoaderBase):
-    """This class creates batches of tensor. Each batch size is specified by the user.
-    The data input requires a merlin.io.Dataset. Handles spillover to ensure all
-    batches are the specified size until the final batch.
-
-    Parameters
-    ----------
-    dataset: merlin.io.Dataset
-        The dataset to load
-    batch_size: int
-        Number of rows to yield at each iteration
-    shuffle: bool, default True
-        Whether to shuffle chunks of batches before iterating through them.
-    seed_fn: callable
-        Function used to initialize random state
-    parts_per_chunk: int
-        Number of dataset partitions with size dictated by `buffer_size`
-        to load and concatenate asynchronously. More partitions leads to
-        better epoch-level randomness but can negatively impact throughput
-    global_size: int, optional
-        When doing distributed training, this indicates the number of total processes that are
-        training the model.
-    global_rank:
-        When doing distributed training, this indicates the local rank for the current process.
-    drop_last: bool, default False
-        Whether or not to drop the last batch in an epoch. This is useful when you need to
-        guarantee that each batch contains exactly `batch_size` rows - since the last batch
-        will usually contain fewer rows.
-    """
-
+class Loader(ArrayLoader, th.utils.data.IterableDataset):
     def __init__(
         self,
         dataset,
-        batch_size=1,
+        batch_size,
         shuffle=False,
         seed_fn=None,
         parts_per_chunk=1,
@@ -79,20 +35,78 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
         transforms=None,
         device=None,
     ):
-        LoaderBase.__init__(
-            self,
+        super().__init__(
             dataset,
             batch_size,
             shuffle,
-            seed_fn=seed_fn,
-            parts_per_chunk=parts_per_chunk,
-            global_size=global_size,
-            global_rank=global_rank,
-            drop_last=drop_last,
-            transforms=transforms,
-            device=device,
+            seed_fn,
+            parts_per_chunk,
+            global_size,
+            global_rank,
+            drop_last,
+            transforms,
+            device,
         )
-        self._map_fns = []
+
+        self.create_table = partial(TensorTable, _unsafe=True)
+        self.create_column = partial(TensorColumn, _unsafe=True)
+        column = self.create_column(self.array_lib().array([]))
+
+        _to_dlpack_fn, _from_dlpack_fn = _dispatch_dlpack_fns(column, TorchColumn)
+        self.convert_col = partial(
+            convert_col, _to_dlpack_fn=_to_dlpack_fn, _from_dlpack_fn=_from_dlpack_fn, _unsafe=True
+        )
+
+    def __next__(self):
+        """Get the next batch from the dataloader"""
+        converted_batch = self.convert_batch(super().__next__())
+        for map_fn in self._map_fns:
+            converted_batch = map_fn(*converted_batch)
+
+        return converted_batch
+
+    def peek(self):
+        """Grab the next batch from the dataloader
+        without removing it from the queue"""
+        return self.convert_batch(self._peek_next_batch())
+
+    def convert_batch(self, batch):
+        """Returns a batch after it has been converted to the appropriate tensor
+        column type and then formats it in a flat dictionary which makes list
+        columns into values and offsets as separate entries.
+
+        Parameters
+        ----------
+        batch : tuple
+            Tuple of dictionary inputs and n-dimensional array of targets
+
+        Returns
+        -------
+        Tuple
+            A tuple of dictionary inputs, with lists split as values and offsets,
+            and targets as an array
+        """
+        column_type = TorchColumn
+        inputs, targets = batch
+        torch_inputs = {}
+        if inputs is not None:
+            inputs_table = TensorTable(inputs, _unsafe=True)
+            for col_name, col in inputs_table.items():
+                torch_inputs[col_name] = self.convert_col(col, column_type)
+
+        torch_targets = None
+        if targets is not None:
+            if isinstance(targets, dict):
+                targets_table = TensorTable(targets, _unsafe=True)
+                torch_targets = {}
+                for col_name, col in targets_table.items():
+                    torch_targets[col_name] = self.convert_col(col, column_type)
+                torch_targets = TensorTable(torch_targets, _unsafe=True).to_dict()
+            else:
+                targets_col = TensorColumn(targets, _unsafe=True)
+                torch_targets = self.convert_col(targets_col, column_type).values
+
+        return (TensorTable(torch_inputs, _unsafe=True).to_dict(), torch_targets)
 
     def map(self, fn):
         """
@@ -104,58 +118,8 @@ class Loader(torch.utils.data.IterableDataset, LoaderBase):
 
         return self
 
-    def __iter__(self):
-        return LoaderBase.__iter__(self)
 
-    def _get_device_ctx(self, dev):
-        if dev == "cpu":
-            return torch.device("cpu")
-        return torch.cuda.device(f"cuda:{dev}")
-
-    def _unpack(self, dlpack):
-        if self.device == "cpu":
-            values = dlpack.values if hasattr(dlpack, "values") else dlpack
-            dtype = values.dtype
-            dtype = numpy_to_torch_dtype_dict[dtype.type] if hasattr(dtype, "type") else dtype
-            values = torch.Tensor(values).type(dtype)
-        else:
-            values = from_dlpack(dlpack)
-        return values
-
-    def _to_tensor(self, df_or_series):
-        return self._unpack(self._pack(df_or_series))
-
-    def _split_fn(self, tensor, idx, axis=0):
-        return torch.split(tensor, idx, dim=axis)
-
-    def _tensor_split(self, tensor, idx, axis=0):
-        return torch.tensor_split(tensor, idx, axis=axis)
-
-    def _sum(self, tensor):
-        return tensor.sum()
-
-    def _row_lengths_to_offsets(self, row_lengths):
-        zero_value = torch.tensor([0], device=row_lengths.device, dtype=row_lengths.dtype)
-        if len(row_lengths.shape) == 2:
-            zero_value = zero_value.view(-1, 1)
-        return torch.cat((zero_value, torch.cumsum(row_lengths, 0)))
-
-    def _process_batch(self, tensors):
-        to_return = super()._process_batch(tensors)
-
-        for map_fn in self._map_fns:
-            to_return = map_fn(*to_return)
-
-        return to_return
-
-    def _cast_to_numpy_dtype(self, dtype):
-        """
-        Get the numpy dtype from the framework dtype.
-        """
-        return torch_to_numpy_dtype_dict[dtype]
-
-
-class DLDataLoader(torch.utils.data.DataLoader):
+class DLDataLoader(th.utils.data.DataLoader):
     """
     This class is an extension of the torch dataloader.
     It is required to support the FastAI framework.
@@ -163,7 +127,7 @@ class DLDataLoader(torch.utils.data.DataLoader):
 
     @property
     def device(self):
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        return th.device("cuda" if th.cuda.is_available() else "cpu")
 
     def __len__(self):
         return len(self.dataset)
