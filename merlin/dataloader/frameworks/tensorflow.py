@@ -16,7 +16,7 @@
 from functools import partial
 
 from merlin.core.compat import tensorflow as tf
-from merlin.dataloader.array import Loader as ArrayLoader
+from merlin.dataloader.array import ArrayLoader
 from merlin.table import Device, NumpyColumn, TensorColumn, TensorflowColumn, TensorTable
 from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
 

@@ -16,7 +16,7 @@
 from functools import partial
 
 from merlin.core.compat import torch as th
-from merlin.dataloader.array import Loader as ArrayLoader
+from merlin.dataloader.array import ArrayLoader
 from merlin.table import TensorColumn, TensorTable, TorchColumn
 from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
 
