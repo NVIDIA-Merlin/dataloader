@@ -111,6 +111,3 @@ class Loader(LoaderBase):
         if len(row_lengths.shape) == 2:
             zero_value = zero_value.reshape(-1, 1)
         return jnp.concatenate([zero_value, jnp.cumsum(row_lengths, axis=0)], axis=0)
-
-    def _reshape_dim(self, tensor):
-        return jax.numpy.reshape(tensor, (-1,))
