@@ -18,7 +18,7 @@ import tensorflow as tf
 
 from merlin.dataloader.ops.embeddings.embedding_op import (
     EmbeddingOperator,
-    MmapNumpyTorchEmbedding,
+    MmapNumpyEmbedding,
     NumpyEmbeddingOperator,
 )
 
@@ -77,7 +77,7 @@ class TF_NumpyEmbeddingOperator(NumpyEmbeddingOperator):
         return tf.squeeze(tf.convert_to_tensor(embeddings))
 
 
-class TF_MmapNumpyTorchEmbedding(MmapNumpyTorchEmbedding):
+class TF_MmapNumpyEmbedding(MmapNumpyEmbedding):
     """Operator loads numpy embedding table from file using memory map to be used to create
     tensorflow embedding representations. This allows for larger than host memory embedding
     tables to be used for embedding lookups. The only limit to the size is what fits in

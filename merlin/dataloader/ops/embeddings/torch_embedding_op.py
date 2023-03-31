@@ -19,7 +19,7 @@ from torch.nn import Embedding
 
 from merlin.dataloader.ops.embeddings.embedding_op import (
     EmbeddingOperator,
-    MmapNumpyTorchEmbedding,
+    MmapNumpyEmbedding,
     NumpyEmbeddingOperator,
 )
 
@@ -55,7 +55,7 @@ class TorchEmbeddingOperator(EmbeddingOperator):
         return self.embeddings(indices)
 
     def _format_embeddings(self, embeddings, keys):
-        return torch.squeeze(embeddings.to(keys.device))
+        return torch.squeeze(embeddings.to(keys.values.device))
 
     def _get_dtype(self, embeddings):
         return embeddings.weight.numpy().dtype
@@ -79,10 +79,10 @@ class Torch_NumpyEmbeddingOperator(NumpyEmbeddingOperator):
     """
 
     def _format_embeddings(self, embeddings, keys):
-        return torch.from_numpy(embeddings).to(keys.device)
+        return torch.from_numpy(embeddings).to(keys.values.device)
 
 
-class Torch_MmapNumpyTorchEmbedding(MmapNumpyTorchEmbedding):
+class Torch_MmapNumpyTorchEmbedding(MmapNumpyEmbedding):
     """Operator loads numpy embedding table from file using memory map to be used to create
     torch embedding representations. This allows for larger than host memory embedding
     tables to be used for embedding lookups. The only limit to the size is what fits in
@@ -103,4 +103,4 @@ class Torch_MmapNumpyTorchEmbedding(MmapNumpyTorchEmbedding):
     """
 
     def _format_embeddings(self, embeddings, keys):
-        return torch.from_numpy(embeddings).to(keys.device)
+        return torch.from_numpy(embeddings).to(keys.values.device)
