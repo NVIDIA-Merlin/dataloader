@@ -19,12 +19,12 @@ import numpy as np
 import pytest
 
 from merlin.core.dispatch import HAS_GPU
+from merlin.dataloader.array import ArrayLoader as Loader  # noqa
 from merlin.dataloader.ops.embeddings import (  # noqa
     EmbeddingOperator,
     MmapNumpyEmbedding,
     NumpyEmbeddingOperator,
 )
-from merlin.dataloader.tensorflow import Loader  # noqa
 from merlin.io import Dataset
 from merlin.schema import Tags
 
@@ -68,10 +68,7 @@ def test_embedding_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_fro
         assert "id" in batch[0]
         start = idx * batch_size
         end = start + int(batch[0]["id"].shape[0])
-        embeddings_res = batch[0]["embeddings"]
-        embeddings_vals = (
-            embeddings_res.numpy() if hasattr(embeddings_res, "numpy") else embeddings_res
-        )
+        embeddings_vals = batch[0]["embeddings"].cpu().values
         assert (embeddings_vals == embeddings[start:end]).all()
         full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
@@ -109,10 +106,7 @@ def test_embedding_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embeddin
         assert "id" in batch[0]
         start = idx * batch_size
         end = start + int(batch[0]["id"].shape[0])
-        embeddings_res = batch[0]["embeddings"]
-        embeddings_vals = (
-            embeddings_res.numpy() if hasattr(embeddings_res, "numpy") else embeddings_res
-        )
+        embeddings_vals = batch[0]["embeddings"].cpu().values
         assert (embeddings_vals == embeddings[start:end]).all()
         full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
@@ -150,8 +144,7 @@ def test_embedding_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_datafr
         assert "id" in batch[0]
         start = idx * batch_size
         end = start + int(batch[0]["id"].shape[0])
-        embeddings = batch[0]["embeddings"]
-        embeddings_vals = embeddings.numpy() if hasattr(embeddings, "numpy") else embeddings
+        embeddings_vals = batch[0]["embeddings"].cpu().values
         assert (embeddings_vals == embeddings_np[start:end]).all()
         full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
@@ -192,8 +185,7 @@ def test_embedding_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_
         assert "id" in batch[0]
         start = idx * batch_size
         end = start + int(batch[0]["id"].shape[0])
-        embeddings = batch[0]["embeddings"]
-        embeddings_vals = embeddings.numpy() if hasattr(embeddings, "numpy") else embeddings
+        embeddings_vals = batch[0]["embeddings"].cpu().values
         assert (embeddings_vals == embeddings_np[start:end]).all()
         full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
@@ -231,8 +223,7 @@ def test_embedding_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe
         assert "id" in batch[0]
         start = idx * batch_size
         end = start + int(batch[0]["id"].shape[0])
-        embeddings = batch[0]["embeddings"]
-        embeddings_vals = embeddings.numpy() if hasattr(embeddings, "numpy") else embeddings
+        embeddings_vals = batch[0]["embeddings"].cpu().values
         assert (embeddings_vals == np_tensor[start:end]).all()
         full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
@@ -271,8 +262,7 @@ def test_embedding_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dat
         assert "id" in batch[0]
         start = idx * batch_size
         end = start + int(batch[0]["id"].shape[0])
-        embeddings = batch[0]["embeddings"]
-        embeddings_vals = embeddings.numpy() if hasattr(embeddings, "numpy") else embeddings
+        embeddings_vals = batch[0]["embeddings"].cpu().values
         assert (embeddings_vals == np_tensor[start:end]).all()
         full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
