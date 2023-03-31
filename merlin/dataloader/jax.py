@@ -72,8 +72,8 @@ class Loader(LoaderBase):
     def _sum(self, tensor):
         return tensor.sum()
 
-    def _to_tensor(self, gdf):
-        if gdf.empty:
+    def _to_tensor(self, df_or_series):
+        if df_or_series.empty:
             return
 
         transpose = False
@@ -81,11 +81,11 @@ class Loader(LoaderBase):
         # checks necessary because of this bug
         # https://github.com/tensorflow/tensorflow/issues/42660
         # same logic as in TF dataloader
-        if len(gdf.shape) == 1 or gdf.shape[1] == 1:
-            dlpack = self._pack(gdf)
+        if len(df_or_series.shape) == 1 or df_or_series.shape[1] == 1:
+            dlpack = self._pack(df_or_series)
         else:
             transpose = True
-            dlpack = self._pack(gdf.values.T)
+            dlpack = self._pack(df_or_series.values.T)
 
         x = self._unpack(dlpack)
 
