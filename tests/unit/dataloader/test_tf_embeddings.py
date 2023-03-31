@@ -27,7 +27,7 @@ pytestmark = pytest.mark.tensorflow
 tf = pytest.importorskip("tensorflow")
 
 from merlin.dataloader.ops.embeddings.tf_embedding_op import (  # noqa
-    TF_MmapNumpyTorchEmbedding,
+    TF_MmapNumpyEmbedding,
     TF_NumpyEmbeddingOperator,
     TFEmbeddingOperator,
 )
@@ -55,7 +55,7 @@ def test_embedding_tf_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[TF_MmapNumpyTorchEmbedding(embeddings_file)],
+        transforms=[TF_MmapNumpyEmbedding(embeddings_file)],
         shuffle=False,
         device=cpu,
     )
@@ -72,9 +72,9 @@ def test_embedding_tf_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == embeddings[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        assert (batch[0]["embeddings"].cpu().values.numpy() == embeddings[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
 
 
@@ -100,7 +100,7 @@ def test_embedding_tf_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embed
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[TF_MmapNumpyTorchEmbedding(embeddings_file, ids_lookup_npz=id_lookup_file)],
+        transforms=[TF_MmapNumpyEmbedding(embeddings_file, ids_lookup_npz=id_lookup_file)],
         shuffle=False,
         device=cpu,
     )
@@ -109,9 +109,9 @@ def test_embedding_tf_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embed
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == embeddings[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        assert (batch[0]["embeddings"].cpu().values.numpy() == embeddings[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
 
 
@@ -146,9 +146,9 @@ def test_embedding_tf_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dat
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == embeddings_np[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        assert (batch[0]["embeddings"].cpu().values.numpy() == embeddings_np[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
 
 
@@ -186,9 +186,9 @@ def test_embedding_tf_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == embeddings_np[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        assert (batch[0]["embeddings"].cpu().values.numpy() == embeddings_np[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
 
 
@@ -224,9 +224,9 @@ def test_embedding_tf_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_datafr
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == np_tensor[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        assert (batch[0]["embeddings"].cpu().values.numpy() == np_tensor[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
 
 
@@ -263,7 +263,7 @@ def test_embedding_tf_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == np_tensor[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        assert (batch[0]["embeddings"].cpu().values.numpy() == np_tensor[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]

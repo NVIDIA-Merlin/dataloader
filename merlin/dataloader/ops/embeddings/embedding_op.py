@@ -56,7 +56,7 @@ class EmbeddingOperator(BaseOperator):
         self, col_selector: ColumnSelector, transformable: Transformable
     ) -> Transformable:
         keys = transformable[self.lookup_key]
-        indices = keys.cpu()
+        indices = keys.cpu().values
         if self.id_lookup_table is not None:
             indices = self._create_tensor(np.nonzero(np.in1d(self.id_lookup_table, indices)))
         embeddings = self._embeddings_lookup(indices)
@@ -149,7 +149,7 @@ class NumpyEmbeddingOperator(BaseOperator):
         self, col_selector: ColumnSelector, transformable: Transformable
     ) -> Transformable:
         keys = transformable[self.lookup_key]
-        indices = keys.cpu()
+        indices = keys.cpu().values
         if self.id_lookup_table is not None:
             indices = np.in1d(self.id_lookup_table, indices)
         embeddings = self.embeddings[indices]
@@ -200,7 +200,7 @@ class NumpyEmbeddingOperator(BaseOperator):
         return Schema(col_schemas)
 
 
-class MmapNumpyTorchEmbedding(NumpyEmbeddingOperator):
+class MmapNumpyEmbedding(NumpyEmbeddingOperator):
     """Operator loads numpy embedding table from file using memory map to be used to create
     torch embedding representations. This allows for larger than host memory embedding
     tables to be used for embedding lookups. The only limit to the size is what fits in
