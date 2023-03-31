@@ -731,7 +731,7 @@ class ChunkQueue:
             chunks.reset_index(drop=True, inplace=True)
             chunks, spill = self.get_batch_div_chunk(chunks, self.dataloader.batch_size)
             if self.shuffle:
-                chunks = shuffle_df(chunks)
+                chunks = shuffle_df(chunks, keep_index=True)
 
             if len(chunks) > 0:
                 chunks = self.dataloader.make_tensors(chunks, self.dataloader._use_row_lengths)
