@@ -15,8 +15,6 @@
 #
 import contextlib
 
-import jax
-import jax.dlpack
 import jax.numpy as jnp
 import numpy as np
 
@@ -71,33 +69,6 @@ class Loader(LoaderBase):
 
     def _sum(self, tensor):
         return tensor.sum()
-
-    def _to_tensor(self, df_or_series):
-        if df_or_series.empty:
-            return
-
-        transpose = False
-
-        # checks necessary because of this bug
-        # https://github.com/tensorflow/tensorflow/issues/42660
-        # same logic as in TF dataloader
-        if len(df_or_series.shape) == 1 or df_or_series.shape[1] == 1:
-            dlpack = self._pack(df_or_series)
-        else:
-            transpose = True
-            dlpack = self._pack(df_or_series.values.T)
-
-        x = self._unpack(dlpack)
-
-        if transpose:
-            x = x.T
-
-        return x
-
-    def _unpack(self, gdf):
-        if hasattr(gdf, "shape"):
-            return jax.device_put(gdf)
-        return jax.dlpack.from_dlpack(gdf)
 
     def _cast_to_numpy_dtype(self, dtype):
         # jax uses numpy dtypes, so this is kinda easy
