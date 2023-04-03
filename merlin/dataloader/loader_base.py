@@ -589,26 +589,6 @@ class LoaderBase:
 
         return X, labels
 
-    def _pack(self, gdf):
-        if isinstance(gdf, np.ndarray):
-            return gdf
-        # if self.device has value ('cpu') gdf should not be transferred to dlpack
-        elif (
-            hasattr(gdf, "to_dlpack")
-            and callable(getattr(gdf, "to_dlpack"))
-            and self.device != "cpu"
-        ):
-            return gdf.to_dlpack()
-        elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
-            if hasattr(gdf, "columns") and len(gdf.columns) == 1:
-                values = gdf[gdf.columns[0]].to_numpy()
-            else:
-                values = gdf.to_numpy()
-            if isinstance(values[0], list):
-                values = np.stack(values)
-            return values
-        return gdf.toDlpack()
-
     @property
     def schema(self) -> Schema:
         """Get input schema of data to be loaded
