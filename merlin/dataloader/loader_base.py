@@ -365,38 +365,50 @@ class LoaderBase:
             A dictionary of the column tensor representations.
 
         """
-        split_idx = self._get_rows_per_batch(len(gdf))
-
-        # convert dataframe to framework-specific tensors
         tensors_by_name = self._convert_df_to_tensors(gdf)
+        rows_per_batch = self._get_rows_per_batch(len(gdf))
 
-        # split them into batches and map to the framework-specific output format
         tensor_batches = {}
 
         for tensor_key, tensor_value in tensors_by_name.items():
             if isinstance(tensor_value, tuple):
-                values, offsets = tensor_value
-                row_lengths = offsets[1:] - offsets[:-1]
-                batch_row_lengths = self._split_fn(row_lengths, split_idx)
-                values_split_idx = [sum(row_lengths.tolist()) for row_lengths in batch_row_lengths]
-                batch_values = self._split_fn(values, values_split_idx)
+                # List feature
+                full_tensor_values, full_tensor_offsets = tensor_value
+
+                splits = list(itertools.accumulate(rows_per_batch))
+
+                offsets_grouped_by_batch = []
+                if splits:
+                    for idx, split in enumerate([0] + splits[:-1]):
+                        start = split
+                        end = splits[idx] + 1
+                        offsets_grouped_by_batch.append(full_tensor_offsets[start:end])
+
+                subtracted_offsets_grouped_by_batch = self._subtract_offsets(
+                    offsets_grouped_by_batch
+                )
+                num_values_per_batch = [
+                    int(batch_offsets[-1]) for batch_offsets in subtracted_offsets_grouped_by_batch
+                ]
+
+                batch_values = self._split_values(full_tensor_values, num_values_per_batch)
                 tensor_batches[tensor_key] = {
                     "values": batch_values,
-                    "row_lengths": batch_row_lengths,
+                    "offsets": subtracted_offsets_grouped_by_batch,
                 }
             else:
-                tensor_batches[tensor_key] = self._split_fn(tensor_value, split_idx)
+                # Scalar feature
+                num_values_per_batch = rows_per_batch
+                tensor_batches[tensor_key] = self._split_values(tensor_value, num_values_per_batch)
 
-        for batch_idx in range(len(split_idx)):
+        for batch_idx in range(len(rows_per_batch)):
             batch = {}
             for tensor_key in tensors_by_name:
                 tensor_value = tensor_batches[tensor_key]
                 if isinstance(tensor_value, dict):
-                    values = tensor_value["values"][batch_idx]
-                    row_partition = tensor_value["row_lengths"][batch_idx]
-                    if not use_row_lengths:
-                        row_partition = self._row_lengths_to_offsets(row_partition)
-                    batch[tensor_key] = values, row_partition
+                    full_tensor_values = tensor_value["values"][batch_idx]
+                    offsets = tensor_value["offsets"][batch_idx]
+                    batch[tensor_key] = full_tensor_values, offsets
                 else:
                     batch[tensor_key] = tensor_value[batch_idx]
 
@@ -438,6 +450,20 @@ class LoaderBase:
 
     def _split_fn(self, tensor, idx, axis=0):
         raise NotImplementedError
+
+    def _split_values(self, tensor, values_per_batch, axis=0):
+        # splits are like offsets but without the first and last entry
+        splits = list(itertools.accumulate(values_per_batch))[:-1]
+        return self.array_lib().split(tensor, splits, axis=axis)
+
+    def _subtract_offsets(self, offsets_grouped_by_batch):
+        subtracted_offsets_grouped_by_batch = []
+        for idx, batch_offsets in enumerate(offsets_grouped_by_batch):
+            if idx != 0:
+                previous_batch_offsets = offsets_grouped_by_batch[idx - 1]
+                batch_offsets = batch_offsets - previous_batch_offsets[-1]
+            subtracted_offsets_grouped_by_batch.append(batch_offsets)
+        return subtracted_offsets_grouped_by_batch
 
     def _separate_list_columns(self, gdf):
         lists, scalars = [], []
