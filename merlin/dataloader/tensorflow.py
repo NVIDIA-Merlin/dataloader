@@ -17,7 +17,7 @@ from functools import partial
 
 from merlin.core.compat import tensorflow as tf
 from merlin.dataloader.array import ArrayLoader
-from merlin.table import Device, NumpyColumn, TensorColumn, TensorflowColumn, TensorTable
+from merlin.table import TensorColumn, TensorflowColumn, TensorTable
 from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
 
 
@@ -104,7 +104,6 @@ class Loader(ArrayLoader, tf.keras.utils.Sequence):
         tf_inputs = {}
         if inputs is not None:
             inputs_table = self.create_table(inputs)
-            column_type = TensorflowColumn if Device.GPU == inputs_table.device else NumpyColumn
             for col_name, col in inputs_table.items():
                 tf_inputs[col_name] = self.convert_col(col, column_type)
 
