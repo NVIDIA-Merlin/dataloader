@@ -16,12 +16,12 @@
 from functools import partial
 
 from merlin.core.compat import torch as th
-from merlin.dataloader.array import ArrayLoader
+from merlin.dataloader.loader_base import LoaderBase
 from merlin.table import TensorColumn, TensorTable, TorchColumn
 from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
 
 
-class Loader(ArrayLoader, th.utils.data.IterableDataset):
+class Loader(LoaderBase, th.utils.data.IterableDataset):
     def __init__(
         self,
         dataset,

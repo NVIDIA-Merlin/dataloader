@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import contextlib
 import copy
 import itertools
 import math
@@ -186,6 +187,16 @@ class LoaderBase:
         self.__buff = None
         self.__buff_len = None
         self._epochs = epochs
+
+    def __getitem__(self, index):
+        """Gets batch at position `index`.
+
+        Note: This returns the next batch in the iterator.
+              Not the batch at position `index`.
+              This is because the dataloader is implemented as an iterator and
+              don't currently support fetching a batch by index.
+        """
+        return self.__next__()
 
     def __len__(self):
         batches = _num_steps(self._buff_len, self.batch_size)
@@ -432,24 +443,38 @@ class LoaderBase:
         tensor in the appropriate library, with an optional
         dtype kwarg to do explicit casting if need be
         """
-        raise NotImplementedError
+        if df_or_series.empty:
+            return
 
+        # if you have one series in a dataframe pull that series out
+        # otherwise you will add a dimension to the column [[1,2,3]]
+        try:
+            if len(df_or_series.columns) == 1:
+                df_or_series = df_or_series.iloc[:, 0]
+        except AttributeError:
+            pass
+
+        if self.device == "cpu":
+            tensor = df_or_series.to_numpy()
+        else:
+            tensor = df_or_series.to_cupy()
+
+        return tensor
+
+    @contextlib.contextmanager
     def _get_device_ctx(self, dev):
         """
         One of the mandatory functions a child class needs
         to implement. Maps from a GPU index to a framework
         context object for placing tensors on specific GPUs
         """
-        raise NotImplementedError
+        yield dev
 
     def _cast_to_numpy_dtype(self, dtype):
         """
         Get the numpy dtype from the framework dtype.
         """
-        raise NotImplementedError
-
-    def _split_fn(self, tensor, idx, axis=0):
-        raise NotImplementedError
+        raise dtype
 
     def _split_values(self, tensor, values_per_batch, axis=0):
         # splits are like offsets but without the first and last entry
@@ -473,6 +498,16 @@ class LoaderBase:
             else:
                 scalars.append(col)
         return scalars, lists
+
+    def array_lib(self):
+        return self._array_lib
+
+    def _split_fn(self, tensor, idx, axis=0):
+        splits = list(itertools.accumulate(idx))[:-1]
+        return self.array_lib().split(tensor, splits, axis=axis)
+
+    def _tensor_split(self, tensor, idx, axis=0):
+        return self.array_lib().split(tensor, idx, axis=axis)
 
     @annotate("_convert_df_to_tensors", color="darkgreen", domain="merlin_dataloader")
     def _convert_df_to_tensors(self, gdf):

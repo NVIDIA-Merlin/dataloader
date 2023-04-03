@@ -16,12 +16,12 @@
 from functools import partial
 
 from merlin.core.compat import tensorflow as tf
-from merlin.dataloader.array import ArrayLoader
+from merlin.dataloader.loader_base import LoaderBase
 from merlin.table import Device, NumpyColumn, TensorColumn, TensorflowColumn, TensorTable
 from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
 
 
-class Loader(ArrayLoader, tf.keras.utils.Sequence):
+class Loader(LoaderBase, tf.keras.utils.Sequence):
     def __init__(
         self,
         dataset,
@@ -55,6 +55,17 @@ class Loader(ArrayLoader, tf.keras.utils.Sequence):
         self.convert_col = partial(
             convert_col, _to_dlpack_fn=_to_dlpack_fn, _from_dlpack_fn=_from_dlpack_fn, _unsafe=True
         )
+
+    def __len__(self):
+        """Number of batches in the Sequence.
+
+        Note: This also resets the loader state.
+              Required because of the calls to `__getitem__`
+              from keras prior to the start of the main loop
+              through the loader.
+        """
+        LoaderBase.stop(self)
+        return LoaderBase.__len__(self)
 
     def __getitem__(self, index):
         """Gets batch at position `index`.
