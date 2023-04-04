@@ -21,8 +21,8 @@ from merlin.io import Dataset
 from merlin.schema import Tags
 
 pytest.importorskip("torch")
-torch_loader = pytest.importorskip("merlin.dataloader.frameworks.torch")
-loader = torch_loader.TorchArrayDataloader
+torch_loader = pytest.importorskip("merlin.dataloader.torch")
+loader = torch_loader.Loader
 
 
 def test_array_dataloader_with_torch():
