@@ -124,8 +124,10 @@ class LoaderBase:
                         )
                     carry_node = carry_node >> transform
                 transform_graph = Graph(carry_node)
-            elif type(transforms, Graph):
+            elif isinstance(transforms, Graph):
                 transform_graph = transforms
+            elif isinstance(transforms, Node):
+                transform_graph = Graph(transforms)
             self._transform_graph = transform_graph
             self.executor = LocalExecutor()
 
