@@ -21,6 +21,7 @@ from merlin.core.protocols import Transformable
 from merlin.dag import BaseOperator
 from merlin.dag.selector import ColumnSelector
 from merlin.schema import ColumnSchema, Schema, Tags
+from merlin.table import Device, TensorColumn
 
 
 class EmbeddingOperator(BaseOperator):
@@ -47,7 +48,7 @@ class EmbeddingOperator(BaseOperator):
         embedding_name: str = "embeddings",
         id_lookup_table=None,
     ):
-        self.embeddings = self._load_embeddings(embeddings)
+        self.embeddings = embeddings
         self.lookup_key = lookup_key
         self.embedding_name = embedding_name
         self.id_lookup_table = id_lookup_table
@@ -56,27 +57,15 @@ class EmbeddingOperator(BaseOperator):
         self, col_selector: ColumnSelector, transformable: Transformable
     ) -> Transformable:
         keys = transformable[self.lookup_key]
-        indices = keys.cpu()
+        indices = keys.cpu().values
         if self.id_lookup_table is not None:
-            indices = self._create_tensor(np.nonzero(np.in1d(self.id_lookup_table, indices)))
-        embeddings = self._embeddings_lookup(indices)
-        transformable[self.embedding_name] = self._format_embeddings(embeddings, keys)
+            indices = np.nonzero(np.in1d(self.id_lookup_table, indices))
+        embeddings = self.embeddings[indices]
+        embeddings_col = TensorColumn(embeddings)
+        transformable[self.embedding_name] = (
+            embeddings_col.gpu() if keys.device == Device.GPU else embeddings_col
+        )
         return transformable
-
-    def _load_embeddings(self, embeddings):
-        raise NotImplementedError("No logic supplied to load embeddings.")
-
-    def _create_tensor(self, values):
-        raise NotImplementedError("No logic supplied to create tensor.")
-
-    def _embeddings_lookup(self, indices):
-        raise NotImplementedError("No logic to look up embeddings with indices.")
-
-    def _format_embeddings(self, embeddings, keys):
-        raise NotImplementedError("No logic to format embeddings.")
-
-    def _get_dtype(self, embeddings):
-        raise NotImplementedError("No logic to retrieve dtype from embeddings.")
 
     def compute_output_schema(
         self,
@@ -107,7 +96,7 @@ class EmbeddingOperator(BaseOperator):
             ColumnSchema(
                 name=self.embedding_name,
                 tags=[Tags.CONTINUOUS, Tags.EMBEDDING],
-                dtype=self._get_dtype(self.embeddings),
+                dtype=self.embeddings.dtype,
                 is_list=True,
                 is_ragged=False,
             )
@@ -149,12 +138,15 @@ class NumpyEmbeddingOperator(BaseOperator):
         self, col_selector: ColumnSelector, transformable: Transformable
     ) -> Transformable:
         keys = transformable[self.lookup_key]
-        indices = keys.cpu()
+        indices = keys.cpu().values
         if self.id_lookup_table is not None:
             indices = np.in1d(self.id_lookup_table, indices)
         embeddings = self.embeddings[indices]
         # numpy_to_tensor
-        transformable[self.embedding_name] = self._format_embeddings(embeddings, keys)
+        embeddings_col = TensorColumn(embeddings)
+        transformable[self.embedding_name] = (
+            embeddings_col.gpu() if keys.device == Device.GPU else embeddings_col
+        )
         return transformable
 
     def _format_embeddings(self, embeddings, keys):
@@ -200,7 +192,7 @@ class NumpyEmbeddingOperator(BaseOperator):
         return Schema(col_schemas)
 
 
-class MmapNumpyTorchEmbedding(NumpyEmbeddingOperator):
+class MmapNumpyEmbedding(NumpyEmbeddingOperator):
     """Operator loads numpy embedding table from file using memory map to be used to create
     torch embedding representations. This allows for larger than host memory embedding
     tables to be used for embedding lookups. The only limit to the size is what fits in

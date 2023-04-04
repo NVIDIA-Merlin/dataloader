@@ -32,8 +32,37 @@ pytestmark = pytest.mark.torch
 
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
-torch = pytest.importorskip("torch")
-import merlin.dataloader.torch as torch_dataloader  # noqa isort:skip
+torch = pytest.importorskip("torch")  # noqa
+from torch.utils.data import DataLoader, IterableDataset  # noqa
+
+import merlin.dataloader.torch as torch_dataloader  # noqa
+
+from merlin.dataloader.torch import (  # noqa isort:skip
+    Loader as torch_loader,
+)
+
+
+def test_iterable_dataset():
+    df = pd.DataFrame({"feature": [1, 2, 3], "target": [0, 1, 0]})
+    dataset = Dataset(df)
+    dataset.schema["target"] = dataset.schema["target"].with_tags(Tags.TARGET)
+    iterable_dataset = torch_dataloader.Loader(dataset, batch_size=1)
+    assert isinstance(iterable_dataset, IterableDataset)
+
+
+def test_calling_len_during_iteration():
+    df = pd.DataFrame({"feature": [1, 2, 3], "target": [0, 1, 0]})
+    dataset = Dataset(df)
+    dataset.schema["target"] = dataset.schema["target"].with_tags(Tags.TARGET)
+    iterable_dataset = torch_dataloader.Loader(dataset, batch_size=1)
+    torch_data_loader = DataLoader(iterable_dataset)
+    batches = 0
+    for i, batch in enumerate(torch_data_loader):
+        len(torch_data_loader)
+        batches += 1
+        if i > 5:
+            break
+    assert batches == 3
 
 
 @pytest.mark.parametrize("shape", [(), (1,), (2,), (3, 4)])
@@ -52,7 +81,7 @@ def test_fixed_column(shape, num_cols):
     for col in dataset.schema:
         dataset.schema[col.name] = dataset.schema[col.name].with_shape((None, *shape))
 
-    loader = torch_dataloader.Loader(dataset, batch_size=batch_size)
+    loader = torch_loader(dataset, batch_size=batch_size)
     batches = list(loader)
 
     for tensor in batches[0][0].values():
@@ -71,7 +100,7 @@ def test_shuffling():
     ds = Dataset(df)
     ds.schema["b"] = ds.schema["b"].with_tags([Tags.TARGET])
 
-    train_dataset = torch_dataloader.Loader(ds, batch_size=batch_size, shuffle=True)
+    train_dataset = torch_loader(ds, batch_size=batch_size, shuffle=True)
 
     batch = next(train_dataset)
 
@@ -103,7 +132,7 @@ def test_torch_drp_reset(tmpdir, batch_size, drop_last, num_rows):
     ds = Dataset([path], cpu=True)
     ds.schema["label"] = ds.schema["label"].with_tags(Tags.TARGET)
 
-    dataloader = torch_dataloader.Loader(
+    dataloader = torch_loader(
         ds,
         batch_size=batch_size,
         drop_last=drop_last,
@@ -197,7 +226,7 @@ json_sample = {
 @pytest.mark.parametrize("batch_size", [1000])
 @pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_break(dataset, batch_size, part_mem_fraction, cpu):
-    dataloader = torch_dataloader.Loader(
+    dataloader = torch_loader(
         dataset,
         batch_size=batch_size,
     )
@@ -230,7 +259,7 @@ def test_dataloader_break(dataset, batch_size, part_mem_fraction, cpu):
 @pytest.mark.parametrize("batch_size", [1000])
 @pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader(df, dataset, batch_size, part_mem_fraction, cpu):
-    dataloader = torch_dataloader.Loader(
+    dataloader = torch_loader(
         dataset,
         batch_size=batch_size,
     )
@@ -262,7 +291,7 @@ def test_dataloader(df, dataset, batch_size, part_mem_fraction, cpu):
 
 @pytest.mark.parametrize("part_mem_fraction", [0.001, 0.1])
 def test_kill_dl(dataset, part_mem_fraction):
-    dataloader = torch_dataloader.Loader(dataset)
+    dataloader = torch_loader(dataset, batch_size=1)
 
     results = {}
 
@@ -296,7 +325,7 @@ def test_kill_dl(dataset, part_mem_fraction):
 
 def test_mh_support(multihot_dataset):
     idx = 0
-    for batch in torch_dataloader.Loader(multihot_dataset):
+    for batch in torch_loader(multihot_dataset, batch_size=1):
         idx = idx + 1
         cats_conts, labels = batch
         assert "Reviewers__values" in cats_conts
@@ -309,7 +338,7 @@ def test_mh_support(multihot_dataset):
 @pytest.mark.parametrize("batch_size", [1000])
 @pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
 def test_dataloader_schema(df, dataset, batch_size, cpu):
-    with torch_dataloader.Loader(
+    with torch_loader(
         dataset,
         batch_size=batch_size,
         shuffle=False,
@@ -344,7 +373,7 @@ def test_torch_map(tmpdir):
 
         return features, labels, sample_weight
 
-    data_itr = torch_dataloader.Loader(
+    data_itr = torch_loader(
         ds,
         batch_size=10,
         shuffle=False,
@@ -375,7 +404,7 @@ def test_1d_tensors():
     batch_size = 2
 
     ds = Dataset(df)
-    dataloader = torch_dataloader.Loader(ds, batch_size=batch_size)
+    dataloader = torch_loader(ds, batch_size=batch_size)
     for batch in dataloader:
         feats, labs = batch
         for col in feats.keys():
@@ -410,7 +439,7 @@ def test_offsets():
     ]
     batch_size = 2
     ds = Dataset(df)
-    dataloader = torch_dataloader.Loader(ds, batch_size=batch_size, shuffle=False)
+    dataloader = torch_loader(ds, batch_size=batch_size, shuffle=False)
     for i, batch in enumerate(dataloader):
         feats, labs = batch
         for col in feats.keys():
@@ -418,10 +447,3 @@ def test_offsets():
                 feature_tensor = list(feats[col].cpu().numpy())
                 feature_result = results[i][col]
                 assert feature_tensor == feature_result
-
-
-@pytest.mark.parametrize("device", ["cpu", 0] if HAS_GPU else ["cpu"])
-def test_row_lengths_to_offsets_device(device):
-    dataset = Dataset(make_df({"a": [1]}))
-    loader = torch_dataloader.Loader(dataset, batch_size=1)
-    loader._row_lengths_to_offsets(torch.tensor([1, 2, 3], device=device))

@@ -19,60 +19,20 @@ import numpy as np
 import pytest
 
 from merlin.core.dispatch import HAS_GPU
+from merlin.dataloader.array import ArrayLoader as Loader  # noqa
+from merlin.dataloader.ops.embeddings import (  # noqa
+    EmbeddingOperator,
+    MmapNumpyEmbedding,
+    NumpyEmbeddingOperator,
+)
 from merlin.io import Dataset
 from merlin.schema import Tags
 
-torch = pytest.importorskip("torch")
-
-from merlin.dataloader.ops.embeddings.torch_embedding_op import (  # noqa
-    Torch_MmapNumpyTorchEmbedding,
-    Torch_NumpyEmbeddingOperator,
-    TorchEmbeddingOperator,
-)
-from merlin.dataloader.torch import Loader  # noqa
-
-pytestmark = pytest.mark.torch
-
 
 @pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
-def test_embedding_torch_np_mmap_dl_with_lookup(
-    tmpdir, rev_embedding_ids, np_embeddings_from_pq, cpu
-):
+def test_embedding_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_from_pq, cpu):
     batch_size = 10000
-    embeddings_file, lookup_file = np_embeddings_from_pq
-    cat_names = ["id"]
-    embeddings = np.load(embeddings_file)
-    pq_path = tmpdir / "id.parquet"
-    rev_embedding_ids.to_parquet(pq_path)
-    dataset = Dataset(str(pq_path))
-    dataset = dataset.repartition(10)
-    schema = dataset.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
-    dataset.schema = schema
-
-    data_loader = Loader(
-        dataset,
-        batch_size=batch_size,
-        transforms=[Torch_MmapNumpyTorchEmbedding(embeddings_file, ids_lookup_npz=lookup_file)],
-        shuffle=False,
-        device=cpu,
-    )
-    full_len = 0
-    for idx, batch in enumerate(data_loader):
-        assert "embeddings" in batch[0]
-        assert "id" in batch[0]
-        start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == embeddings[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
-    assert full_len == rev_embedding_ids.shape[0]
-
-
-@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
-def test_embedding_torch_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_from_pq, cpu):
-    batch_size = 10000
-    embeddings_file, lookup_file = np_embeddings_from_pq
+    embeddings_file, _ = np_embeddings_from_pq
     cat_names = ["id"]
     embeddings = np.load(embeddings_file)
     pq_path = tmpdir / "id.parquet"
@@ -84,47 +44,137 @@ def test_embedding_torch_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddin
         schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
 
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
+    dataset.schema = schema
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[Torch_MmapNumpyTorchEmbedding(embeddings_file)],
+        transforms=[MmapNumpyEmbedding(embeddings_file)],
         shuffle=False,
         device=cpu,
     )
+
+    assert data_loader.input_schema.column_names == ["id"]
+    assert data_loader.output_schema.column_names == ["id", "embeddings"]
+
+    embeddings_dim = 1024
+    embeddings_value_count = data_loader.output_schema["embeddings"].value_count
+    assert embeddings_value_count.min == embeddings_value_count.max == embeddings_dim
+
     full_len = 0
     for idx, batch in enumerate(data_loader):
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == embeddings[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        embeddings_vals = batch[0]["embeddings"].cpu().values
+        assert (embeddings_vals == embeddings[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
 
 
 @pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
-def test_embedding_torch_np_dl_with_lookup(
-    tmpdir, rev_embedding_ids, embeddings_from_dataframe, cpu
-):
-    cat_names = ["id"]
+def test_embedding_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embeddings_from_pq, cpu):
     batch_size = 10000
+    embeddings_file, id_lookup_file = np_embeddings_from_pq
+    cat_names = ["id"]
     embedding_ids = rev_embedding_ids
+    embeddings = np.load(embeddings_file)
     pq_path = tmpdir / "id.parquet"
     embedding_ids.to_parquet(pq_path)
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
+    dataset.schema = schema
+
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
+    dataset.schema = schema
+    data_loader = Loader(
+        dataset,
+        batch_size=batch_size,
+        transforms=[MmapNumpyEmbedding(embeddings_file, ids_lookup_npz=id_lookup_file)],
+        shuffle=False,
+        device=cpu,
+    )
+    full_len = 0
+    for idx, batch in enumerate(data_loader):
+        assert "embeddings" in batch[0]
+        assert "id" in batch[0]
+        start = idx * batch_size
+        end = start + int(batch[0]["id"].shape[0])
+        embeddings_vals = batch[0]["embeddings"].cpu().values
+        assert (embeddings_vals == embeddings[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
+    assert full_len == embedding_ids.shape[0]
+
+
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe, cpu):
+    cat_names = ["id"]
+    batch_size = 10000
+    pq_path = tmpdir / "id.parquet"
+    embedding_ids.to_parquet(pq_path)
+    dataset = Dataset(str(pq_path))
+    dataset = dataset.repartition(10)
+    schema = dataset.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
+    dataset.schema = schema
+
     for col_name in cat_names:
         schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
     paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
     embeddings_ds = Dataset(paths)
-    embeddings_df = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:]
+    embeddings_np = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:]
+    data_loader = Loader(
+        dataset,
+        batch_size=batch_size,
+        transforms=[NumpyEmbeddingOperator(embeddings_np)],
+        shuffle=False,
+        device=cpu,
+    )
+    full_len = 0
+    for idx, batch in enumerate(data_loader):
+        assert "embeddings" in batch[0]
+        assert "id" in batch[0]
+        start = idx * batch_size
+        end = start + int(batch[0]["id"].shape[0])
+        embeddings_vals = batch[0]["embeddings"].cpu().values
+        assert (embeddings_vals == embeddings_np[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
+    assert full_len == embedding_ids.shape[0]
+
+
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe, cpu):
+    cat_names = ["id"]
+    batch_size = 10000
+    pq_path = tmpdir / "id.parquet"
+    embedding_ids = rev_embedding_ids
+    embedding_ids.to_parquet(pq_path)
+    dataset = Dataset(str(pq_path))
+    dataset = dataset.repartition(10)
+    schema = dataset.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
+    dataset.schema = schema
+
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
+    dataset.schema = schema
+    paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
+    embeddings_ds = Dataset(paths)
+    embeddings_np = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:]
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
         transforms=[
-            Torch_NumpyEmbeddingOperator(embeddings_df, id_lookup_table=embedding_ids.to_numpy())
+            NumpyEmbeddingOperator(embeddings_np, id_lookup_table=embedding_ids.to_numpy())
         ],
         shuffle=False,
         device=cpu,
@@ -134,14 +184,15 @@ def test_embedding_torch_np_dl_with_lookup(
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == embeddings_df[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        embeddings_vals = batch[0]["embeddings"].cpu().values
+        assert (embeddings_vals == embeddings_np[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
 
 
 @pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
-def test_embedding_torch_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe, cpu):
+def test_embedding_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe, cpu):
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
@@ -152,13 +203,17 @@ def test_embedding_torch_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_
     for col_name in cat_names:
         schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
+
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
+    dataset.schema = schema
     paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
     embeddings_ds = Dataset(paths)
-    embeddings_df = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:]
+    np_tensor = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:]
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[Torch_NumpyEmbeddingOperator(embeddings_df)],
+        transforms=[EmbeddingOperator(np_tensor)],
         shuffle=False,
         device=cpu,
     )
@@ -167,14 +222,15 @@ def test_embedding_torch_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == embeddings_df[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        embeddings_vals = batch[0]["embeddings"].cpu().values
+        assert (embeddings_vals == np_tensor[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
 
 
 @pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
-def test_embedding_torch_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe, cpu):
+def test_embedding_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_dataframe, cpu):
     cat_names = ["id"]
     batch_size = 10000
     pq_path = tmpdir / "id.parquet"
@@ -186,48 +242,17 @@ def test_embedding_torch_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_fr
     for col_name in cat_names:
         schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
-    paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
-    embeddings_ds = Dataset(paths)
-    np_tensor = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:].astype("float32")
-    torch_tensor = torch.from_numpy(np_tensor)
-    data_loader = Loader(
-        dataset,
-        batch_size=batch_size,
-        transforms=[TorchEmbeddingOperator(torch_tensor, id_lookup_table=embedding_ids.to_numpy())],
-        shuffle=False,
-        device=cpu,
-    )
-    full_len = 0
-    for idx, batch in enumerate(data_loader):
-        assert "embeddings" in batch[0]
-        assert "id" in batch[0]
-        start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == np_tensor[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
-    assert full_len == embedding_ids.shape[0]
 
-
-@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
-def test_embedding_torch_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dataframe, cpu):
-    cat_names = ["id"]
-    batch_size = 10000
-    pq_path = tmpdir / "id.parquet"
-    embedding_ids.to_parquet(pq_path)
-    dataset = Dataset(str(pq_path))
-    dataset = dataset.repartition(10)
-    schema = dataset.schema
     for col_name in cat_names:
         schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
     paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
     embeddings_ds = Dataset(paths)
-    np_tensor = embeddings_ds.to_ddf().compute().to_numpy().astype("float32")
-    torch_tensor = torch.from_numpy(np_tensor)
+    np_tensor = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:]
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[TorchEmbeddingOperator(torch_tensor)],
+        transforms=[EmbeddingOperator(np_tensor, id_lookup_table=embedding_ids.to_numpy())],
         shuffle=False,
         device=cpu,
     )
@@ -236,7 +261,8 @@ def test_embedding_torch_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_dat
         assert "embeddings" in batch[0]
         assert "id" in batch[0]
         start = idx * batch_size
-        end = start + batch[0]["id"].shape[0]
-        assert (batch[0]["embeddings"].cpu().numpy() == np_tensor[start:end]).all()
-        full_len += batch[0]["embeddings"].shape[0]
+        end = start + int(batch[0]["id"].shape[0])
+        embeddings_vals = batch[0]["embeddings"].cpu().values
+        assert (embeddings_vals == np_tensor[start:end]).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]

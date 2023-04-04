@@ -32,10 +32,11 @@ from merlin.core.dispatch import (
     make_df,
     pull_apart_list,
 )
-from merlin.dag import BaseOperator, ColumnSelector, DictArray, Graph, Node, ungroup_values_offsets
+from merlin.dag import BaseOperator, ColumnSelector, Graph, Node, ungroup_values_offsets
 from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
 from merlin.schema import Schema, Tags
+from merlin.table import TensorTable
 
 
 def _num_steps(num_samples, step_size):
@@ -51,7 +52,7 @@ class LoaderBase:
         self,
         dataset,
         batch_size,
-        shuffle=True,
+        shuffle=False,
         seed_fn=None,
         parts_per_chunk=1,
         global_size=None,
@@ -68,6 +69,7 @@ class LoaderBase:
         self.global_size = global_size or 1
         self.global_rank = global_rank or 0
         self.drop_last = drop_last
+        self._map_fns = []
 
         device = device or 0
         self.device = "cpu" if not HAS_GPU or dataset.cpu else device
@@ -351,10 +353,10 @@ class LoaderBase:
             A dictionary of the column tensor representations.
 
         """
-        split_idx = self._get_segment_lengths(len(gdf))
+        split_idx = self._get_rows_per_batch(len(gdf))
 
         # convert dataframe to framework-specific tensors
-        tensors_by_name = self._process_dataframe(gdf)
+        tensors_by_name = self._convert_df_to_tensors(gdf)
 
         # split them into batches and map to the framework-specific output format
         tensor_batches = {}
@@ -364,7 +366,7 @@ class LoaderBase:
                 values, offsets = tensor_value
                 row_lengths = offsets[1:] - offsets[:-1]
                 batch_row_lengths = self._split_fn(row_lengths, split_idx)
-                values_split_idx = [self._sum(row_lengths) for row_lengths in batch_row_lengths]
+                values_split_idx = [sum(row_lengths.tolist()) for row_lengths in batch_row_lengths]
                 batch_values = self._split_fn(values, values_split_idx)
                 tensor_batches[tensor_key] = {
                     "values": batch_values,
@@ -388,7 +390,7 @@ class LoaderBase:
 
             yield self._process_batch(batch)
 
-    def _get_segment_lengths(self, num_samples):
+    def _get_rows_per_batch(self, num_samples):
         """
         Helper function to build indices to pass
         to <torch|tf>.split functions for breaking
@@ -399,7 +401,7 @@ class LoaderBase:
         idx.append(num_samples - num_full_batches * self.batch_size)
         return idx
 
-    def _to_tensor(self, gdf):
+    def _to_tensor(self, df_or_series):
         """
         One of the mandatory functions a child class needs
         to implement. Maps from a cudf DataFrame to a
@@ -434,8 +436,8 @@ class LoaderBase:
                 scalars.append(col)
         return scalars, lists
 
-    @annotate("_process_dataframe", color="darkgreen", domain="merlin_dataloader")
-    def _process_dataframe(self, gdf):
+    @annotate("_convert_df_to_tensors", color="darkgreen", domain="merlin_dataloader")
+    def _convert_df_to_tensors(self, gdf):
         """Convert a dataframe into framework tensors.
         Returns dictionary of tensors by feature name.
         Where scalar features are grouped under the same key (tuple of column names)
@@ -468,14 +470,14 @@ class LoaderBase:
                             values = column.list.leaves.values.reshape(
                                 -1, *cupy.array(column[0]).shape
                             )
-                            tensors_by_name[column_name] = self._unpack(self._pack(values))
+                            tensors_by_name[column_name] = values
                             continue
                     elif isinstance(column, pd.Series):
                         if not self.input_schema[column_name].shape.is_ragged:
                             values = np.array(list(_array_leaves(column.values))).reshape(
                                 -1, *np.array(column[0]).shape
                             )
-                            tensors_by_name[column_name] = self._unpack(values)
+                            tensors_by_name[column_name] = values
                             continue
 
                     leaves, col_offsets = pull_apart_list(column, device=self.device)
@@ -510,7 +512,7 @@ class LoaderBase:
                 labels[label] = X.pop(label)
 
         if self.transforms:
-            X = self.executor.transform(DictArray(X), [self.transforms])
+            X = self.executor.transform(TensorTable(X), [self.transforms])
 
         return X, labels
 
@@ -518,7 +520,11 @@ class LoaderBase:
         if isinstance(gdf, np.ndarray):
             return gdf
         # if self.device has value ('cpu') gdf should not be transferred to dlpack
-        elif hasattr(gdf, "to_dlpack") and callable(getattr(gdf, "to_dlpack")) and not self.device:
+        elif (
+            hasattr(gdf, "to_dlpack")
+            and callable(getattr(gdf, "to_dlpack"))
+            and self.device != "cpu"
+        ):
             return gdf.to_dlpack()
         elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
             if hasattr(gdf, "columns") and len(gdf.columns) == 1:
@@ -718,7 +724,7 @@ class ChunkQueue:
             chunks.reset_index(drop=True, inplace=True)
             chunks, spill = self.get_batch_div_chunk(chunks, self.dataloader.batch_size)
             if self.shuffle:
-                chunks = shuffle_df(chunks)
+                chunks = shuffle_df(chunks, keep_index=True)
 
             if len(chunks) > 0:
                 chunks = self.dataloader.make_tensors(chunks, self.dataloader._use_row_lengths)
