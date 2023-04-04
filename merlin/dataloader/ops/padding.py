@@ -2,11 +2,12 @@ from typing import Union
 
 import numpy as np
 
+from merlin.core.compat import cupy
 from merlin.core.protocols import Transformable
 from merlin.dag import BaseOperator
 from merlin.dag.selector import ColumnSelector
 from merlin.schema import Schema
-from merlin.table import TensorTable
+from merlin.table import Device, TensorTable
 
 
 class Padding(BaseOperator):
@@ -33,11 +34,12 @@ class Padding(BaseOperator):
     def transform(
         self, col_selector: ColumnSelector, transformable: Transformable
     ) -> Transformable:
-        to_pad = transformable[col_selector]
+        to_pad = transformable[col_selector.names]
         if not isinstance(transformable, TensorTable):
             to_pad = TensorTable.from_df(to_pad)
-        for col in to_pad:
-            col.values = pad_put_zeros(col, self.padding_size, self.padding_value)
+        for col_name, col in to_pad.items():
+            col._values = pad_put_zeros(col, self.padding_size, self.padding_value)
+            col._offsets = None
         return type(transformable)(to_pad)
 
     def compute_output_schema(
@@ -72,18 +74,16 @@ class Padding(BaseOperator):
 
 def pad_put_zeros(column, padding_size, padding_val):
     # account for zero prepend
+    array_lib = cupy if column.device == Device.GPU else np
     num_rows = len(column.offsets) - 1
-    zeros = np.zeros((num_rows, padding_size))
-    # row_lengths = column.offsets[1:] - column.offsets[:-1]
+    zeros = array_lib.zeros((num_rows, padding_size)).flatten()
+    row_lengths = column.offsets[1:] - column.offsets[:-1]
     # padded_row_lengths = [padded_size] - row_lengths
     row_ranges = []
+    starts = array_lib.arange(num_rows) * padding_size
+    ends = starts + row_lengths
     for idx, offset in enumerate(column.offsets[:-1]):
-        start = offset + padding_size * idx
-        end = start + column.offsets[idx + 1]
-        row_ranges.extend(np.arange(start, end))
-    zeros.put(row_ranges, column.values)
+        row_ranges.extend(array_lib.arange(int(starts[idx]), int(ends[idx])))
+    array_lib.put(zeros, row_ranges, column.values)
+    zeros = array_lib.reshape(zeros, (num_rows, padding_size))
     return zeros
-
-
-def pad_each_row(column, padding_size, padding_val):
-    pass
