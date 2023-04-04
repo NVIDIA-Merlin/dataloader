@@ -33,11 +33,36 @@ pytestmark = pytest.mark.torch
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
 torch = pytest.importorskip("torch")  # noqa
+from torch.utils.data import DataLoader, IterableDataset  # noqa
+
 import merlin.dataloader.torch as torch_dataloader  # noqa
 
 from merlin.dataloader.torch import (  # noqa isort:skip
     Loader as torch_loader,
 )
+
+
+def test_iterable_dataset():
+    df = pd.DataFrame({"feature": [1, 2, 3], "target": [0, 1, 0]})
+    dataset = Dataset(df)
+    dataset.schema["target"] = dataset.schema["target"].with_tags(Tags.TARGET)
+    iterable_dataset = torch_dataloader.Loader(dataset, batch_size=1)
+    assert isinstance(iterable_dataset, IterableDataset)
+
+
+def test_calling_len_during_iteration():
+    df = pd.DataFrame({"feature": [1, 2, 3], "target": [0, 1, 0]})
+    dataset = Dataset(df)
+    dataset.schema["target"] = dataset.schema["target"].with_tags(Tags.TARGET)
+    iterable_dataset = torch_dataloader.Loader(dataset, batch_size=1)
+    torch_data_loader = DataLoader(iterable_dataset)
+    batches = 0
+    for i, batch in enumerate(torch_data_loader):
+        len(torch_data_loader)
+        batches += 1
+        if i > 5:
+            break
+    assert batches == 3
 
 
 @pytest.mark.parametrize("shape", [(), (1,), (2,), (3, 4)])
