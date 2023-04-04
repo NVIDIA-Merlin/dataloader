@@ -214,14 +214,7 @@ class ArrayLoader(ArrayLoaderBase):
             return np
 
     def __len__(self):
-        """Number of batches in the Sequence.
-
-        Note: This also resets the loader state.
-              Required because of the calls to `__getitem__`
-              from keras prior to the start of the main loop
-              through the loader.
-        """
-        ArrayLoaderBase.stop(self)
+        """Number of batches in the dataloader."""
         return ArrayLoaderBase.__len__(self)
 
     def __getitem__(self, index):

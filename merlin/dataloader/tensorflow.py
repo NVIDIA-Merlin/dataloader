@@ -17,7 +17,7 @@ from functools import partial
 
 from merlin.core.compat import tensorflow as tf
 from merlin.dataloader.array import ArrayLoader
-from merlin.table import Device, NumpyColumn, TensorColumn, TensorflowColumn, TensorTable
+from merlin.table import TensorColumn, TensorflowColumn, TensorTable
 from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
 
 
@@ -55,6 +55,17 @@ class Loader(ArrayLoader, tf.keras.utils.Sequence):
         self.convert_col = partial(
             convert_col, _to_dlpack_fn=_to_dlpack_fn, _from_dlpack_fn=_from_dlpack_fn, _unsafe=True
         )
+
+    def __len__(self):
+        """Number of batches in the Sequence.
+
+        Note: This also resets the loader state.
+              Required because of the calls to `__getitem__`
+              from keras prior to the start of the main loop
+              through the loader.
+        """
+        ArrayLoader.stop(self)
+        return ArrayLoader.__len__(self)
 
     def __getitem__(self, index):
         """Gets batch at position `index`.
@@ -104,7 +115,6 @@ class Loader(ArrayLoader, tf.keras.utils.Sequence):
         tf_inputs = {}
         if inputs is not None:
             inputs_table = self.create_table(inputs)
-            column_type = TensorflowColumn if Device.GPU == inputs_table.device else NumpyColumn
             for col_name, col in inputs_table.items():
                 tf_inputs[col_name] = self.convert_col(col, column_type)
 
