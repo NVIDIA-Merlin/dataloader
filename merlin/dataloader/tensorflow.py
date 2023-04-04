@@ -56,6 +56,17 @@ class Loader(ArrayLoader, tf.keras.utils.Sequence):
             convert_col, _to_dlpack_fn=_to_dlpack_fn, _from_dlpack_fn=_from_dlpack_fn, _unsafe=True
         )
 
+    def __len__(self):
+        """Number of batches in the Sequence.
+
+        Note: This also resets the loader state.
+              Required because of the calls to `__getitem__`
+              from keras prior to the start of the main loop
+              through the loader.
+        """
+        ArrayLoader.stop(self)
+        return ArrayLoader.__len__(self)
+
     def __getitem__(self, index):
         """Gets batch at position `index`.
 
