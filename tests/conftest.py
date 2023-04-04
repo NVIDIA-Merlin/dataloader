@@ -18,13 +18,13 @@ import glob
 import random
 
 import dask
-import numpy as np
 import pandas as pd
 from npy_append_array import NpyAppendArray
 
-try:
-    import cudf
+from merlin.core.compat import cudf
+from merlin.core.compat import numpy as np
 
+if cudf:
     try:
         import cudf.testing._utils
 
@@ -33,8 +33,7 @@ try:
         import cudf.tests.utils
 
         assert_eq = cudf.tests.utils.assert_eq
-except ImportError:
-    cudf = None
+else:
 
     def assert_eq(a, b, *args, **kwargs):
         if isinstance(a, pd.DataFrame):

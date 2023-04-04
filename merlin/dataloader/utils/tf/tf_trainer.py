@@ -4,8 +4,7 @@ import glob
 import logging
 import os
 
-import cupy
-
+from merlin.core.compat import cupy, numpy
 from merlin.io import Dataset
 
 # we can control how much memory to give tensorflow with this environment variable
@@ -21,6 +20,7 @@ from merlin.dataloader.tensorflow import Loader  # noqa: E402 isort:skip
 import tensorflow as tf  # noqa: E402 isort:skip
 import horovod.tensorflow as hvd  # noqa: E402 isort:skip
 
+xp = cupy or numpy
 
 LOG = logging.getLogger("multi")
 
@@ -46,7 +46,7 @@ TRAIN_PATHS = sorted(
 hvd.init()
 
 # Seed with system randomness (or a static seed)
-cupy.random.seed(None)
+xp.random.seed(None)
 
 
 def seed_fn():
@@ -60,7 +60,10 @@ def seed_fn():
     max_rand = max_int // hvd.size()
 
     # Generate a seed fragment on each worker
-    seed_fragment = cupy.random.randint(0, max_rand).get()
+    if cupy:
+        seed_fragment = xp.random.randint(0, max_rand).get()
+    else:
+        seed_fragment = xp.random.randint(0, max_rand)
 
     # Aggregate seed fragments from all Horovod workers
     seed_tensor = tf.constant(seed_fragment)

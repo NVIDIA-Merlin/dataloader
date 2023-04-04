@@ -22,17 +22,10 @@ import threading
 import warnings
 from typing import List, Optional
 
-import numpy as np
-import pandas as pd
-
-try:
-    import cupy
-except ImportError:
-    cupy = None
-
-from merlin.core.compat import cupy
+from merlin.core.compat import HAS_GPU, cudf, cupy
+from merlin.core.compat import numpy as np
+from merlin.core.compat import pandas as pd
 from merlin.core.dispatch import (
-    HAS_GPU,
     annotate,
     concat,
     generate_local_seed,
@@ -45,11 +38,6 @@ from merlin.dag.executors import LocalExecutor
 from merlin.io import shuffle_df
 from merlin.schema import Schema, Tags
 from merlin.table import TensorTable
-
-try:
-    import cudf
-except ImportError:
-    cudf = None
 
 
 def _num_steps(num_samples, step_size):
