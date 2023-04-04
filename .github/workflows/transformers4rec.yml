@@ -40,4 +40,4 @@ jobs:
             raw=$(git branch -r --contains ${{ github.ref_name }})
             branch=${raw/origin\/}
           fi
-          tox -e test-transformers4rec-cpu -- $branch
+          GIT_COMMIT=`git rev-parse HEAD` tox -e test-transformers4rec-cpu -- $branch
