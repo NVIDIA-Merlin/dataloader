@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 
 from merlin.core.dispatch import HAS_GPU
-from merlin.dataloader.array import ArrayLoader as Loader  # noqa
+from merlin.dataloader.loader_base import LoaderBase as Loader  # noqa
 from merlin.dataloader.ops.embeddings import (  # noqa
     EmbeddingOperator,
     MmapNumpyEmbedding,
