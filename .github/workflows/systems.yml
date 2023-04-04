@@ -1,4 +1,4 @@
-name: models
+name: systems
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  tests:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -40,15 +40,4 @@ jobs:
             raw=$(git branch -r --contains ${{ github.ref_name }})
             branch=${raw/origin\/}
           fi
-          tox -e test-models-cpu -- $branch
-      - name: Store PR information
-        run: |
-          mkdir ./pr
-          echo ${{ github.event.number }}              > ./pr/pr.txt
-          echo ${{ github.event.pull_request.merged }} > ./pr/merged.txt
-          echo ${{ github.event.action }}              > ./pr/action.txt
-      - name: Upload PR information
-        uses: actions/upload-artifact@v2
-        with:
-          name: pr
-          path: pr/
+          tox -e test-systems-cpu -- $branch
