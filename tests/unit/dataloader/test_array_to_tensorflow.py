@@ -22,8 +22,8 @@ from merlin.io import Dataset
 from merlin.schema import Tags
 
 pytest.importorskip("tensorflow")
-tf_dataloader = pytest.importorskip("merlin.dataloader.frameworks.tensorflow")
-loader = tf_dataloader.TFArrayDataloader
+tf_dataloader = pytest.importorskip("merlin.dataloader.tensorflow")
+loader = tf_dataloader.Loader
 
 
 def test_array_dataloader_with_tensorflow():

@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import contextlib
 import copy
 import itertools
 import math
@@ -176,6 +177,16 @@ class LoaderBase:
         self.__buff = None
         self.__buff_len = None
         self._epochs = epochs
+
+    def __getitem__(self, index):
+        """Gets batch at position `index`.
+
+        Note: This returns the next batch in the iterator.
+              Not the batch at position `index`.
+              This is because the dataloader is implemented as an iterator and
+              don't currently support fetching a batch by index.
+        """
+        return self.__next__()
 
     def __len__(self):
         batches = _num_steps(self._buff_len, self.batch_size)
@@ -355,38 +366,50 @@ class LoaderBase:
             A dictionary of the column tensor representations.
 
         """
-        split_idx = self._get_rows_per_batch(len(gdf))
-
-        # convert dataframe to framework-specific tensors
         tensors_by_name = self._convert_df_to_tensors(gdf)
+        rows_per_batch = self._get_rows_per_batch(len(gdf))
 
-        # split them into batches and map to the framework-specific output format
         tensor_batches = {}
 
         for tensor_key, tensor_value in tensors_by_name.items():
             if isinstance(tensor_value, tuple):
-                values, offsets = tensor_value
-                row_lengths = offsets[1:] - offsets[:-1]
-                batch_row_lengths = self._split_fn(row_lengths, split_idx)
-                values_split_idx = [sum(row_lengths.tolist()) for row_lengths in batch_row_lengths]
-                batch_values = self._split_fn(values, values_split_idx)
+                # List feature
+                full_tensor_values, full_tensor_offsets = tensor_value
+
+                splits = list(itertools.accumulate(rows_per_batch))
+
+                offsets_grouped_by_batch = []
+                if splits:
+                    for idx, split in enumerate([0] + splits[:-1]):
+                        start = split
+                        end = splits[idx] + 1
+                        offsets_grouped_by_batch.append(full_tensor_offsets[start:end])
+
+                subtracted_offsets_grouped_by_batch = self._subtract_offsets(
+                    offsets_grouped_by_batch
+                )
+                num_values_per_batch = [
+                    int(batch_offsets[-1]) for batch_offsets in subtracted_offsets_grouped_by_batch
+                ]
+
+                batch_values = self._split_values(full_tensor_values, num_values_per_batch)
                 tensor_batches[tensor_key] = {
                     "values": batch_values,
-                    "row_lengths": batch_row_lengths,
+                    "offsets": subtracted_offsets_grouped_by_batch,
                 }
             else:
-                tensor_batches[tensor_key] = self._split_fn(tensor_value, split_idx)
+                # Scalar feature
+                num_values_per_batch = rows_per_batch
+                tensor_batches[tensor_key] = self._split_values(tensor_value, num_values_per_batch)
 
-        for batch_idx in range(len(split_idx)):
+        for batch_idx in range(len(rows_per_batch)):
             batch = {}
             for tensor_key in tensors_by_name:
                 tensor_value = tensor_batches[tensor_key]
                 if isinstance(tensor_value, dict):
-                    values = tensor_value["values"][batch_idx]
-                    row_partition = tensor_value["row_lengths"][batch_idx]
-                    if not use_row_lengths:
-                        row_partition = self._row_lengths_to_offsets(row_partition)
-                    batch[tensor_key] = values, row_partition
+                    full_tensor_values = tensor_value["values"][batch_idx]
+                    offsets = tensor_value["offsets"][batch_idx]
+                    batch[tensor_key] = full_tensor_values, offsets
                 else:
                     batch[tensor_key] = tensor_value[batch_idx]
 
@@ -410,24 +433,52 @@ class LoaderBase:
         tensor in the appropriate library, with an optional
         dtype kwarg to do explicit casting if need be
         """
-        raise NotImplementedError
+        if df_or_series.empty:
+            return
 
+        # if you have one series in a dataframe pull that series out
+        # otherwise you will add a dimension to the column [[1,2,3]]
+        try:
+            if len(df_or_series.columns) == 1:
+                df_or_series = df_or_series.iloc[:, 0]
+        except AttributeError:
+            pass
+
+        if self.device == "cpu":
+            tensor = df_or_series.to_numpy()
+        else:
+            tensor = df_or_series.to_cupy()
+
+        return tensor
+
+    @contextlib.contextmanager
     def _get_device_ctx(self, dev):
         """
         One of the mandatory functions a child class needs
         to implement. Maps from a GPU index to a framework
         context object for placing tensors on specific GPUs
         """
-        raise NotImplementedError
+        yield dev
 
     def _cast_to_numpy_dtype(self, dtype):
         """
         Get the numpy dtype from the framework dtype.
         """
-        raise NotImplementedError
+        raise dtype
 
-    def _split_fn(self, tensor, idx, axis=0):
-        raise NotImplementedError
+    def _split_values(self, tensor, values_per_batch, axis=0):
+        # splits are like offsets but without the first and last entry
+        splits = list(itertools.accumulate(values_per_batch))[:-1]
+        return self.array_lib().split(tensor, splits, axis=axis)
+
+    def _subtract_offsets(self, offsets_grouped_by_batch):
+        subtracted_offsets_grouped_by_batch = []
+        for idx, batch_offsets in enumerate(offsets_grouped_by_batch):
+            if idx != 0:
+                previous_batch_offsets = offsets_grouped_by_batch[idx - 1]
+                batch_offsets = batch_offsets - previous_batch_offsets[-1]
+            subtracted_offsets_grouped_by_batch.append(batch_offsets)
+        return subtracted_offsets_grouped_by_batch
 
     def _separate_list_columns(self, gdf):
         lists, scalars = [], []
@@ -437,6 +488,16 @@ class LoaderBase:
             else:
                 scalars.append(col)
         return scalars, lists
+
+    def array_lib(self):
+        return self._array_lib
+
+    def _split_fn(self, tensor, idx, axis=0):
+        splits = list(itertools.accumulate(idx))[:-1]
+        return self.array_lib().split(tensor, splits, axis=axis)
+
+    def _tensor_split(self, tensor, idx, axis=0):
+        return self.array_lib().split(tensor, idx, axis=axis)
 
     @annotate("_convert_df_to_tensors", color="darkgreen", domain="merlin_dataloader")
     def _convert_df_to_tensors(self, gdf):
@@ -517,26 +578,6 @@ class LoaderBase:
             X = self.executor.transform(TensorTable(X), [self.transforms])
 
         return X, labels
-
-    def _pack(self, gdf):
-        if isinstance(gdf, np.ndarray):
-            return gdf
-        # if self.device has value ('cpu') gdf should not be transferred to dlpack
-        elif (
-            hasattr(gdf, "to_dlpack")
-            and callable(getattr(gdf, "to_dlpack"))
-            and self.device != "cpu"
-        ):
-            return gdf.to_dlpack()
-        elif hasattr(gdf, "to_numpy") and callable(getattr(gdf, "to_numpy")):
-            if hasattr(gdf, "columns") and len(gdf.columns) == 1:
-                values = gdf[gdf.columns[0]].to_numpy()
-            else:
-                values = gdf.to_numpy()
-            if isinstance(values[0], list):
-                values = np.stack(values)
-            return values
-        return gdf.toDlpack()
 
     @property
     def schema(self) -> Schema:
