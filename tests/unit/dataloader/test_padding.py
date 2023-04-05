@@ -16,7 +16,7 @@
 import pytest
 
 from merlin.core.dispatch import HAS_GPU, make_df
-from merlin.dataloader import LoaderBase as Loader
+from merlin.dataloader.loader_base import LoaderBase as Loader
 from merlin.dataloader.ops.padding import Padding
 from merlin.io import Dataset
 
