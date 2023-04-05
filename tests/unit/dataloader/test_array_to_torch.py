@@ -15,7 +15,7 @@
 #
 import pytest
 
-from merlin.core.compat import torch as th
+from merlin.core.compat.torch import torch as th
 from merlin.core.dispatch import make_df
 from merlin.io import Dataset
 from merlin.schema import Tags

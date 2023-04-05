@@ -16,7 +16,7 @@
 
 import pytest
 
-from merlin.core.compat import tensorflow as tf
+from merlin.core.compat.tensorflow import tensorflow as tf
 from merlin.core.dispatch import make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
