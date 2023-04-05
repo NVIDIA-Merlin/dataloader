@@ -21,7 +21,7 @@ from merlin.core.dispatch import HAS_GPU, make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
 
-arr_dataloader = pytest.importorskip("merlin.dataloader.array")
+arr_dataloader = pytest.importorskip("merlin.dataloader")
 
 
 @pytest.mark.parametrize("num_rows", [1000, 10000])
