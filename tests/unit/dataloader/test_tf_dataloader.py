@@ -74,6 +74,21 @@ def test_peek():
     assert len(all_batches) == 3
 
 
+def test_peek_map():
+    inputs = make_df({"a": [1, 999, 999]})
+    dataset = Dataset(inputs)
+
+    def _map_fn(x_in, y_in):
+        x_out = make_df({"b": [42]})
+        y_out = make_df({"c": [43]})
+        return x_out, y_out
+
+    with tf_loader(dataset, batch_size=1, shuffle=False).map(_map_fn) as loader:
+        x, y = loader.peek()
+    assert set(x.keys()) == {"b"}
+    assert set(y.keys()) == {"c"}
+
+
 def test_set_input_schema():
     df = make_df({"a": [1, 2, 3], "b": [[4], [5, 6], [7]]})
     dataset = Dataset(df)
