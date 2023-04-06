@@ -88,7 +88,11 @@ class Loader(LoaderBase, tf.keras.utils.Sequence):
     def peek(self):
         """Grab the next batch from the dataloader
         without removing it from the queue"""
-        return self.convert_batch(self._peek_next_batch())
+        converted_batch = self.convert_batch(self._peek_next_batch())
+        for map_fn in self._map_fns:
+            converted_batch = map_fn(*converted_batch)
+
+        return converted_batch
 
     def on_epoch_end(self):
         self.stop()
