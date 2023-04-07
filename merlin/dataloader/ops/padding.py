@@ -78,7 +78,6 @@ def pad_put_zeros(column, padding_size, padding_val):
     num_rows = len(column.offsets) - 1
     zeros = array_lib.zeros((num_rows, padding_size)).flatten()
     row_lengths = column.offsets[1:] - column.offsets[:-1]
-    # padded_row_lengths = [padded_size] - row_lengths
     row_ranges = []
     starts = array_lib.arange(num_rows) * padding_size
     ends = starts + row_lengths
