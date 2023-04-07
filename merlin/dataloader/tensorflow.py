@@ -15,7 +15,7 @@
 #
 from functools import partial
 
-from merlin.core.compat import tensorflow as tf
+from merlin.core.compat.tensorflow import tensorflow as tf
 from merlin.dataloader.loader_base import LoaderBase
 from merlin.table import TensorColumn, TensorflowColumn, TensorTable
 from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
@@ -88,7 +88,11 @@ class Loader(LoaderBase, tf.keras.utils.Sequence):
     def peek(self):
         """Grab the next batch from the dataloader
         without removing it from the queue"""
-        return self.convert_batch(self._peek_next_batch())
+        converted_batch = self.convert_batch(self._peek_next_batch())
+        for map_fn in self._map_fns:
+            converted_batch = map_fn(*converted_batch)
+
+        return converted_batch
 
     def on_epoch_end(self):
         self.stop()
