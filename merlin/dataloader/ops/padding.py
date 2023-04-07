@@ -11,7 +11,7 @@ from merlin.table import Device, TensorTable
 
 
 class Padding(BaseOperator):
-    """Create an operator that will apply a torch embedding table to supplied indices.
+    """Create an operator that will apply a embedding table to supplied indices.
     This operator allows the user to supply an id lookup table if the indices supplied
     via the id_lookup_table.
 
