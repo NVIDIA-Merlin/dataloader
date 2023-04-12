@@ -78,8 +78,6 @@ class LoaderBase:
         if self.device == "cpu":
             self._array_lib = np
         else:
-            if not isinstance(self.device, int):
-                raise ValueError("'device' must be an integer")
             self._array_lib = cupy
 
         self.indices = self._array_lib.arange(self.dataset.npartitions)
