@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import contextlib
 from functools import partial
 
 from merlin.core.compat.torch import torch as th
@@ -118,11 +117,6 @@ class Loader(LoaderBase, th.utils.data.IterableDataset):
         self._map_fns.append(fn)
 
         return self
-
-    def _get_device_ctx(self, dev):
-        if dev == "cpu" or not th:
-            return contextlib.nullcontext()
-        return th.cuda.device(f"cuda:{dev}")
 
 
 class DLDataLoader(th.utils.data.DataLoader):

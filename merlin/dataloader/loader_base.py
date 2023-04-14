@@ -447,8 +447,7 @@ class LoaderBase:
         if self.device == "cpu":
             tensor = df_or_series.to_numpy()
         else:
-            with cupy.cuda.Device(self.device):
-                tensor = df_or_series.to_cupy()
+            tensor = df_or_series.to_cupy()
 
         return tensor
 
