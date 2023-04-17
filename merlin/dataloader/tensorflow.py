@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from functools import partial
 import warnings
+from functools import partial
 
 from merlin.core.compat.tensorflow import tensorflow as tf
 from merlin.dataloader.loader_base import LoaderBase
@@ -68,7 +68,7 @@ class Loader(LoaderBase, tf.keras.utils.Sequence):
                 "'batch_size' be at least 16 and also a power of two. "
                 "Please change 'batch_size' to a number that is a power of "
                 "two that is greater than or equal to 16.",
-                UserWarning
+                UserWarning,
             )
 
     def __len__(self):

@@ -721,7 +721,7 @@ def test_wrong_batch_size_raises_warning():
             _ = tf_loader(dataset, batch_size=batch_size)
 
     for power in range(4, 10):
-        batch_size = 2 ** power
+        batch_size = 2**power
         # warning not raised for power of two
         with warnings.catch_warnings():
             warnings.simplefilter("error")
