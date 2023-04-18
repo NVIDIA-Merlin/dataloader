@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 from functools import partial
+from math import log2
 
 from merlin.core.compat.tensorflow import tensorflow as tf
 from merlin.dataloader.loader_base import LoaderBase
@@ -35,6 +36,15 @@ class Loader(LoaderBase, tf.keras.utils.Sequence):
         transforms=None,
         device=None,
     ):
+        if not (batch_size >= 16 and log2(batch_size).is_integer() and drop_last is True):
+            from warnings import warn
+
+            warn(
+                "Due to limitations of Tensorflow's DLpack implementation, batch sizes must "
+                "be powers of 2 that are 16 or greater, and leftover examples that don't "
+                "form full batches must be discarded with `drop_last=True`."
+            )
+
         super().__init__(
             dataset,
             batch_size,
