@@ -72,10 +72,6 @@ def test_embedding_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_fro
     for col_name in cat_names:
         schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
-
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
-    dataset.schema = schema
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
@@ -119,9 +115,6 @@ def test_embedding_np_mmap_dl_with_lookup(tmpdir, rev_embedding_ids, np_embeddin
         schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
 
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
-    dataset.schema = schema
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
@@ -150,10 +143,6 @@ def test_embedding_np_dl_no_lookup(tmpdir, embedding_ids, embeddings_from_datafr
     dataset = Dataset(str(pq_path))
     dataset = dataset.repartition(10)
     schema = dataset.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
-    dataset.schema = schema
-
     for col_name in cat_names:
         schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
@@ -192,10 +181,6 @@ def test_embedding_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_
     for col_name in cat_names:
         schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema
-
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
-    dataset.schema = schema
     paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
     embeddings_ds = Dataset(paths)
     embeddings_np = embeddings_ds.to_ddf().compute().to_numpy()[:, 1:]
@@ -229,13 +214,9 @@ def test_embedding_np_dl_with_lookup_ragged(
     offsets = np.array([0, 10, 15, 20, 30, 40, 45, 55, 65, 75, 80, 90, 100])
     tensor_df = TensorTable({"id": TensorColumn(embedding_ids, offsets=offsets)}).to_df()
     tensor_df.to_parquet(pq_path)
-    dataset = Dataset(str(pq_path))
+    dataset = Dataset(str(pq_path), cpu=bool(cpu))
     dataset = dataset.repartition(10)
     schema = dataset.schema
-    for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
-    dataset.schema = schema
-
     for col_name in cat_names:
         schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
     dataset.schema = schema

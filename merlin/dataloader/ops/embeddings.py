@@ -65,7 +65,7 @@ class EmbeddingOperator(BaseOperator):
         if self.id_lookup_table is not None:
             indices = np.in1d(self.id_lookup_table, indices)
         embeddings = self.embeddings[indices]
-        embeddings_col = TensorColumn(embeddings, offsets=keys.offsets)
+        embeddings_col = TensorColumn(embeddings, offsets=keys.cpu().offsets)
         transformable[self.embedding_name] = (
             embeddings_col.gpu() if keys.device == Device.GPU else embeddings_col
         )
@@ -96,15 +96,14 @@ class EmbeddingOperator(BaseOperator):
         col_schemas = []
         for _, col_schema in input_schema.column_schemas.items():
             col_schemas.append(col_schema)
+        id_schema = input_schema.column_schemas[self.lookup_key]
         embedding_dim = self.embeddings.shape[1]
         col_schemas.append(
             ColumnSchema(
                 name=self.embedding_name,
                 tags=[Tags.EMBEDDING],
                 dtype=self.embeddings.dtype,
-                is_list=True,
-                is_ragged=False,
-                properties={"value_count": {"min": embedding_dim, "max": embedding_dim}},
+                dims=id_schema.shape.as_tuple + (embedding_dim,),
             )
         )
 
