@@ -16,6 +16,7 @@
 import glob
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from merlin.core.dispatch import HAS_GPU
@@ -27,6 +28,37 @@ from merlin.dataloader.ops.embeddings import (  # noqa
 )
 from merlin.io import Dataset
 from merlin.schema import Tags
+
+
+def test_embedding_with_target():
+    id_embeddings = np.random.rand(1000, 10)
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5],
+            "target": [0, 1, 1, 0, 1, 0],
+        }
+    )
+
+    dataset = Dataset(df)
+    dataset.schema["target"] = dataset.schema["target"].with_tags(Tags.TARGET)
+
+    data_loader = Loader(
+        dataset,
+        batch_size=2,
+        transforms=[
+            EmbeddingOperator(
+                id_embeddings,
+                lookup_key="id",
+                embedding_name="id_embedding",
+            ),
+        ],
+        shuffle=False,
+    )
+    x, y = data_loader.peek()
+    assert x["id"].values.shape == (2,)
+    assert x["id_embedding"].values.shape == (2, 10)
+    assert data_loader.output_schema.column_names == ["id", "id_embedding"]
+    assert y.tolist() == [0, 1]
 
 
 @pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])

@@ -666,7 +666,7 @@ class LoaderBase:
 
         if self._transform_graph is not None:
             self._transforms = self._transform_graph.construct_schema(
-                self._input_schema
+                self._input_schema.excluding_by_tag(Tags.TARGET)
             ).output_node
             self._output_schema = self._transforms.output_schema
         else:
