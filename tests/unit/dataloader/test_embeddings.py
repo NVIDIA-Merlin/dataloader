@@ -24,6 +24,7 @@ from merlin.dataloader.loader_base import LoaderBase as Loader  # noqa
 from merlin.dataloader.ops.embeddings import EmbeddingOperator
 from merlin.io import Dataset
 from merlin.schema import Tags
+from merlin.table import TensorColumn, TensorTable
 
 
 def test_embedding_with_target():
@@ -215,3 +216,51 @@ def test_embedding_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_
         assert (embeddings_vals == embeddings_np[start:end]).all()
         full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == embedding_ids.shape[0]
+
+
+@pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
+def test_embedding_np_dl_with_lookup_ragged(
+    tmpdir, rev_embedding_ids, embeddings_from_dataframe, cpu
+):
+    cat_names = ["id"]
+    batch_size = 5
+    pq_path = tmpdir / "id.parquet"
+    embedding_ids = rev_embedding_ids["id"][:100].to_numpy()
+    offsets = np.array([0, 10, 15, 20, 30, 40, 45, 55, 65, 75, 80, 90, 100])
+    tensor_df = TensorTable({"id": TensorColumn(embedding_ids, offsets=offsets)}).to_df()
+    tensor_df.to_parquet(pq_path)
+    dataset = Dataset(str(pq_path))
+    dataset = dataset.repartition(10)
+    schema = dataset.schema
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
+    dataset.schema = schema
+
+    for col_name in cat_names:
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
+    dataset.schema = schema
+    paths = sorted(glob.glob(f"{embeddings_from_dataframe}/*"))
+    embeddings_ds = Dataset(paths)
+    embeddings_np = embeddings_ds.to_ddf().compute().to_numpy()[:100, 1:]
+    data_loader = Loader(
+        dataset,
+        batch_size=batch_size,
+        transforms=[EmbeddingOperator(embeddings_np, id_lookup_table=embedding_ids)],
+        shuffle=False,
+        device=cpu,
+    )
+    full_len = 0
+    old_end = 0
+    for idx, batch in enumerate(data_loader):
+        assert "embeddings" in batch[0]
+        assert "id" in batch[0]
+        start = old_end
+        end = start + int(batch[0]["id"].cpu().values.shape[0])
+        old_end = end
+        id_offsets = batch[0]["id"].cpu().offsets
+        embeddings_vals = batch[0]["embeddings"].cpu().values
+        embeddings_offs = batch[0]["embeddings"].cpu().offsets
+        assert (embeddings_vals == embeddings_np[start:end]).all()
+        assert (embeddings_offs == id_offsets).all()
+        full_len += int(batch[0]["embeddings"].shape[0])
+    assert full_len == offsets.shape[0] - 1
