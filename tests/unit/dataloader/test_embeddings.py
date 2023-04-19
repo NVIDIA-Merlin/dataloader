@@ -58,7 +58,7 @@ def test_embedding_with_target():
     assert x["id"].values.shape == (2,)
     assert x["id_embedding"].values.shape == (2, 10)
     assert data_loader.output_schema.column_names == ["id", "id_embedding"]
-    np.testing.assert_array_equal(y, np.array([0, 1]))
+    assert y.tolist() == [0, 1]
 
 
 @pytest.mark.parametrize("cpu", [None, "cpu"] if HAS_GPU else ["cpu"])
