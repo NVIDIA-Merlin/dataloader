@@ -55,9 +55,8 @@ def test_embedding_with_target():
         shuffle=False,
     )
     x, y = data_loader.peek()
-    assert isinstance(x, dict)
-    assert x["id"].shape == (2,)
-    assert x["id_embedding"].shape == (2, 10)
+    assert x["id"].values.shape == (2,)
+    assert x["id_embedding"].values.shape == (2, 10)
     assert data_loader.output_schema.column_names == ["id", "id_embedding"]
     np.testing.assert_array_equal(y, np.array([0, 1]))
 
