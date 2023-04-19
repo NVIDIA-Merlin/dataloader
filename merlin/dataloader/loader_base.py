@@ -575,7 +575,7 @@ class LoaderBase:
                 labels[label] = X.pop(label)
 
         if self.transforms:
-            X = self.executor.transform(TensorTable(X), [self.transforms])
+            X = self.executor.transform(TensorTable(X), [self.transforms]).to_dict()
 
         return X, labels
 
