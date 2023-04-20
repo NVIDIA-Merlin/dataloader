@@ -51,4 +51,7 @@ def test_dataloader(tmpdir, dataset, cpu, num_rows):
         for col in columns:
             start = idx * int(num_rows / 10)
             end = start + int(num_rows / 10)
-            assert np.all(batch[0][col].ravel() == df[col].iloc[start:end])
+            if cpu:
+                assert np.all(batch[0][col].ravel() == df[col].iloc[start:end].to_numpy())
+            else:
+                assert np.all(batch[0][col].ravel() == df[col].iloc[start:end])
