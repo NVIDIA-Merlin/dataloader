@@ -27,9 +27,7 @@ requirements:
     - setuptools
   run:
     - python
-    {% for req in setup_py_data.get('install_requires', []) %}
-    - {{ req }}
-    {% endfor %}
+    - merlin-core>=23.04.00
 
 about:
   home: https://github.com/NVIDIA-Merlin/dataloader
