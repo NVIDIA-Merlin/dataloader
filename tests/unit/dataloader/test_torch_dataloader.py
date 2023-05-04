@@ -23,7 +23,7 @@ import pytest
 from conftest import assert_eq
 
 from merlin.core import dispatch
-from merlin.core.compat import HAS_GPU
+from merlin.core.compat import HAS_GPU, cudf
 from merlin.core.dispatch import make_df
 from merlin.io import Dataset
 from merlin.schema import Tags
@@ -150,7 +150,7 @@ def test_torch_drp_reset(tmpdir, batch_size, drop_last, num_rows):
                     # Each column has only one unique value
                     # We test that each value in chunk (output of dataloader)
                     # is equal to every value in dataframe
-                    if dispatch.HAS_GPU:
+                    if cudf and isinstance(df, cudf.DataFrame):
                         assert (
                             np.expand_dims(chunk[0][col].cpu().numpy(), 1) == df[col].values_host
                         ).all()
@@ -224,7 +224,7 @@ json_sample = {
 
 @pytest.mark.parametrize("part_mem_fraction", [0.001, 0.06])
 @pytest.mark.parametrize("batch_size", [1000])
-@pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
+@pytest.mark.parametrize("cpu", [False, True] if HAS_GPU and cudf else [True])
 def test_dataloader_break(dataset, batch_size, part_mem_fraction, cpu):
     dataloader = torch_loader(
         dataset,
@@ -257,7 +257,7 @@ def test_dataloader_break(dataset, batch_size, part_mem_fraction, cpu):
 
 @pytest.mark.parametrize("part_mem_fraction", [0.001, 0.06])
 @pytest.mark.parametrize("batch_size", [1000])
-@pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
+@pytest.mark.parametrize("cpu", [False, True] if HAS_GPU and cudf else [True])
 def test_dataloader(df, dataset, batch_size, part_mem_fraction, cpu):
     dataloader = torch_loader(
         dataset,
@@ -336,7 +336,7 @@ def test_mh_support(multihot_dataset):
 
 
 @pytest.mark.parametrize("batch_size", [1000])
-@pytest.mark.parametrize("cpu", [False, True] if HAS_GPU else [True])
+@pytest.mark.parametrize("cpu", [False, True] if HAS_GPU and cudf else [True])
 def test_dataloader_schema(df, dataset, batch_size, cpu):
     with torch_loader(
         dataset,
