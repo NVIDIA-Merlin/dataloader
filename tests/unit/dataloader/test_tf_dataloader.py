@@ -19,6 +19,7 @@ import os
 import subprocess
 import time
 import timeit
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -72,6 +73,21 @@ def test_peek():
     test_case = tf.test.TestCase()
     test_case.assertAllEqual(first_batch, all_batches[0])
     assert len(all_batches) == 3
+
+
+def test_peek_map():
+    inputs = make_df({"a": [1, 999, 999]})
+    dataset = Dataset(inputs)
+
+    def _map_fn(x_in, y_in):
+        x_out = make_df({"b": [42]})
+        y_out = make_df({"c": [43]})
+        return x_out, y_out
+
+    with tf_loader(dataset, batch_size=1, shuffle=False).map(_map_fn) as loader:
+        x, y = loader.peek()
+    assert set(x.keys()) == {"b"}
+    assert set(y.keys()) == {"c"}
 
 
 def test_set_input_schema():
@@ -691,3 +707,26 @@ def test_keras_model_with_multiple_label_columns():
     metrics = model.evaluate(loader, return_dict=True)
     assert "label1_accuracy" in metrics
     assert "label2_accuracy" in metrics
+
+
+@pytest.mark.skipif(
+    not HAS_GPU,
+    reason="All batch sizes work on CPUs.",
+)
+def test_wrong_batch_size_raises_warning():
+    df = make_df({"a": [1, 2, 3]})
+    dataset = Dataset(df)
+    with pytest.warns(UserWarning):
+        for batch_size in range(1, 16):
+            _ = tf_loader(dataset, batch_size=batch_size)
+
+    for power in range(4, 10):
+        batch_size = 2**power
+        # warning not raised for power of two
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            _ = tf_loader(dataset, batch_size=batch_size)
+        # warnings raised for batch_size minus one and plus one
+        with pytest.warns(UserWarning):
+            _ = tf_loader(dataset, batch_size=batch_size - 1)
+            _ = tf_loader(dataset, batch_size=batch_size + 1)

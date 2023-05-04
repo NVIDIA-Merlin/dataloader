@@ -13,9 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import contextlib
 from functools import partial
 
-from merlin.core.compat import torch as th
+from merlin.core.compat.torch import torch as th
 from merlin.dataloader.loader_base import LoaderBase
 from merlin.table import TensorColumn, TensorTable, TorchColumn
 from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
@@ -59,16 +60,22 @@ class Loader(LoaderBase, th.utils.data.IterableDataset):
 
     def __next__(self):
         """Get the next batch from the dataloader"""
-        converted_batch = self.convert_batch(super().__next__())
-        for map_fn in self._map_fns:
-            converted_batch = map_fn(*converted_batch)
+        with self._get_device_ctx(self.device):
+            converted_batch = self.convert_batch(super().__next__())
+            for map_fn in self._map_fns:
+                converted_batch = map_fn(*converted_batch)
 
         return converted_batch
 
     def peek(self):
         """Grab the next batch from the dataloader
         without removing it from the queue"""
-        return self.convert_batch(self._peek_next_batch())
+        with self._get_device_ctx(self.device):
+            converted_batch = self.convert_batch(self._peek_next_batch())
+            for map_fn in self._map_fns:
+                converted_batch = map_fn(*converted_batch)
+
+        return converted_batch
 
     def convert_batch(self, batch):
         """Returns a batch after it has been converted to the appropriate tensor
@@ -117,6 +124,11 @@ class Loader(LoaderBase, th.utils.data.IterableDataset):
         self._map_fns.append(fn)
 
         return self
+
+    def _get_device_ctx(self, dev):
+        if dev == "cpu" or not th:
+            return contextlib.nullcontext()
+        return th.cuda.device(f"cuda:{dev}")
 
 
 class DLDataLoader(th.utils.data.DataLoader):

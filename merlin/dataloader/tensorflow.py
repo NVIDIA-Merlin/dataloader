@@ -13,9 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import warnings
 from functools import partial
 
-from merlin.core.compat import tensorflow as tf
+from merlin.core.compat.tensorflow import tensorflow as tf
 from merlin.dataloader.loader_base import LoaderBase
 from merlin.table import TensorColumn, TensorflowColumn, TensorTable
 from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
@@ -48,6 +49,8 @@ class Loader(LoaderBase, tf.keras.utils.Sequence):
             device,
         )
 
+        self._validate_batch_size(batch_size)
+
         self.create_table = partial(TensorTable, _unsafe=True)
         self.create_column = partial(TensorColumn, _unsafe=True)
         column = self.create_column(self.array_lib().array([]))
@@ -55,6 +58,18 @@ class Loader(LoaderBase, tf.keras.utils.Sequence):
         self.convert_col = partial(
             convert_col, _to_dlpack_fn=_to_dlpack_fn, _from_dlpack_fn=_from_dlpack_fn, _unsafe=True
         )
+
+    def _validate_batch_size(self, batch_size):
+        is_power_of_two = batch_size & (batch_size - 1) == 0
+        if self.device != "cpu" and (batch_size < 16 or not is_power_of_two):
+            warnings.warn(
+                "Due to a CUDA memory alignment issue in some Tensorflow "
+                "operations such as Embedding ops, we recommend that "
+                "'batch_size' be at least 16 and also a power of two. "
+                "Please change 'batch_size' to a number that is a power of "
+                "two that is greater than or equal to 16.",
+                UserWarning,
+            )
 
     def __len__(self):
         """Number of batches in the Sequence.
@@ -88,7 +103,11 @@ class Loader(LoaderBase, tf.keras.utils.Sequence):
     def peek(self):
         """Grab the next batch from the dataloader
         without removing it from the queue"""
-        return self.convert_batch(self._peek_next_batch())
+        converted_batch = self.convert_batch(self._peek_next_batch())
+        for map_fn in self._map_fns:
+            converted_batch = map_fn(*converted_batch)
+
+        return converted_batch
 
     def on_epoch_end(self):
         self.stop()
