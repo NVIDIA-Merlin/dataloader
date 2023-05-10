@@ -22,6 +22,7 @@ import pytest
 from merlin.core.dispatch import HAS_GPU
 from merlin.dataloader.loader_base import LoaderBase as Loader  # noqa
 from merlin.dataloader.ops.embeddings import EmbeddingOperator
+from merlin.dataloader.ops.padding import Padding
 from merlin.io import Dataset
 from merlin.schema import Tags
 from merlin.table import TensorColumn, TensorTable
@@ -245,3 +246,31 @@ def test_embedding_np_dl_with_lookup_ragged(
         assert (embeddings_offs == id_offsets).all()
         full_len += int(batch[0]["embeddings"].shape[0])
     assert full_len == offsets.shape[0] - 1
+
+
+def test_embedding_with_padding():
+    max_length = 10
+    batch_size = 3
+    id_embeddings = np.random.rand(1000, 16)
+    df = pd.DataFrame(
+        {
+            "id": [[0, 1, 2], [3, 4], [5, 6, 7, 8]],
+        }
+    )
+
+    dataset = Dataset(df)
+    transform = (
+        ["id"]
+        >> Padding(padding_size=max_length, padding_value=0)
+        >> EmbeddingOperator(id_embeddings, lookup_key="id", embedding_name="id_embedding")
+    )
+    data_loader = Loader(
+        dataset,
+        batch_size=batch_size,
+        transforms=transform,
+        shuffle=False,
+    )
+    x, _ = data_loader.peek()
+    assert x["id"].values.shape == (batch_size, max_length)
+    assert x["id_embedding"].values.shape == (batch_size, max_length, 16)
+    assert data_loader.output_schema.column_names == ["id", "id_embedding"]

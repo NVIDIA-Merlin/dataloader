@@ -11,23 +11,20 @@ from merlin.table import Device, TensorTable
 
 
 class Padding(BaseOperator):
-    """Create an operator that will apply a embedding table to supplied indices.
-    This operator allows the user to supply an id lookup table if the indices supplied
-    via the id_lookup_table.
+    """Create an operator that will apply right padding to a given sequence.
+    This operator pads the sequence with a specified padding value up to a specified padding size.
+    If the sequence is longer than the padding size,
+    it is truncated to the first `padding size` elements.
 
     Parameters
     ----------
-    embeddings : np.ndarray
-        numpy ndarray representing embedding values
-    lookup_key : str, optional
-        the name of the column that will be used as indices, by default "id"
-    embedding_name : str, optional
-        name of new column of embeddings, added to output, by default "embeddings"
-    id_lookup_table : np.array, optional
-        numpy array of values that represent embedding indices, by default None
+    padding_size : int
+        The target size for the padded sequence
+    padding_value : Union[int, float]
+        The value to be used for padding the sequence, by default 0
     """
 
-    def __init__(self, padding_size: int, padding_value: Union[int, float]):
+    def __init__(self, padding_size: int, padding_value: Union[int, float] = 0):
         self.padding_size = padding_size
         self.padding_value = padding_value
 
@@ -76,7 +73,7 @@ def pad_put_zeros(column, padding_size, padding_val):
     # account for zero prepend
     array_lib = cupy if column.device == Device.GPU else np
     num_rows = len(column.offsets) - 1
-    zeros = array_lib.zeros((num_rows, padding_size)).flatten()
+    zeros = array_lib.zeros((num_rows, padding_size)).flatten() + padding_val
     row_lengths = column.offsets[1:] - column.offsets[:-1]
     row_ranges = []
     starts = array_lib.arange(num_rows) * padding_size
@@ -85,4 +82,5 @@ def pad_put_zeros(column, padding_size, padding_val):
         row_ranges.extend(array_lib.arange(int(starts[idx]), int(ends[idx])))
     array_lib.put(zeros, row_ranges, column.values)
     zeros = array_lib.reshape(zeros, (num_rows, padding_size))
+    zeros = zeros.astype(column.dtype.element_type.value)
     return zeros
