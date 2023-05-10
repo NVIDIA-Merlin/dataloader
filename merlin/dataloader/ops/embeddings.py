@@ -98,10 +98,23 @@ class EmbeddingOperator(BaseOperator):
             col_schemas.append(col_schema)
         id_schema = input_schema.column_schemas[self.lookup_key]
         embedding_dim = self.embeddings.shape[1]
+
+        new_tags = [Tags.EMBEDDING]
+        propagated_tags = [
+            Tags.LIST,
+            Tags.SEQUENCE,
+            Tags.USER,
+            Tags.ITEM,
+            Tags.CONTEXT,
+            Tags.SESSION,
+        ]
+        for tag in propagated_tags:
+            if tag in id_schema.tags:
+                new_tags.append(tag)
         col_schemas.append(
             ColumnSchema(
                 name=self.embedding_name,
-                tags=[Tags.EMBEDDING],
+                tags=new_tags,
                 dtype=self.embeddings.dtype,
                 dims=id_schema.shape.as_tuple + (embedding_dim,),
             )
