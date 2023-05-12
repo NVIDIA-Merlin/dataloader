@@ -231,7 +231,9 @@ def test_embedding_np_dl_with_lookup(tmpdir, rev_embedding_ids, embeddings_from_
     data_loader = Loader(
         dataset,
         batch_size=batch_size,
-        transforms=[EmbeddingOperator(embeddings_np, id_lookup_table=embedding_ids.to_numpy())],
+        transforms=[
+            EmbeddingOperator(embeddings_np, id_lookup_table=embedding_ids.to_numpy().ravel())
+        ],
         shuffle=False,
         device=cpu,
     )
