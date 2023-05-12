@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from merlin.core.compat import cupy
 from merlin.core.dispatch import HAS_GPU
 from merlin.dataloader.loader_base import LoaderBase as Loader  # noqa
 from merlin.dataloader.ops.embeddings import EmbeddingOperator
@@ -26,6 +27,45 @@ from merlin.dataloader.ops.padding import Padding
 from merlin.io import Dataset
 from merlin.schema import Tags
 from merlin.table import TensorColumn, TensorTable
+
+
+@pytest.mark.parametrize("unknown_value", [0, 1, np.random.uniform(size=10)])
+def test_embedding_lookup_with_unknown_value(unknown_value):
+    ids = np.array(["a", "b", "c"])
+    embeddings = np.random.rand(3, 10)
+    df = pd.DataFrame(
+        {
+            "id": ["a", "unknown"],
+            "feature": [1, 2],
+        }
+    )
+
+    dataset = Dataset(df, cpu=True)
+
+    data_loader = Loader(
+        dataset,
+        batch_size=3,
+        transforms=[
+            EmbeddingOperator(
+                embeddings,
+                lookup_key="id",
+                embedding_name="id_embedding",
+                id_lookup_table=ids,
+                unknown_value=unknown_value,
+            ),
+        ],
+        shuffle=False,
+    )
+    x, y = data_loader.peek()
+
+    assert x["id"].values.shape == (2,)
+    embedding_values = x["id_embedding"].values
+    if cupy and isinstance(embedding_values, cupy.ndarray):
+        embedding_values = embedding_values.get()
+    assert embedding_values.shape == (2, 10)
+    np.testing.assert_equal(embedding_values[0], embeddings[0])
+    np.testing.assert_equal(embedding_values[1], unknown_value)
+    assert data_loader.output_schema.column_names == ["id", "feature", "id_embedding"]
 
 
 def test_embedding_with_target():
