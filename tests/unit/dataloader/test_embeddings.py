@@ -30,6 +30,20 @@ from merlin.schema.tags import TagSet
 from merlin.table import TensorColumn, TensorTable
 
 
+def test_embeddings_invalid_ids():
+    ids = np.array(["a", "b"])
+    embeddings = np.random.rand(3, 10)
+    with pytest.raises(AssertionError) as exc_info:
+        EmbeddingOperator(
+            embeddings,
+            lookup_key="id",
+            embedding_name="id_embedding",
+            id_lookup_table=ids,
+        )
+    assert "ids provided must match the number of embeddings" in str(exc_info.value)
+    assert "Expected IDs with shape (3,)" in str(exc_info.value)
+
+
 @pytest.mark.parametrize("unknown_value", [0, 1, np.random.uniform(size=10)])
 def test_embedding_lookup_with_unknown_value(unknown_value):
     ids = np.array(["a", "b", "c"])

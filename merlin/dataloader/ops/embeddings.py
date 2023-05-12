@@ -71,12 +71,14 @@ class EmbeddingOperator(BaseOperator):
                 "containing embeddings. "
             )
 
+        self.embeddings = embeddings
+
         if isinstance(id_lookup_table, (str, os.PathLike)):
             _ids = np.load(id_lookup_table)
-            id_lookup_table = dict(zip(_ids, range(len(_ids))))
+            embedding_index_mapping = self._get_embedding_index_mapping(_ids)
         elif isinstance(id_lookup_table, np.ndarray):
             _ids = id_lookup_table
-            id_lookup_table = dict(zip(_ids, range(len(_ids))))
+            embedding_index_mapping = self._get_embedding_index_mapping(_ids)
         elif id_lookup_table is None:
             pass
         else:
@@ -88,11 +90,21 @@ class EmbeddingOperator(BaseOperator):
                 "containing the IDs that correspond to the embeddings. "
             )
 
-        self.embeddings = embeddings
         self.lookup_key = lookup_key
         self.embedding_name = embedding_name
-        self.id_lookup_table = id_lookup_table
+        self.embedding_index_mapping = embedding_index_mapping
         self.unknown_value = unknown_value
+
+    def _get_embedding_index_mapping(self, ids):
+        expected_ids_shape = (self.embeddings.shape[0],)
+        assert ids.shape == expected_ids_shape, (
+            "IDs provided must match the number of embeddings. "
+            f"Expected IDs with shape {expected_ids_shape} "
+            f"Received IDs with shape: {ids.shape} "
+            f"Embeddings shape: {self.embeddings.shape} "
+        )
+        id_to_index_mapping = dict(zip(ids, range(len(ids))))
+        return id_to_index_mapping
 
     def transform(
         self, col_selector: ColumnSelector, transformable: Transformable
@@ -100,8 +112,8 @@ class EmbeddingOperator(BaseOperator):
         keys = transformable[self.lookup_key]
         indices = keys.cpu().values
 
-        if self.id_lookup_table is not None:
-            indices = np.array([self.id_lookup_table.get(_id, -1) for _id in indices])
+        if self.embedding_index_mapping is not None:
+            indices = np.array([self.embedding_index_mapping.get(_id, -1) for _id in indices])
 
         embeddings = self.embeddings[indices]
 
