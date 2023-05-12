@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import os
 from typing import Optional, Union
 
 import numpy as np
@@ -25,9 +26,9 @@ from merlin.table import Device, TensorColumn
 
 
 class EmbeddingOperator(BaseOperator):
-    """Create an operator that will apply a torch embedding table to supplied indices.
-    This operator allows the user to supply an id lookup table if the indices supplied
-    via the id_lookup_table.
+    """Create an operator that will apply an embedding table to supplied indices.
+
+    An id lookup table for the embeddings can be supplied with the argument `id_lookup_table`.
 
     Parameters
     ----------
@@ -39,6 +40,12 @@ class EmbeddingOperator(BaseOperator):
         name of new column of embeddings, added to output, by default "embeddings"
     id_lookup_table : np.array, optional
         numpy array of values that represent embedding indices, by default None
+    mmap : bool, default False
+        When loading embeddings from a file, specify whether we should memory map the file
+        This is useful for accessing a large file without reading the entire file into memory.
+    unknown_value : Union[float, int, np.ndarray]
+        If an embedding index is not found.
+        Specifies the value should we return for the corresponding embedding.
     """
 
     def __init__(
@@ -47,24 +54,75 @@ class EmbeddingOperator(BaseOperator):
         lookup_key: str = "id",
         embedding_name: str = "embeddings",
         id_lookup_table: Optional[Union[np.ndarray, str]] = None,
-        mmap=False,
+        mmap: bool = False,
+        unknown_value: Union[float, int, np.ndarray] = 0,
     ):
-        if mmap:
-            embeddings = np.load(embeddings, mmap_mode="r")
-            id_lookup_table = np.load(id_lookup_table) if id_lookup_table else None
+        if isinstance(embeddings, (str, os.PathLike)):
+            mmap_mode = "r" if mmap else None
+            embeddings = np.load(embeddings, mmap_mode=mmap_mode)
+        elif isinstance(embeddings, np.ndarray):
+            pass
+        else:
+            raise ValueError(
+                f"Unsupported type '{type(embeddings)}' passed to argument `embeddings` "
+                f"of '{type(self).__name__}'. "
+                "Expected either a numpy.ndarray "
+                "or a (string or pathlike object corresponding to a numpy file) "
+                "containing embeddings. "
+            )
         self.embeddings = embeddings
+
+        embedding_index_mapping = None
+        if isinstance(id_lookup_table, (str, os.PathLike)):
+            _ids = np.load(id_lookup_table)
+            embedding_index_mapping = self._get_embedding_index_mapping(_ids)
+        elif isinstance(id_lookup_table, np.ndarray):
+            _ids = id_lookup_table
+            embedding_index_mapping = self._get_embedding_index_mapping(_ids)
+        elif id_lookup_table is None:
+            pass
+        else:
+            raise ValueError(
+                f"Unsupported type '{type(id_lookup_table)}' passed to argument `id_lookup_table` "
+                f"of '{type(self).__name__}'. "
+                "Expected either a numpy.ndarray "
+                "or a (string or pathlike object corresponding to a numpy file) "
+                "containing the IDs that correspond to the embeddings. "
+            )
+        self.embedding_index_mapping = embedding_index_mapping
+
         self.lookup_key = lookup_key
         self.embedding_name = embedding_name
-        self.id_lookup_table = id_lookup_table
+        self.unknown_value = unknown_value
+
+    def _get_embedding_index_mapping(self, ids):
+        expected_ids_shape = (self.embeddings.shape[0],)
+        assert ids.shape == expected_ids_shape, (
+            "IDs provided must match the number of embeddings. "
+            f"Expected IDs with shape {expected_ids_shape} "
+            f"Received IDs with shape: {ids.shape} "
+            f"Embeddings shape: {self.embeddings.shape} "
+        )
+        id_to_index_mapping = dict(zip(ids, range(len(ids))))
+        return id_to_index_mapping
 
     def transform(
         self, col_selector: ColumnSelector, transformable: Transformable
     ) -> Transformable:
         keys = transformable[self.lookup_key]
         indices = keys.cpu().values
-        if self.id_lookup_table is not None:
-            indices = np.in1d(self.id_lookup_table, indices)
+
+        if self.embedding_index_mapping is not None:
+            indices = np.array([self.embedding_index_mapping.get(_id, -1) for _id in indices])
+
         embeddings = self.embeddings[indices]
+
+        # set unknown embedding to zero
+        for idx in np.ndindex(indices.shape):
+            embedding_index = indices[idx]
+            if embedding_index == -1:
+                embeddings[idx] = self.unknown_value
+
         embeddings_col = TensorColumn(embeddings, offsets=keys.cpu().offsets)
         transformable[self.embedding_name] = (
             embeddings_col.gpu() if keys.device == Device.GPU else embeddings_col
@@ -98,10 +156,23 @@ class EmbeddingOperator(BaseOperator):
             col_schemas.append(col_schema)
         id_schema = input_schema.column_schemas[self.lookup_key]
         embedding_dim = self.embeddings.shape[1]
+
+        new_tags = [Tags.EMBEDDING]
+        propagated_tags = [
+            Tags.LIST,
+            Tags.SEQUENCE,
+            Tags.USER,
+            Tags.ITEM,
+            Tags.CONTEXT,
+            Tags.SESSION,
+        ]
+        for tag in propagated_tags:
+            if tag in id_schema.tags:
+                new_tags.append(tag)
         col_schemas.append(
             ColumnSchema(
                 name=self.embedding_name,
-                tags=[Tags.EMBEDDING],
+                tags=new_tags,
                 dtype=self.embeddings.dtype,
                 dims=id_schema.shape.as_tuple + (embedding_dim,),
             )
