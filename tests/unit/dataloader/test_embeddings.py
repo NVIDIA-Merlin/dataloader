@@ -26,6 +26,7 @@ from merlin.dataloader.ops.embeddings import EmbeddingOperator
 from merlin.dataloader.ops.padding import Padding
 from merlin.io import Dataset
 from merlin.schema import Tags
+from merlin.schema.tags import TagSet
 from merlin.table import TensorColumn, TensorTable
 
 
@@ -111,7 +112,7 @@ def test_embedding_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_fro
     dataset = dataset.repartition(10)
     schema = dataset.schema
     for col_name in cat_names:
-        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.EMBEDDING])
+        schema[col_name] = schema[col_name].with_tags([Tags.CATEGORICAL, Tags.ITEM, Tags.ID])
     dataset.schema = schema
     data_loader = Loader(
         dataset,
@@ -125,8 +126,10 @@ def test_embedding_np_mmap_dl_no_lookup(tmpdir, embedding_ids, np_embeddings_fro
     assert data_loader.output_schema.column_names == ["id", "embeddings"]
 
     embeddings_dim = 1024
-    embeddings_value_count = data_loader.output_schema["embeddings"].value_count
+    embedding_schema = data_loader.output_schema["embeddings"]
+    embeddings_value_count = embedding_schema.value_count
     assert embeddings_value_count.min == embeddings_value_count.max == embeddings_dim
+    assert embedding_schema.tags == TagSet([Tags.EMBEDDING, Tags.ITEM])
 
     full_len = 0
     for idx, batch in enumerate(data_loader):
