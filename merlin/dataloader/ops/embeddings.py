@@ -43,7 +43,7 @@ class EmbeddingOperator(BaseOperator):
     mmap : bool, default False
         When loading embeddings from a file, specify whether we should memory map the file
         This is useful for accessing a large file without reading the entire file into memory.
-    unknown_value : Union[int, np.ndarray]
+    unknown_value : Union[float, int, np.ndarray]
         If an embedding index is not found.
         Specifies the value should we return for the corresponding embedding.
     """
@@ -55,7 +55,7 @@ class EmbeddingOperator(BaseOperator):
         embedding_name: str = "embeddings",
         id_lookup_table: Optional[Union[np.ndarray, str]] = None,
         mmap: bool = False,
-        unknown_value: Union[int, np.ndarray] = 0,
+        unknown_value: Union[float, int, np.ndarray] = 0,
     ):
         if isinstance(embeddings, (str, os.PathLike)):
             mmap_mode = "r" if mmap else None
