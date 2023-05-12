@@ -70,9 +70,9 @@ class EmbeddingOperator(BaseOperator):
                 "or a (string or pathlike object corresponding to a numpy file) "
                 "containing embeddings. "
             )
-
         self.embeddings = embeddings
 
+        embedding_index_mapping = None
         if isinstance(id_lookup_table, (str, os.PathLike)):
             _ids = np.load(id_lookup_table)
             embedding_index_mapping = self._get_embedding_index_mapping(_ids)
@@ -89,10 +89,10 @@ class EmbeddingOperator(BaseOperator):
                 "or a (string or pathlike object corresponding to a numpy file) "
                 "containing the IDs that correspond to the embeddings. "
             )
+        self.embedding_index_mapping = embedding_index_mapping
 
         self.lookup_key = lookup_key
         self.embedding_name = embedding_name
-        self.embedding_index_mapping = embedding_index_mapping
         self.unknown_value = unknown_value
 
     def _get_embedding_index_mapping(self, ids):
