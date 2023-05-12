@@ -40,7 +40,7 @@ def test_embeddings_invalid_ids():
             embedding_name="id_embedding",
             id_lookup_table=ids,
         )
-    assert "ids provided must match the number of embeddings" in str(exc_info.value)
+    assert "IDs provided must match the number of embeddings" in str(exc_info.value)
     assert "Expected IDs with shape (3,)" in str(exc_info.value)
 
 
