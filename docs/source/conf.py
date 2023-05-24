@@ -4,16 +4,18 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import os
+import re
+import subprocess
+import sys
+
+from natsort import natsorted
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-import os
-import subprocess
-import sys
-
-from natsort import natsorted
 
 sys.path.insert(0, os.path.abspath("../../"))
 
@@ -97,6 +99,7 @@ html_static_path = ["_static"]
 # at a commit (not a Git repo).
 if os.path.exists(gitdir):
     tag_refs = subprocess.check_output(["git", "tag", "-l", "v*"]).decode("utf-8").split()
+    tag_refs = [tag for tag in tag_refs if re.match(r"^v[0-9]+.[0-9]+.[0-9]+$", tag)]
     tag_refs = natsorted(tag_refs)[-6:]
     smv_tag_whitelist = r"^(" + r"|".join(tag_refs) + r")$"
 else:
