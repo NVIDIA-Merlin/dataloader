@@ -3,7 +3,7 @@
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/merlin-dataloader)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/merlin-dataloader.svg)](https://pypi.python.org/pypi/merlin-dataloader/)
 ![GitHub License](https://img.shields.io/github/license/NVIDIA-Merlin/dataloader)
-[![Documentation](https://img.shields.io/badge/documentation-blue.svg)](https://nvidia-merlin.github.io/dataloader/)
+[![Documentation](https://img.shields.io/badge/documentation-blue.svg)](https://nvidia-merlin.github.io/dataloader/stable/README.html)
 
 The merlin-dataloader lets you quickly train recommender models for TensorFlow, PyTorch and JAX. It eliminates the biggest bottleneck in training recommender models, by providing GPU optimized dataloaders that read data directly into the GPU, and then do a 0-copy transfer to TensorFlow and PyTorch using [dlpack](https://github.com/dmlc/dlpack).
 
