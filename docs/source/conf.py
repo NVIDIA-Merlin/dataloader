@@ -117,7 +117,7 @@ intersphinx_mapping = {
 }
 
 html_sidebars = {"**": ["versions.html"]}
-html_baseurl = "https://nvidia-merlin.github.io/dataloader/main"
+html_baseurl = "https://nvidia-merlin.github.io/dataloader/stable/"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
