@@ -76,7 +76,7 @@ proc = nvt.Workflow.load(os.path.join(BASE_DIR, "workflow/"))
 EMBEDDING_TABLE_SHAPES, MH_EMBEDDING_TABLE_SHAPES = nvt.ops.get_embedding_sizes(proc)
 EMBEDDING_TABLE_SHAPES.update(MH_EMBEDDING_TABLE_SHAPES)
 
-ds = Dataset(TRAIN_PATHS, engine="parquet", part_mem_frac=0.06)
+ds = Dataset(TRAIN_PATHS, engine="parquet")
 train_dataset_tf = Loader(
     ds,  # you could also use a glob pattern
     batch_size=BATCH_SIZE,
@@ -112,7 +112,7 @@ x = tf.keras.layers.Dense(128, activation="relu")(x)
 x = tf.keras.layers.Dense(1, activation="sigmoid")(x)
 model = tf.keras.Model(inputs=inputs, outputs=x)
 loss = tf.losses.BinaryCrossentropy()
-opt = tf.keras.optimizers.SGD(0.01 * hvd.size())
+opt = tf.keras.optimizers.legacy.SGD(0.01 * hvd.size())
 opt = hvd.DistributedOptimizer(opt)
 checkpoint_dir = "./checkpoints"
 checkpoint = tf.train.Checkpoint(model=model, optimizer=opt)

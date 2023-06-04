@@ -535,6 +535,7 @@ def test_multigpu_partitioning(dataset, batch_size, global_rank):
     assert indices == [global_rank]
 
 
+@pytest.mark.multigpu
 @pytest.mark.skipif(
     os.environ.get("NR_USER") is not None,
     reason="not working correctly in ci environment",
