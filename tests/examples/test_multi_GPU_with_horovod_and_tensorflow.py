@@ -7,6 +7,7 @@ import pytest
 from testbook import testbook
 
 pytest.importorskip("tensorflow")
+pytest.importorskip("horovod")
 
 pytestmark = pytest.mark.tensorflow
 
