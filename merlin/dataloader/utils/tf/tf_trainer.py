@@ -109,7 +109,7 @@ model = tf.keras.Model(inputs=inputs, outputs=x)
 loss = tf.losses.BinaryCrossentropy()
 opt = tf.keras.optimizers.legacy.SGD(0.01 * hvd.size())
 opt = hvd.DistributedOptimizer(opt)
-checkpoint_dir = "./checkpoints"
+checkpoint_dir = os.path.join(BASE_DIR, "checkpoints")
 checkpoint = tf.train.Checkpoint(model=model, optimizer=opt)
 
 
