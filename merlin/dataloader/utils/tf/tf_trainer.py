@@ -37,7 +37,6 @@ args = parser.parse_args()
 BASE_DIR = args.dir_in or "./data/"
 BATCH_SIZE = int(args.batch_size or 16384)  # Batch Size
 CATEGORICAL_COLUMNS = args.cats or ["movieId", "userId"]  # Single-hot
-LABEL_COLUMNS = ["rating"]
 
 hvd.init()
 
