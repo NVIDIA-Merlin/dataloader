@@ -49,6 +49,8 @@ def test_getting_started_tensorflow(tb, tmpdir):
             hvd_wrap_path,
             "python",
             "tf_trainer.py",
+            f"--data_path={str(tmpdir)}",
+            "--batch_size=65536",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
