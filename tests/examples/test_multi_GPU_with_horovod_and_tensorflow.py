@@ -56,6 +56,6 @@ def test_getting_started_tensorflow(tb, tmpdir):
         process.wait()
         stdout, stderr = process.communicate()
         print(stdout, stderr)
-        assert "Loss" in str(stdout)
+        assert "Loss:" in str(stdout)
 
     assert any(f.startswith("checkpoints-") for f in os.listdir(os.getcwd()))
