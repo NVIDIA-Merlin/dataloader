@@ -1,13 +1,9 @@
 # External dependencies
 import argparse
-import glob
 import logging
 import os
 
 from merlin.core.compat import cupy, numpy
-from merlin.io import Dataset
-from nvtabular.ops import TagAsItemID, TagAsUserID, JoinExternal
-from merlin.core.dispatch import get_lib
 from merlin.schema import Tags
 
 # we can control how much memory to give tensorflow with this environment variable
@@ -76,8 +72,8 @@ proc = nvt.Workflow.load(os.path.join(BASE_DIR, "workflow/"))
 EMBEDDING_TABLE_SHAPES, MH_EMBEDDING_TABLE_SHAPES = nvt.ops.get_embedding_sizes(proc)
 EMBEDDING_TABLE_SHAPES.update(MH_EMBEDDING_TABLE_SHAPES)
 
-train_ds = nvt.Dataset(f'{BASE_DIR}/train', engine='parquet', dtypes={'rating': xp.int8})
-train_ds.schema = train_ds.schema.remove_col('genres')
+train_ds = nvt.Dataset(f"{BASE_DIR}/train", engine="parquet", dtypes={"rating": xp.int8})
+train_ds.schema = train_ds.schema.remove_col("genres")
 
 target_column = train_ds.schema.select_by_tag(Tags.TARGET).column_names[0]
 

@@ -536,10 +536,6 @@ def test_multigpu_partitioning(dataset, batch_size, global_rank):
 
 
 @pytest.mark.multigpu
-@pytest.mark.skipif(
-    os.environ.get("NR_USER") is not None,
-    reason="not working correctly in ci environment",
-)
 @pytest.mark.skipif(importlib.util.find_spec("horovod") is None, reason="needs horovod")
 @pytest.mark.skipif(
     HAS_GPU and cupy and cupy.cuda.runtime.getDeviceCount() <= 1,
@@ -722,7 +718,7 @@ def test_wrong_batch_size_raises_warning():
             _ = tf_loader(dataset, batch_size=batch_size)
 
     for power in range(4, 10):
-        batch_size = 2**power
+        batch_size = 2 ** power
         # warning not raised for power of two
         with warnings.catch_warnings():
             warnings.simplefilter("error")
