@@ -15,6 +15,7 @@
 #
 import contextlib
 from functools import partial
+from typing import Dict, Union
 
 from merlin.core.compat.torch import torch as th
 from merlin.dataloader.loader_base import LoaderBase
@@ -100,6 +101,7 @@ class Loader(LoaderBase, th.utils.data.IterableDataset):
             inputs_table = TensorTable(inputs, _unsafe=True)
             for col_name, col in inputs_table.items():
                 torch_inputs[col_name] = self.convert_col(col, column_type)
+        torch_inputs = TensorTable(torch_inputs, _unsafe=True).to_dict()
 
         torch_targets = None
         if targets is not None:
@@ -113,7 +115,29 @@ class Loader(LoaderBase, th.utils.data.IterableDataset):
                 targets_col = TensorColumn(targets, _unsafe=True)
                 torch_targets = self.convert_col(targets_col, column_type).values
 
-        return (TensorTable(torch_inputs, _unsafe=True).to_dict(), torch_targets)
+        # Convert float values to match the torch default floating point dtype
+        self._to_default_dtype(torch_inputs)
+        if torch_targets:
+            self._to_default_dtype(torch_targets)
+
+        return (torch_inputs, torch_targets)
+
+    def _to_default_dtype(self, inputs: Union[th.Tensor, Dict[str, th.Tensor]]) -> None:
+        """Convert tensors to match default floating point dtype
+
+        Parameters
+        ----------
+        inputs : Union[th.Tensor, Dict[str, th.Tensor]]
+            Input tensor or dictionary of tensors
+        """
+        default_float_dtype = th.get_default_dtype()
+        if isinstance(inputs, dict):
+            for name, tensor in inputs.items():
+                if th.is_floating_point(tensor) and tensor.dtype != default_float_dtype:
+                    inputs[name] = tensor.to(default_float_dtype)
+        elif isinstance(inputs, th.Tensor):
+            if th.is_floating_point(inputs) and inputs.dtype != default_float_dtype:
+                inputs.to(default_float_dtype)
 
     def map(self, fn):
         """
