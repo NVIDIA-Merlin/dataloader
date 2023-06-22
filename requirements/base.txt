@@ -1,1 +1,1 @@
-merlin-core>=23.04.00
+merlin-core>=23.06,<23.07
