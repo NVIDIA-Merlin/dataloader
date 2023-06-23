@@ -39,30 +39,23 @@ def read_requirements(filename):
         return [line for line in lineiter if line and not line.startswith("#")]
 
 
-def merlin_version(version: str, merlin_package_name: str) -> str:
-    """Get a dependency specifier that matches the version provided.
+def merlin_dependency(package_name: str) -> str:
+    """Get Merlin package dependency matching the current version.
 
     Examples
     --------
 
-    >>> merlin_version("23.07.00", "merlin-core")
-    "merlin-core>=23.07,<23.08"
+    >>> merlin_dependency("merlin-core") # with version "23.07.00"
+    "merlin-core~=23.7.0"
 
-    >>> merlin_version("23.12.dev0+1.ge73d8ba", "merlin-core")
-    "merlin-core>=23.12,<24.01"
+    >>> merlin_dependency("merlin-core") # with version "23.12.dev0+1.ge73d8ba"
+    "merlin-core"
     """
-    major, minor = map(int, re.match(r"(\d+).(\d+).*", version).groups())
-    next_major = major + 1 if minor == 12 else major
-    next_minor = (minor + 1) % 12
-    return f"{merlin_package_name}>={major}.{minor:02d},<{next_major}.{next_minor:02d}"
-
-
-def merlin_dependency(merlin_package_name: str) -> str:
-    """Get Merlin package dependency"""
     version = versioneer.get_version()
+    major, minor = map(int, re.match(r"(\d+).(\d+).*", version).groups())
     if "dev" in version:
-        return merlin_package_name
-    return merlin_version(version, merlin_package_name)
+        return package_name
+    return f"{package_name}~={major}.{minor}.0"
 
 
 requirements = {
