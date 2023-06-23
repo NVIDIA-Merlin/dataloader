@@ -16,6 +16,7 @@
 import codecs
 import itertools
 import os
+import re
 import sys
 
 from setuptools import find_namespace_packages, setup
@@ -38,8 +39,34 @@ def read_requirements(filename):
         return [line for line in lineiter if line and not line.startswith("#")]
 
 
+def merlin_version(version: str, merlin_package_name: str) -> str:
+    """Get a dependency specifier that matches the version provided.
+
+    Examples
+    --------
+
+    >>> merlin_version("23.07.00", "merlin-core")
+    "merlin-core>=23.07,<23.08"
+
+    >>> merlin_version("23.12.dev0+1.ge73d8ba", "merlin-core")
+    "merlin-core>=23.12,<24.01"
+    """
+    major, minor = map(int, re.match(r"(\d+).(\d+).*", version).groups())
+    next_major = major + 1 if minor == 12 else major
+    next_minor = (minor + 1) % 12
+    return f"{merlin_package_name}>={major}.{minor:02d},<{next_major}.{next_minor:02d}"
+
+
+def merlin_dependency(merlin_package_name: str) -> str:
+    """Get Merlin package dependency"""
+    version = versioneer.get_version()
+    if "dev" in version:
+        return merlin_package_name
+    return merlin_version(version, merlin_package_name)
+
+
 requirements = {
-    "base": read_requirements("requirements/base.txt"),
+    "base": read_requirements("requirements/base.txt") + [merlin_dependency("merlin-core")],
     "tensorflow": read_requirements("requirements/tensorflow.txt"),
     "pytorch": read_requirements("requirements/torch.txt"),
     "torch": read_requirements("requirements/torch.txt"),
