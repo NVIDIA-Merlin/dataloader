@@ -16,12 +16,23 @@ The benefits of the Merlin Dataloader include:
 
 ## Installation
 
-Merlin-dataloader requires Python version 3.7+. Additionally, GPU support requires CUDA 11.0+.
+Merlin-dataloader requires Python version 3.8+. Additionally, GPU support requires CUDA 11.0+.
 
-To install using Conda:
+To install using Conda into an existing environment
 
 ```
-conda install -c nvidia -c rapidsai -c numba -c conda-forge merlin-dataloader python=3.7 cudatoolkit=11.2
+conda install -c nvidia merlin-dataloader
+```
+
+To create a new conda environment with cuDF and TensorFlow installed with mamba:
+
+```
+mamba create -n merlin-dataloader -c nvidia -c rapidsai -c conda-forge \
+    merlin-dataloader=23.06 \
+    tensorflow=2.12 \
+    python=3.10 \
+    cudf=23.04 \
+    cudatoolkit=11.8
 ```
 
 To install from PyPi:
