@@ -1,11 +1,10 @@
 # External dependencies
 import argparse
-import glob
 import logging
 import os
 
 from merlin.core.compat import cupy, numpy
-from merlin.io import Dataset
+from merlin.schema import Tags
 
 # we can control how much memory to give tensorflow with this environment variable
 # IMPORTANT: make sure you do this before you initialize TF's runtime, otherwise
@@ -38,11 +37,7 @@ args = parser.parse_args()
 BASE_DIR = args.dir_in or "./data/"
 BATCH_SIZE = int(args.batch_size or 16384)  # Batch Size
 CATEGORICAL_COLUMNS = args.cats or ["movieId", "userId"]  # Single-hot
-CATEGORICAL_MH_COLUMNS = args.cats_mh or ["genres"]  # Multi-hot
-NUMERIC_COLUMNS = args.conts or []
-TRAIN_PATHS = sorted(
-    glob.glob(os.path.join(BASE_DIR, "train/*.parquet"))
-)  # Output from ETL-with-NVTabular
+
 hvd.init()
 
 # Seed with system randomness (or a static seed)
@@ -76,26 +71,25 @@ proc = nvt.Workflow.load(os.path.join(BASE_DIR, "workflow/"))
 EMBEDDING_TABLE_SHAPES, MH_EMBEDDING_TABLE_SHAPES = nvt.ops.get_embedding_sizes(proc)
 EMBEDDING_TABLE_SHAPES.update(MH_EMBEDDING_TABLE_SHAPES)
 
-ds = Dataset(TRAIN_PATHS, engine="parquet", part_mem_frac=0.06)
-train_dataset_tf = Loader(
-    ds,  # you could also use a glob pattern
+train_ds = nvt.Dataset(f"{BASE_DIR}/train", engine="parquet", dtypes={"rating": xp.int8})
+train_ds.schema = train_ds.schema.remove_col("genres")
+
+target_column = train_ds.schema.select_by_tag(Tags.TARGET).column_names[0]
+
+train_loader = Loader(
+    train_ds,
     batch_size=BATCH_SIZE,
     shuffle=True,
     seed_fn=seed_fn,
     global_size=hvd.size(),
     global_rank=hvd.rank(),
 )
+
 inputs = {}  # tf.keras.Input placeholders for each feature to be used
 emb_layers = []  # output of all embedding layers, which will be concatenated
 for col in CATEGORICAL_COLUMNS:
     inputs[col] = tf.keras.Input(name=col, dtype=tf.int32, shape=(1,))
-# Note that we need two input tensors for multi-hot categorical features
-for col in CATEGORICAL_MH_COLUMNS:
-    inputs[col] = (
-        tf.keras.Input(name=f"{col}__values", dtype=tf.int64, shape=(1,)),
-        tf.keras.Input(name=f"{col}__lengths", dtype=tf.int64, shape=(1,)),
-    )
-for col in CATEGORICAL_COLUMNS + CATEGORICAL_MH_COLUMNS:
+for col in CATEGORICAL_COLUMNS:
     emb_layers.append(
         tf.feature_column.embedding_column(
             tf.feature_column.categorical_column_with_identity(
@@ -112,9 +106,9 @@ x = tf.keras.layers.Dense(128, activation="relu")(x)
 x = tf.keras.layers.Dense(1, activation="sigmoid")(x)
 model = tf.keras.Model(inputs=inputs, outputs=x)
 loss = tf.losses.BinaryCrossentropy()
-opt = tf.keras.optimizers.SGD(0.01 * hvd.size())
+opt = tf.keras.optimizers.legacy.SGD(0.01 * hvd.size())
 opt = hvd.DistributedOptimizer(opt)
-checkpoint_dir = "./checkpoints"
+checkpoint_dir = os.path.join(BASE_DIR, "checkpoints")
 checkpoint = tf.train.Checkpoint(model=model, optimizer=opt)
 
 
@@ -140,7 +134,7 @@ def training_step(examples, labels, first_batch):
 
 
 # Horovod: adjust number of steps based on number of GPUs.
-for batch, (examples, labels) in enumerate(train_dataset_tf):
+for batch, (examples, labels) in enumerate(train_loader):
     loss_value = training_step(examples, labels, batch == 0)
     if batch % 100 == 0 and hvd.local_rank() == 0:
         print(f"Step #{batch}\tLoss: {loss_value:.6f}")

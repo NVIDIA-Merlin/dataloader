@@ -535,10 +535,7 @@ def test_multigpu_partitioning(dataset, batch_size, global_rank):
     assert indices == [global_rank]
 
 
-@pytest.mark.skipif(
-    os.environ.get("NR_USER") is not None,
-    reason="not working correctly in ci environment",
-)
+@pytest.mark.multigpu
 @pytest.mark.skipif(importlib.util.find_spec("horovod") is None, reason="needs horovod")
 @pytest.mark.skipif(
     HAS_GPU and cupy and cupy.cuda.runtime.getDeviceCount() <= 1,
