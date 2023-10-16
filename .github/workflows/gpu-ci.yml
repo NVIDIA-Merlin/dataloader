@@ -10,7 +10,7 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
-  gpu-ci:
+  build:
     runs-on: linux-amd64-gpu-p100-latest-1
     container:
       image: nvcr.io/nvstaging/merlin/merlin-ci-runner:latest
