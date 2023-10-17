@@ -91,7 +91,7 @@
 <dl class="py class">
 <dt id="merlin.dataloader.loader_base.ChunkQueue">
 <em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">merlin.dataloader.loader_base.</span></code><code class="sig-name descname"><span class="pre">ChunkQueue</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataloader</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qsize</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_parts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shuffle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">put_wait</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epochs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/merlin/dataloader/loader_base.html#ChunkQueue"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#merlin.dataloader.loader_base.ChunkQueue" title="Permalink to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>This class takes partitions (parts) from an merlin.io.Dataset
 and concatenates them into a cudf dataframe “chunk.” This chunk
 is subsequently transformed into its tensor representation using
@@ -99,11 +99,11 @@ the iterator’s transform.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>qsize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Maximum number of elements to hold in the buffer at one time.</p></li>
-<li><p><strong>num_parts</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><em>int</em></a>) – Number of partitions from the iterator, a merlin.io.Dataset to
+<li><p><strong>qsize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Maximum number of elements to hold in the buffer at one time.</p></li>
+<li><p><strong>num_parts</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Number of partitions from the iterator, a merlin.io.Dataset to
 concatenate into a “chunk.”</p></li>
-<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Enable or disable chunk-level shuffling.</p></li>
-<li><p><strong>put_wait</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><em>float</em></a>) – Specifies the timeout to wait for a full queue to open up before checking
+<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a>) – Enable or disable chunk-level shuffling.</p></li>
+<li><p><strong>put_wait</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Specifies the timeout to wait for a full queue to open up before checking
 for errors and trying again.</p></li>
 </ul>
 </dd>
