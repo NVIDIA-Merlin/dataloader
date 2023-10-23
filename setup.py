@@ -16,6 +16,7 @@
 import codecs
 import itertools
 import os
+import re
 import sys
 
 from setuptools import find_namespace_packages, setup
@@ -38,8 +39,27 @@ def read_requirements(filename):
         return [line for line in lineiter if line and not line.startswith("#")]
 
 
+def merlin_dependency(package_name: str) -> str:
+    """Get Merlin package dependency matching the current version.
+
+    Examples
+    --------
+
+    >>> merlin_dependency("merlin-core") # with version "23.07.00"
+    "merlin-core~=23.7.0"
+
+    >>> merlin_dependency("merlin-core") # with version "23.12.dev0+1.ge73d8ba"
+    "merlin-core"
+    """
+    version = versioneer.get_version()
+    major, minor = map(int, re.match(r"(\d+).(\d+).*", version).groups())
+    if "dev" in version:
+        return package_name
+    return f"{package_name}~={major}.{minor}.0"
+
+
 requirements = {
-    "base": read_requirements("requirements/base.txt"),
+    "base": read_requirements("requirements/base.txt") + [merlin_dependency("merlin-core")],
     "tensorflow": read_requirements("requirements/tensorflow.txt"),
     "pytorch": read_requirements("requirements/torch.txt"),
     "torch": read_requirements("requirements/torch.txt"),
