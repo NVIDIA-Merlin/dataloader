@@ -1,3 +1,4 @@
+import functools
 from typing import Union
 
 import numpy as np
@@ -69,17 +70,27 @@ class Padding(BaseOperator):
         return Schema(col_schemas)
 
 
+def get_arange(array_lib, start, end):
+    return array_lib.arange(int(start), int(end))
+
+
 def pad_put_zeros(column, padding_size, padding_val):
     # account for zero prepend
     array_lib = cupy if column.device == Device.GPU else np
     num_rows = len(column.offsets) - 1
     zeros = array_lib.zeros((num_rows, padding_size)).flatten() + padding_val
     row_lengths = column.offsets[1:] - column.offsets[:-1]
+    if max(row_lengths) > padding_size:
+        raise ValueError(
+            f"There are records in data that have more values ({max(row_lengths)})"
+            f" than the padding size selected: {padding_size}"
+        )
     row_ranges = []
     starts = array_lib.arange(num_rows) * padding_size
     ends = starts + row_lengths
-    for idx, offset in enumerate(column.offsets[:-1]):
-        row_ranges.extend(array_lib.arange(int(starts[idx]), int(ends[idx])))
+    row_ranges = array_lib.concatenate(
+        list(map(functools.partial(get_arange, array_lib), starts, ends))
+    )
     array_lib.put(zeros, row_ranges, column.values)
     zeros = array_lib.reshape(zeros, (num_rows, padding_size))
     zeros = zeros.astype(column.dtype.element_type.value)
