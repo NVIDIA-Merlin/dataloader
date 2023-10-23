@@ -33,6 +33,8 @@ pytestmark = pytest.mark.torch
 # If pytorch isn't installed skip these tests. Note that the
 # torch_dataloader import needs to happen after this line
 torch = pytest.importorskip("torch")  # noqa
+
+from torch import nn  # noqa
 from torch.utils.data import DataLoader, IterableDataset  # noqa
 
 import merlin.dataloader.torch as torch_dataloader  # noqa
@@ -40,6 +42,25 @@ import merlin.dataloader.torch as torch_dataloader  # noqa
 from merlin.dataloader.torch import (  # noqa isort:skip
     Loader as torch_loader,
 )
+
+
+def test_default_dtype():
+    df = pd.DataFrame({"feature": np.array([0.1, 0.2], dtype="float64")})
+    dataset = Dataset(df)
+    dataloader = torch_dataloader.Loader(dataset, batch_size=1)
+    x, _ = dataloader.peek()
+    model = nn.Sequential(nn.LazyLinear(1))
+    model(x["feature"])
+
+
+def test_default_dtype_double():
+    df = pd.DataFrame({"feature": np.array([0.1, 0.2], dtype="float64")})
+    dataset = Dataset(df)
+    torch.set_default_dtype(torch.float64)
+    dataloader = torch_dataloader.Loader(dataset, batch_size=1)
+    x, _ = dataloader.peek()
+    model = nn.Sequential(nn.LazyLinear(1)).double()
+    model(x["feature"])
 
 
 def test_iterable_dataset():
