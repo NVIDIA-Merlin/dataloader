@@ -91,7 +91,7 @@
 
 <span class="kn">from</span> <span class="nn">merlin.core.compat.tensorflow</span> <span class="kn">import</span> <span class="n">tensorflow</span> <span class="k">as</span> <span class="n">tf</span>
 <span class="kn">from</span> <span class="nn">merlin.dataloader.loader_base</span> <span class="kn">import</span> <span class="n">LoaderBase</span>
-<span class="kn">from</span> <span class="nn">merlin.table</span> <span class="kn">import</span> <span class="n">TensorColumn</span><span class="p">,</span> <span class="n">TensorflowColumn</span><span class="p">,</span> <span class="n">NumpyColumn</span><span class="p">,</span> <span class="n">TensorTable</span><span class="p">,</span> <span class="n">Device</span>
+<span class="kn">from</span> <span class="nn">merlin.table</span> <span class="kn">import</span> <span class="n">Device</span><span class="p">,</span> <span class="n">NumpyColumn</span><span class="p">,</span> <span class="n">TensorColumn</span><span class="p">,</span> <span class="n">TensorflowColumn</span><span class="p">,</span> <span class="n">TensorTable</span>
 <span class="kn">from</span> <span class="nn">merlin.table.conversions</span> <span class="kn">import</span> <span class="n">_dispatch_dlpack_fns</span><span class="p">,</span> <span class="n">convert_col</span>
 
 
@@ -208,7 +208,7 @@
         <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">inputs_table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_table</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">inputs_table</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="c1"># fix for raggedness isaligned check</span>
+                <span class="c1"># fix for ragged column isaligned check failure</span>
                 <span class="k">if</span> <span class="n">col</span><span class="o">.</span><span class="n">is_ragged</span><span class="p">:</span>
                     <span class="n">original_device</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">device</span>
                     <span class="n">col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">convert_col</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">NumpyColumn</span><span class="p">)</span>
