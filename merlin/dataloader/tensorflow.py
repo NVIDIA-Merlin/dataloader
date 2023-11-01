@@ -135,7 +135,7 @@ class Loader(LoaderBase, tf.keras.utils.Sequence):
         if inputs is not None:
             inputs_table = self.create_table(inputs)
             for col_name, col in inputs_table.items():
-                # fix for raggedness isaligned check failure
+                # fix for ragged column isaligned check failure
                 if col.is_ragged:
                     original_device = col.device
                     col = self.convert_col(col, NumpyColumn)
