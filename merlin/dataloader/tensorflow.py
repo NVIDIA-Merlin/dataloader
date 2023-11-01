@@ -18,7 +18,7 @@ from functools import partial
 
 from merlin.core.compat.tensorflow import tensorflow as tf
 from merlin.dataloader.loader_base import LoaderBase
-from merlin.table import TensorColumn, TensorflowColumn, NumpyColumn, TensorTable, Device
+from merlin.table import Device, NumpyColumn, TensorColumn, TensorflowColumn, TensorTable
 from merlin.table.conversions import _dispatch_dlpack_fns, convert_col
 
 
@@ -135,7 +135,7 @@ class Loader(LoaderBase, tf.keras.utils.Sequence):
         if inputs is not None:
             inputs_table = self.create_table(inputs)
             for col_name, col in inputs_table.items():
-                # fix for raggedness isaligned check
+                # fix for raggedness isaligned check failure
                 if col.is_ragged:
                     original_device = col.device
                     col = self.convert_col(col, NumpyColumn)
