@@ -11,19 +11,6 @@ testbook
 moto>=2
 cpplint>=1.5
 
-# docs
-Sphinx<3.6
-jinja2<3.1
-markupsafe==2.0.1
-sphinx_markdown_tables==0.0.15
-sphinx-multiversion@git+https://github.com/mikemckiernan/sphinx-multiversion.git
-sphinxcontrib-copydirs@git+https://github.com/mikemckiernan/sphinxcontrib-copydirs.git
-sphinx-external-toc<0.4
-sphinx_rtd_theme
-natsort<8.2
-myst-nb<0.14
-linkify-it-py<1.1
-
 # needed to avoid bug in sphinx-markdown-tables
 # https://github.com/ryanfox/sphinx-markdown-tables/issues/36
 markdown==3.3.7

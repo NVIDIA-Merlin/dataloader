@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 
+from datetime import datetime
 from natsort import natsorted
 
 # -- Path setup --------------------------------------------------------------
@@ -25,8 +26,13 @@ gitdir = os.path.join(repodir, r".git")
 
 # -- Project information -----------------------------------------------------
 
+year_range = "2022"
+year_now = str(datetime.now().year)
+if year_range != year_now:
+    year_range = year_range + chr(8211) + year_now
+
 project = "Merlin Dataloader"
-copyright = "2022, NVIDIA"  # pylint: disable=W0622
+copyright = year_range + ", NVIDIA"  # pylint: disable=W0622
 author = "NVIDIA"
 
 
@@ -81,6 +87,7 @@ suppress_warnings = ["etoc.toctree", "myst.hader", "misc.highlighting_failure"]
 html_theme = "sphinx_rtd_theme"
 html_copy_source = False
 html_show_sourcelink = False
+html_show_sphinx = False
 html_theme_options = {
     "navigation_depth": 3,
     "analytics_id": "G-NVJ1Y1YJHK",
@@ -90,6 +97,7 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+html_css_files = ["css/custom.css"]
 
 # Configuration file for the Sphinx documentation builder.
 
